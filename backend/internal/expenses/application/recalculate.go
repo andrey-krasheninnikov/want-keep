@@ -81,6 +81,8 @@ func recalculate(ctx context.Context, repository Repository, principal household
 	}
 
 	var changed expenses.Refund
+	updates := make([]expenses.Refund, 0, len(ids))
+	expectedRevisions := make(map[string]uint64, len(ids))
 	for _, id := range ids {
 		link, revision := links[id], revisions[id]
 		refunded := total
@@ -122,10 +124,11 @@ func recalculate(ctx context.Context, repository Repository, principal household
 		if !force && link.SameCalculation(next) {
 			continue
 		}
-		if err = repository.SaveRefund(ctx, principal, next, expected); err != nil {
-			return expenses.Refund{}, err
-		}
-		if err = repository.EmitEvent(ctx, "refund", next.OperationID, next.Revision, "refund.changed"); err != nil {
+		updates = append(updates, next)
+		expectedRevisions[next.OperationID] = expected
+	}
+	if len(updates) > 0 {
+		if err = repository.SaveRefunds(ctx, principal, updates, expectedRevisions); err != nil {
 			return expenses.Refund{}, err
 		}
 	}

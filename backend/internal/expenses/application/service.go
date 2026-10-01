@@ -26,8 +26,7 @@ type Repository interface {
 	RefundsForOperation(context.Context, household.Principal, string) ([]expenses.Refund, error)
 	CurrentRefundRevisions(context.Context, household.Principal, []string) (map[string]ledger.Revision, error)
 	PurchaseValuation(context.Context, household.Principal, string, uint64) (*expenses.ValuationBasis, error)
-	SaveRefund(context.Context, household.Principal, expenses.Refund, uint64) error
-	EmitEvent(context.Context, string, string, uint64, string) error
+	SaveRefunds(context.Context, household.Principal, []expenses.Refund, map[string]uint64) error
 }
 
 type JournalWriter interface {

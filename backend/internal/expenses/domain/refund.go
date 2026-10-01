@@ -341,7 +341,7 @@ func AllocateValuations(basis ValuationBasis, purchase money.Money, refunds map[
 		return nil, ErrInvalidRefund
 	}
 	total, _ := money.NewMoney("0", purchase.Asset())
-	weights := make([]money.Weight, 0, len(refunds)+1)
+	weights := make([]money.Weight, 0, len(refunds))
 	for id, amount := range refunds {
 		if id == "" || amount.Validate() != nil || amount.Asset() != purchase.Asset() || amount.Sign() <= 0 {
 			return nil, ErrInvalidRefund
@@ -357,13 +357,21 @@ func AllocateValuations(basis ValuationBasis, purchase money.Money, refunds map[
 	if err != nil || remaining.Sign() < 0 {
 		return nil, ErrRefundExceedsPurchase
 	}
-	if remaining.Sign() > 0 {
-		weights = append(weights, money.Weight{ID: "remaining", Value: remaining.Amount()})
-	}
 	if len(refunds) == 0 {
 		return map[string]ValuationShare{}, nil
 	}
-	parts, err := basis.Value.Allocate(weights, allocationScale(basis.Value, weights))
+	refundedValue := basis.Value
+	refundScale := allocationScale(refundedValue, weights)
+	if remaining.Sign() > 0 {
+		principalWeights := []money.Weight{{ID: "refunded", Value: total.Amount()}, {ID: "remaining", Value: remaining.Amount()}}
+		principalParts, allocateErr := basis.Value.Allocate(principalWeights, allocationScale(basis.Value, principalWeights))
+		if allocateErr != nil {
+			return nil, ErrInvalidRefund
+		}
+		refundedValue = principalParts[0].Money
+		refundScale = decimalScale(refundedValue.Amount())
+	}
+	parts, err := refundedValue.Allocate(weights, refundScale)
 	if err != nil {
 		return nil, ErrInvalidRefund
 	}

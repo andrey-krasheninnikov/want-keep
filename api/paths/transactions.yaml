@@ -226,7 +226,7 @@
       content:
         application/json:
           schema:
-            "$ref": "../schemas/transactions.yaml#/RefundCreate"
+            "$ref": "../schemas/refunds.yaml#/RefundCreate"
 "/transactions/{transactionId}":
   get:
     operationId: transactions_read

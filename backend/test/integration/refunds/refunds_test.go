@@ -159,6 +159,10 @@ func TestRefundCorrectionAndExclusionRecalculateOnce(t *testing.T) {
 	if len(original.Refunds) != 1 || original.Refunds[0].RefundRevision != 1 || original.Refunds[0].Amount.Amount != "400" || original.Refunds[0].Remaining.Amount != "600" {
 		t.Fatalf("historical attribution=%+v", original.Refunds)
 	}
+	history := decodeResponse[generated.TransactionHistoryPage](t, client.call(http.MethodGet, "/transactions/"+created.Result.Id+"/history", "", nil, http.StatusOK))
+	if len(history.Items) < 2 || len(history.Items[0].Transaction.Refunds) != 1 || history.Items[0].Transaction.Refunds[0].Amount.Amount != "500" || history.Items[0].Before == nil || len(history.Items[0].Before.Refunds) != 1 || history.Items[0].Before.Refunds[0].Amount.Amount != "400" {
+		t.Fatalf("refund history=%+v", history.Items)
+	}
 	excluded := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+created.Result.Id+"/exclude", uuid.NewString(), map[string]any{"expectedRevision": 2, "reason": "Exclude duplicate source record"}, http.StatusAccepted))
 	if excluded.Status != "succeeded" || excluded.Result.Revision != 3 || f.available(accountID, f.p) != "4000" {
 		t.Fatalf("exclusion=%+v balance=%s", excluded, f.available(accountID, f.p))

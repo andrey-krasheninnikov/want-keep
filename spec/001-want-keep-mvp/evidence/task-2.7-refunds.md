@@ -6,7 +6,7 @@
 
 Миграция 019 хранит текущую связь, immutable revisions, точные item portions, member/category effects, frozen historical valuation и отдельный review request каждой содержательной revision связи. Составные household FK связывают обе операции, purchase/refund revisions, receipt items, memberships и categories. Проверка общей и позиционной невозвращённой суммы выполняется в household-транзакции под существующей блокировкой. Clarification сохраняет подтверждённое поступление без вымышленной позиции или долей.
 
-Общий ledger Writer пересчитывает связь после correction, exclusion, reversal, cancellation и undo. Связанные refund revisions загружаются одним пакетом; совокупные ограничения и historical valuation рассчитываются одним проходом. Неизменившийся расчёт не создаёт revision или событие. Единое largest-remainder распределение между всеми активными возвратами и остатком сохраняет frozen reporting total без накопления округления. Исторические detail/history читают связь на момент ledger revision; текущий список загружает связи пакетно. Отсутствие основания остаётся `historical_basis_unavailable`.
+Общий ledger Writer пересчитывает связь после correction, exclusion, reversal, cancellation и undo. Связанные refund revisions загружаются одним пакетом; совокупные ограничения и historical valuation рассчитываются одним проходом. Неизменившийся расчёт не создаёт revision или событие. Двухэтапное largest-remainder распределение сохраняет frozen reporting total в пределах 1000 весов. Изменённые связи сохраняются пакетными SQL-операциями; текущий список и история загружают связи пакетно с выбором состояния на момент ledger revision. Отсутствие основания остаётся `historical_basis_unavailable`.
 
 ## Матрица проверок
 

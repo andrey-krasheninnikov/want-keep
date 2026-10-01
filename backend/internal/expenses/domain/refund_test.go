@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
@@ -82,6 +83,21 @@ func TestHistoricalValueAllocationPreservesFrozenTotalAcrossPartialRefunds(t *te
 	}
 	if !equal(total, cash("1", money.RUB)) {
 		t.Fatalf("allocated value=%s", total.Amount())
+	}
+}
+
+func TestHistoricalValueAllocationSupportsRefundLimitAndRemainder(t *testing.T) {
+	basis := expenses.ValuationBasis{Purchase: cash("1", money.USD), Value: cash("1", money.RUB), Ref: "rate-observation"}
+	amounts := make(map[string]money.Money, 1000)
+	for index := range 1000 {
+		amounts["refund-"+strconv.Itoa(index)] = cash("0.0001", money.USD)
+	}
+	shares, err := expenses.AllocateValuations(basis, basis.Purchase, amounts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(shares) != len(amounts) {
+		t.Fatalf("share count=%d", len(shares))
 	}
 }
 

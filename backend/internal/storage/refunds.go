@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
-	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
 	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/domain"
@@ -86,98 +85,6 @@ func (s *Store) PurchaseValuation(ctx context.Context, p household.Principal, op
 		return nil, err
 	}
 	return &expenses.ValuationBasis{Purchase: native, Value: reporting, Ref: ref}, nil
-}
-
-func (s *Store) SaveRefund(ctx context.Context, p household.Principal, refund expenses.Refund, expected uint64) error {
-	scope, err := s.familyScope(ctx)
-	if err != nil {
-		return err
-	}
-	if err = refund.Validate(); err != nil {
-		return err
-	}
-	if refund.ActorID != p.UserID() || expected >= command.MaxRevision || refund.Revision != expected+1 {
-		return expenses.ErrInvalidRefund
-	}
-	family := p.HouseholdID()
-	if expected == 0 {
-		tag, execErr := scope.tx.Exec(ctx, `INSERT INTO want_keep.refunds(household_id,refund_operation_id,purchase_operation_id,revision) VALUES($1,$2,$3,1) ON CONFLICT DO NOTHING`, family, refund.OperationID, refund.PurchaseID)
-		if execErr != nil {
-			return execErr
-		}
-		if tag.RowsAffected() != 1 {
-			return command.ErrVersionConflict
-		}
-	} else {
-		tag, execErr := scope.tx.Exec(ctx, `UPDATE want_keep.refunds SET revision=$4 WHERE household_id=$1 AND refund_operation_id=$2 AND purchase_operation_id=$3 AND revision=$5`, family, refund.OperationID, refund.PurchaseID, refund.Revision, expected)
-		if execErr != nil {
-			return execErr
-		}
-		if tag.RowsAffected() != 1 {
-			return command.ErrVersionConflict
-		}
-	}
-	at, ns := splitInstant(refund.RecordedAt)
-	var basisNativeAmount, basisNativeAsset, basisValueAmount, basisValueAsset, basisRef, valueAmount, valueAsset any
-	if refund.Valuation != nil {
-		basis := refund.Valuation.Basis
-		if basis == nil || basis.Ref != refund.Valuation.Ref {
-			return expenses.ErrInvalidRefund
-		}
-		basisNativeAmount, basisNativeAsset = basis.Purchase.Amount(), basis.Purchase.Asset()
-		basisValueAmount, basisValueAsset, basisRef = basis.Value.Amount(), basis.Value.Asset(), basis.Ref
-		valueAmount, valueAsset = refund.Valuation.Value.Amount(), refund.Valuation.Value.Asset()
-	}
-	_, err = scope.tx.Exec(ctx, `INSERT INTO want_keep.refund_revisions(household_id,refund_operation_id,revision,purchase_operation_id,purchase_revision,refund_revision,actor_id,reason,state,expense_month,cash_date,amount,remaining,asset,valuation_basis_native_amount,valuation_basis_native_asset,valuation_basis_reporting_amount,valuation_basis_reporting_asset,valuation_basis_ref,valuation_amount,valuation_asset,recorded_at,recorded_ns) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::numeric,$13::numeric,$14,$15::numeric,$16,$17::numeric,$18,$19,$20::numeric,$21,$22,$23)`, family, refund.OperationID, refund.Revision, refund.PurchaseID, refund.PurchaseRevision, refund.RefundRevision, refund.ActorID, refund.Reason, refund.State, refund.ExpenseMonth.String()+"-01", refund.CashDate.String(), refund.Amount.Amount(), refund.Remaining.Amount(), refund.Amount.Asset(), basisNativeAmount, basisNativeAsset, basisValueAmount, basisValueAsset, basisRef, valueAmount, valueAsset, at, ns)
-	if err != nil {
-		return err
-	}
-	for position, item := range refund.Items {
-		if _, err = scope.tx.Exec(ctx, `INSERT INTO want_keep.refund_item_portions(household_id,refund_operation_id,revision,purchase_operation_id,purchase_revision,position,item_id,amount,asset) VALUES($1,$2,$3,$4,$5,$6,$7,$8::numeric,$9)`, family, refund.OperationID, refund.Revision, refund.PurchaseID, refund.PurchaseRevision, position, item.ItemID, item.Amount.Amount(), item.Amount.Asset()); err != nil {
-			return err
-		}
-	}
-	if err = s.saveRefundEffects(ctx, scope, refund.OperationID, refund.Revision, "native", refund.Members, refund.Categories, refund.Unallocated); err != nil {
-		return err
-	}
-	if refund.Valuation != nil {
-		if err = s.saveRefundEffects(ctx, scope, refund.OperationID, refund.Revision, "valuation", refund.Valuation.Members, refund.Valuation.Categories, refund.Valuation.Unallocated); err != nil {
-			return err
-		}
-	}
-	_, err = scope.tx.Exec(ctx, `INSERT INTO want_keep.refund_review_requests(household_id,refund_operation_id,revision,requested_at,requested_ns) VALUES($1,$2,$3,$4,$5)`, family, refund.OperationID, refund.Revision, at, ns)
-	return err
-}
-
-func (s *Store) saveRefundEffects(ctx context.Context, scope *transactionScope, id string, revision uint64, basis string, members []expenses.MemberAmount, categories []expenses.CategoryAmount, unallocated []money.Money) error {
-	position := 0
-	insert := func(dimension, key string, amount money.Money) error {
-		var memberID, categoryID any
-		if dimension == "member" {
-			memberID = key
-		} else if dimension == "category" && key != "" {
-			categoryID = key
-		}
-		_, err := scope.tx.Exec(ctx, `INSERT INTO want_keep.refund_effects(household_id,refund_operation_id,revision,basis,dimension,position,member_id,category_id,amount,asset) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::numeric,$10)`, scope.principal.HouseholdID(), id, revision, basis, dimension, position, memberID, categoryID, amount.Amount(), amount.Asset())
-		position++
-		return err
-	}
-	for _, effect := range members {
-		if err := insert("member", string(effect.MemberID), effect.Amount); err != nil {
-			return err
-		}
-	}
-	for _, effect := range categories {
-		if err := insert("category", effect.CategoryID, effect.Amount); err != nil {
-			return err
-		}
-	}
-	for _, effect := range unallocated {
-		if err := insert("unallocated", "", effect); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (s *Store) Refund(ctx context.Context, p household.Principal, operationID string) (expenses.Refund, bool, error) {
