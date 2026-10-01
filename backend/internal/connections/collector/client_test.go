@@ -137,7 +137,7 @@ func testBinding() connections.Binding {
 
 func serveUnix(t *testing.T, handler http.HandlerFunc) string {
 	t.Helper()
-	socket := filepath.Join("/private/tmp", "wk-"+uuid.NewString()[:8]+".sock")
+	socket := filepath.Join("/tmp", "wk-"+uuid.NewString()[:8]+".sock")
 	_ = os.Remove(socket)
 	listener, err := net.Listen("unix", socket)
 	if err != nil {
