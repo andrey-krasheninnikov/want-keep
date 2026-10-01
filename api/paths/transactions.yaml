@@ -485,13 +485,30 @@
     parameters:
     - "$ref": "../components.yaml#/parameters/Cursor"
     - "$ref": "../components.yaml#/parameters/Limit"
+    - name: memberId
+      in: query
+      schema:
+        "$ref": "../schemas/money.yaml#/ID"
+    - name: asset
+      in: query
+      schema:
+        "$ref": "../schemas/money.yaml#/Asset"
+    - name: state
+      in: query
+      schema:
+        type: string
+        enum:
+        - open
+        - settled
+        - attention_required
+        - voided
     responses:
       '200':
         description: Success
         content:
           application/json:
             schema:
-              "$ref": "../schemas/transactions.yaml#/ReimbursementPage"
+              "$ref": "../schemas/reimbursements.yaml#/ReimbursementPage"
       '400':
         "$ref": "../components.yaml#/responses/Problem"
       '401':
@@ -556,7 +573,7 @@
       content:
         application/json:
           schema:
-            "$ref": "../schemas/transactions.yaml#/ReimbursementCreate"
+            "$ref": "../schemas/reimbursements.yaml#/ReimbursementCreate"
 "/reimbursements/{reimbursementId}":
   get:
     operationId: reimbursements_read
@@ -575,7 +592,7 @@
         content:
           application/json:
             schema:
-              "$ref": "../schemas/transactions.yaml#/Reimbursement"
+              "$ref": "../schemas/reimbursements.yaml#/Reimbursement"
       '400':
         "$ref": "../components.yaml#/responses/Problem"
       '401':
@@ -646,7 +663,146 @@
       content:
         application/json:
           schema:
-            "$ref": "../schemas/transactions.yaml#/SettlementCreate"
+            "$ref": "../schemas/reimbursements.yaml#/SettlementCreate"
+"/reimbursements/{reimbursementId}/corrections":
+  post:
+    operationId: reimbursements_correct
+    tags:
+    - reimbursements
+    summary: Correct an explicit reimbursement
+    parameters:
+    - name: reimbursementId
+      in: path
+      required: true
+      schema:
+        "$ref": "../schemas/money.yaml#/ID"
+    - "$ref": "../components.yaml#/parameters/IdempotencyKey"
+    - "$ref": "../components.yaml#/parameters/CSRF"
+    responses:
+      '202':
+        description: Registered command. Inspect its stable ID after timeout.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/commands.yaml#/CommandStatus"
+      '400':
+        "$ref": "../components.yaml#/responses/Problem"
+      '401':
+        "$ref": "../components.yaml#/responses/Problem"
+      '403':
+        "$ref": "../components.yaml#/responses/Problem"
+      '404':
+        "$ref": "../components.yaml#/responses/Problem"
+      '409':
+        "$ref": "../components.yaml#/responses/Problem"
+      '422':
+        "$ref": "../components.yaml#/responses/Problem"
+      '429':
+        "$ref": "../components.yaml#/responses/Problem"
+      '500':
+        "$ref": "../components.yaml#/responses/Problem"
+      '503':
+        "$ref": "../components.yaml#/responses/Problem"
+      '410':
+        description: Expired command detail.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/commands.yaml#/ExpiredCommand"
+    x-command-type: reimbursements.correct
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/reimbursements.yaml#/ReimbursementCorrection"
+"/reimbursements/{reimbursementId}/undo":
+  post:
+    operationId: reimbursements_undo
+    tags:
+    - reimbursements
+    summary: Undo a selected reimbursement decision
+    parameters:
+    - name: reimbursementId
+      in: path
+      required: true
+      schema:
+        "$ref": "../schemas/money.yaml#/ID"
+    - "$ref": "../components.yaml#/parameters/IdempotencyKey"
+    - "$ref": "../components.yaml#/parameters/CSRF"
+    responses:
+      '202':
+        description: Registered command. Inspect its stable ID after timeout.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/commands.yaml#/CommandStatus"
+      '400':
+        "$ref": "../components.yaml#/responses/Problem"
+      '401':
+        "$ref": "../components.yaml#/responses/Problem"
+      '403':
+        "$ref": "../components.yaml#/responses/Problem"
+      '404':
+        "$ref": "../components.yaml#/responses/Problem"
+      '409':
+        "$ref": "../components.yaml#/responses/Problem"
+      '422':
+        "$ref": "../components.yaml#/responses/Problem"
+      '429':
+        "$ref": "../components.yaml#/responses/Problem"
+      '500':
+        "$ref": "../components.yaml#/responses/Problem"
+      '503':
+        "$ref": "../components.yaml#/responses/Problem"
+      '410':
+        description: Expired command detail.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/commands.yaml#/ExpiredCommand"
+    x-command-type: reimbursements.undo
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/reimbursements.yaml#/ReimbursementUndo"
+"/reimbursements/{reimbursementId}/history":
+  get:
+    operationId: reimbursements_history
+    tags:
+    - reimbursements
+    summary: Read immutable reimbursement revisions
+    parameters:
+    - name: reimbursementId
+      in: path
+      required: true
+      schema:
+        "$ref": "../schemas/money.yaml#/ID"
+    - "$ref": "../components.yaml#/parameters/Cursor"
+    - "$ref": "../components.yaml#/parameters/Limit"
+    responses:
+      '200':
+        description: Success
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/reimbursements.yaml#/ReimbursementPage"
+      '400':
+        "$ref": "../components.yaml#/responses/Problem"
+      '401':
+        "$ref": "../components.yaml#/responses/Problem"
+      '403':
+        "$ref": "../components.yaml#/responses/Problem"
+      '404':
+        "$ref": "../components.yaml#/responses/Problem"
+      '429':
+        "$ref": "../components.yaml#/responses/Problem"
+      '500':
+        "$ref": "../components.yaml#/responses/Problem"
+      '503':
+        "$ref": "../components.yaml#/responses/Problem"
 
 "/transactions/{transactionId}/exclude":
   post:

@@ -21,7 +21,7 @@
 - `backend/internal/expenses/`
 - `backend/internal/storage/`
 - `backend/internal/delivery/ledger/`
-- `backend/migrations/019_refunds.sql`
+- `backend/migrations/020_refunds.sql`
 - `backend/test/integration/refunds/`
 - `api/`
 
@@ -133,7 +133,7 @@ A manual refund creates one posted refund transaction: cash arrives on its actua
 - `backend/internal/expenses/`
 - `backend/internal/storage/`
 - `backend/internal/delivery/ledger/`
-- `backend/migrations/019_refunds.sql`
+- `backend/migrations/020_refunds.sql`
 - `backend/test/integration/refunds/`
 - `api/`
 

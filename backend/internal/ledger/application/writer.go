@@ -29,11 +29,15 @@ type ReconciliationTrigger interface {
 type RefundProjector interface {
 	ProjectRefunds(context.Context, household.Principal, ledger.Revision, *ledger.Revision) error
 }
+type ReimbursementTrigger interface {
+	ReconcileLedgerRevision(context.Context, household.Principal, ledger.Revision, *ledger.Revision) error
+}
 type Writer struct {
-	journal    Journal
-	accounts   accounts.Repository
-	reconciler ReconciliationTrigger
-	refunds    RefundProjector
+	journal        Journal
+	accounts       accounts.Repository
+	reconciler     ReconciliationTrigger
+	refunds        RefundProjector
+	reimbursements ReimbursementTrigger
 }
 
 type JournalWriter interface {
@@ -106,6 +110,12 @@ func NewWriterWithReconciliation(j Journal, a accounts.Repository, reconciler Re
 func NewWriterWithProjections(j Journal, a accounts.Repository, reconciler ReconciliationTrigger, refunds RefundProjector) *Writer {
 	return &Writer{journal: j, accounts: a, reconciler: reconciler, refunds: refunds}
 }
+func NewWriterWithReconciliationAndReimbursements(j Journal, a accounts.Repository, reconciler ReconciliationTrigger, reimbursements ReimbursementTrigger) *Writer {
+	return &Writer{journal: j, accounts: a, reconciler: reconciler, reimbursements: reimbursements}
+}
+func NewWriterWithRefundsAndReimbursements(j Journal, a accounts.Repository, reconciler ReconciliationTrigger, refunds RefundProjector, reimbursements ReimbursementTrigger) *Writer {
+	return &Writer{journal: j, accounts: a, reconciler: reconciler, refunds: refunds, reimbursements: reimbursements}
+}
 
 // Append must be called inside the household transaction, including the command or import fence.
 func (w *Writer) Append(ctx context.Context, p household.Principal, r ledger.Revision, expected uint64) error {
@@ -121,7 +131,10 @@ func (w *Writer) Append(ctx context.Context, p household.Principal, r ledger.Rev
 			return err
 		}
 	}
-	return w.reconcile(ctx, p, affected)
+	if err = w.reconcile(ctx, p, affected); err != nil {
+		return err
+	}
+	return w.reconcileReimbursement(ctx, p, r, previous)
 }
 
 // AppendBatch publishes comparisons only after the complete financial group exists.
@@ -164,7 +177,23 @@ func (w *Writer) AppendBatch(ctx context.Context, p household.Principal, revisio
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	return w.reconcile(ctx, p, ids)
+	if err := w.reconcile(ctx, p, ids); err != nil {
+		return err
+	}
+	sort.Slice(changes, func(i, j int) bool { return changes[i].Revision.OperationID < changes[j].Revision.OperationID })
+	for _, change := range changes {
+		if err := w.reconcileReimbursement(ctx, p, change.Revision, change.Previous); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *Writer) reconcileReimbursement(ctx context.Context, p household.Principal, current ledger.Revision, previous *ledger.Revision) error {
+	if w.reimbursements == nil {
+		return nil
+	}
+	return w.reimbursements.ReconcileLedgerRevision(ctx, p, current, previous)
 }
 
 func (w *Writer) reconcile(ctx context.Context, p household.Principal, accounts []string) error {

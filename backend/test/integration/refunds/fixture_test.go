@@ -116,7 +116,7 @@ func newFixture(t *testing.T) *fixture {
 	}
 	f.p, _ = f.members[0].Principal()
 	f.q, _ = f.members[1].Principal()
-	f.writer = journal.NewWriterWithProjections(store, store, nil, expenses.NewProjector(store))
+	f.writer = journal.NewWriterWithRefundsAndReimbursements(store, store, nil, expenses.NewProjector(store), journal.NewReimbursementService(store, func() calendar.Instant { return f.now }, uuid.NewString))
 	f.executor = commands.NewExecutor(store, store, func() calendar.Instant { return f.now })
 	return f
 }
