@@ -215,8 +215,8 @@ type StoredEvidence struct {
 }
 
 type EncryptedEvidenceItem struct {
-	Reference, SourceID string
-	Ciphertext          []byte
+	Reference  string
+	Ciphertext []byte
 }
 
 type EncryptedEvidenceBatch struct {
@@ -230,17 +230,17 @@ func (b EncryptedEvidenceBatch) Validate() error {
 	if !validText(b.HouseholdID) || !validText(b.JobID) || !validText(b.PageReference) || b.FetchedAt.String() == "" || len(b.Items) < 1 || len(b.Items) > MaxEvidencePerPage {
 		return ErrEvidence
 	}
-	seenReferences, seenSources := map[string]bool{}, map[string]bool{}
+	seenReferences := map[string]bool{}
 	total := 0
 	for _, item := range b.Items {
-		if !validText(item.Reference) || !validTextLimit(item.SourceID, 128) || len(item.Ciphertext) < 1 || seenReferences[item.Reference] || seenSources[item.SourceID] {
+		if !validText(item.Reference) || len(item.Ciphertext) < 1 || seenReferences[item.Reference] {
 			return ErrEvidence
 		}
 		total += len(item.Ciphertext)
 		if total > MaxEncryptedEvidenceBytes {
 			return ErrEvidence
 		}
-		seenReferences[item.Reference], seenSources[item.SourceID] = true, true
+		seenReferences[item.Reference] = true
 	}
 	return nil
 }

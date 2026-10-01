@@ -8,7 +8,9 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -18,13 +20,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	accounts "github.com/pchkauu/want-keep/backend/internal/accounts/application"
+	allocation "github.com/pchkauu/want-keep/backend/internal/allocation/application"
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
+	connectionaccess "github.com/pchkauu/want-keep/backend/internal/connections/access"
 	admission "github.com/pchkauu/want-keep/backend/internal/connections/admission"
 	collector "github.com/pchkauu/want-keep/backend/internal/connections/collector"
+	"github.com/pchkauu/want-keep/backend/internal/connections/credentials"
 	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
+	integrations "github.com/pchkauu/want-keep/backend/internal/integrations/application"
 	ingestion "github.com/pchkauu/want-keep/backend/internal/integrations/domain"
+	jobsapp "github.com/pchkauu/want-keep/backend/internal/jobs/application"
 	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
+	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/application"
 	"github.com/pchkauu/want-keep/backend/internal/privacy/cryptobox"
 	"github.com/pchkauu/want-keep/backend/internal/storage"
 	"github.com/pchkauu/want-keep/backend/migrations"
@@ -71,7 +80,7 @@ func TestEncryptedEvidenceLifecycleSurvivesRestart(t *testing.T) {
 	batch := ingestion.EvidenceBatch{
 		HouseholdID: string(principal.HouseholdID()), JobID: job.ID, PageReference: "evidence:page:" + uuid.NewString(),
 		FetchedAt: at, Disposition: ingestion.EvidenceStaged,
-		Items: []ingestion.StoredEvidence{{Reference: "evidence:raw:" + uuid.NewString(), Raw: ingestion.Evidence{ID: "raw-1", MediaType: "application/json", Digest: digest, Locator: "synthetic:page:1", Data: raw}}},
+		Items: []ingestion.StoredEvidence{{Reference: "evidence:raw:" + uuid.NewString(), Raw: ingestion.Evidence{ID: "account-12345", MediaType: "application/json", Digest: digest, Locator: "synthetic:page:1", Data: raw}}},
 	}
 	if err = evidence.Save(testContext, batch); err != nil {
 		t.Fatal(err)
@@ -85,6 +94,10 @@ func TestEncryptedEvidenceLifecycleSurvivesRestart(t *testing.T) {
 	}
 	if bytes.Contains(ciphertext, raw) || disposition != "staged" || !fetched.UTC().Add(time.Duration(fetchedNS)).Equal(at.Time()) {
 		t.Fatal("encrypted evidence metadata mismatch")
+	}
+	var storedMetadata string
+	if err = admin.QueryRow(testContext, `SELECT to_jsonb(i)::text FROM want_keep.collector_evidence_items i WHERE i.household_id=$1 AND i.page_reference=$2`, batch.HouseholdID, batch.PageReference).Scan(&storedMetadata); err != nil || strings.Contains(storedMetadata, "account-12345") {
+		t.Fatal("provider evidence ID leaked into metadata", err)
 	}
 	restarted, err := cryptobox.Load(keyPath, "connections")
 	if err != nil {
@@ -123,7 +136,7 @@ func TestEncryptedEvidenceLifecycleSurvivesRestart(t *testing.T) {
 	if err = evidence.SetDisposition(testContext, done); err != nil {
 		t.Fatal("idempotent disposition failed", err)
 	}
-	if _, err = admin.Exec(testContext, `UPDATE want_keep.collector_evidence_items SET source_id='changed' WHERE household_id=$1 AND page_reference=$2`, batch.HouseholdID, batch.PageReference); err == nil {
+	if _, err = admin.Exec(testContext, `UPDATE want_keep.collector_evidence_items SET ciphertext='changed' WHERE household_id=$1 AND page_reference=$2`, batch.HouseholdID, batch.PageReference); err == nil {
 		t.Fatal("immutable evidence item changed")
 	}
 	if _, err = admin.Exec(testContext, `UPDATE want_keep.collector_evidence_batches SET disposition='stale_result' WHERE household_id=$1 AND page_reference=$2`, batch.HouseholdID, batch.PageReference); err == nil {
@@ -152,6 +165,78 @@ func TestBusyRejectionClearsExternalMarkerUnderCurrentLease(t *testing.T) {
 	}
 	if state != "waiting" || externalStarted || attempt != job.Attempt-1 {
 		t.Fatal("busy rejection did not leave a retryable job", state, externalStarted, attempt)
+	}
+}
+
+func TestCollectorBusyHandlerKeepsJobRetryable(t *testing.T) {
+	store, admin, principal, job, keys, _ := fixture(t, false)
+	ref := connections.SecretReference{HouseholdID: principal.HouseholdID(), ConnectionID: job.ConnectionID, Purpose: connections.BrowserSession, Generation: job.ConnectionGeneration, Revision: 1}
+	aad, _ := json.Marshal(struct {
+		Version   int
+		Purpose   string
+		Reference connections.SecretReference
+	}{1, "connection-secret", ref})
+	secret, err := keys.Seal([]byte(`{"cookies":[],"origins":[]}`), aad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.WithinHousehold(testContext, principal, func(ctx context.Context) error {
+		return store.SaveEncryptedSecret(ctx, ref, secret)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "collector", "contracts", "v10", "fixtures", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	socket := filepath.Join("/tmp", "wk-"+uuid.NewString()[:8]+".sock")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &http.Server{Handler: http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/ready":
+			_, _ = io.WriteString(response, "want-keep-browser-collector/1\n")
+		case "/v1/capabilities":
+			_, _ = response.Write(manifest)
+		case "/v1/read":
+			response.WriteHeader(http.StatusConflict)
+			_, _ = io.WriteString(response, `{"code":"collector_busy"}`)
+		}
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close(); _ = os.Remove(socket) })
+	gate := admission.NewService(store, store)
+	nowValue, _ := calendar.ParseInstant("2026-09-14T10:00:00Z")
+	now := func() calendar.Instant { return nowValue }
+	evidence, err := collector.NewEvidenceStore(store, keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	accountService := accounts.NewService(store, store, now, uuid.NewString)
+	accountImporter, err := integrations.NewAccountImporter(accountService, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := ledger.NewSources(store, ledger.NewWriter(store, store), allocation.NewService(store, now, uuid.NewString))
+	sourceWriter, err := integrations.NewSourceWriter(sources, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := integrations.NewService(gate, evidence, accountImporter, sourceWriter, now, uuid.NewString)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := collector.Handler{Socket: socket, Vault: credentials.New(connectionaccess.NewService(nil, store, gate), store, keys), Service: service}
+	worker := jobsapp.Worker{Admission: gate, Repository: store, Handler: handler, Config: jobsapp.DefaultWorkerConfig(jobs.Sync)}
+	if err = worker.Step(testContext); err != nil {
+		t.Fatal(err)
+	}
+	var state string
+	var externalStarted bool
+	if err = admin.QueryRow(testContext, `SELECT state,external_started FROM want_keep.jobs WHERE household_id=$1 AND id=$2`, principal.HouseholdID(), job.ID).Scan(&state, &externalStarted); err != nil || state != "waiting" || externalStarted {
+		t.Fatal("collector busy stranded the job", state, externalStarted, err)
 	}
 }
 
@@ -194,7 +279,7 @@ func TestStagedReconciliationUsesTerminalReceiptAfterRestart(t *testing.T) {
 	}
 }
 
-func fixture(t *testing.T) (*storage.Store, *pgxpool.Pool, household.Principal, jobs.Job, *cryptobox.Keyring, string) {
+func fixture(t *testing.T, claim ...bool) (*storage.Store, *pgxpool.Pool, household.Principal, jobs.Job, *cryptobox.Keyring, string) {
 	t.Helper()
 	name := "wk_collector_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 	if _, err := cluster.Exec(testContext, `CREATE DATABASE `+name); err != nil {
@@ -243,18 +328,20 @@ func fixture(t *testing.T) (*storage.Store, *pgxpool.Pool, household.Principal, 
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimed, err := store.ClaimJobs(testContext, "sync", 10, time.Minute)
-	if err != nil {
-		t.Fatal(err)
-	}
 	var job jobs.Job
-	for _, candidate := range claimed {
-		if candidate.ID == requested.ID {
-			job = candidate
+	if len(claim) > 0 && !claim[0] {
+		job, err = store.Job(testContext, principal, requested.ID)
+	} else {
+		var claimed []jobs.Job
+		claimed, err = store.ClaimJobs(testContext, "sync", 10, time.Minute)
+		for _, candidate := range claimed {
+			if candidate.ID == requested.ID {
+				job = candidate
+			}
 		}
 	}
-	if job.ID == "" {
-		t.Fatal("job not claimed")
+	if err != nil || job.ID == "" {
+		t.Fatal("job not available", err)
 	}
 	keyPath := filepath.Join(t.TempDir(), "connection-keyring")
 	if err = cryptobox.Generate(keyPath, "connections"); err != nil {

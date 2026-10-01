@@ -24,7 +24,7 @@ func (s *Store) SaveCollectorEvidence(ctx context.Context, batch ingestion.Encry
 		return ingestion.ErrEvidence
 	}
 	for _, item := range batch.Items {
-		if _, err = tx.Exec(ctx, `INSERT INTO want_keep.collector_evidence_items(household_id,page_reference,reference,source_id,ciphertext) VALUES($1,$2,$3,$4,$5)`, batch.HouseholdID, batch.PageReference, item.Reference, item.SourceID, item.Ciphertext); err != nil {
+		if _, err = tx.Exec(ctx, `INSERT INTO want_keep.collector_evidence_items(household_id,page_reference,reference,ciphertext) VALUES($1,$2,$3,$4)`, batch.HouseholdID, batch.PageReference, item.Reference, item.Ciphertext); err != nil {
 			return err
 		}
 	}

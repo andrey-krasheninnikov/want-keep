@@ -17,10 +17,8 @@ CREATE TABLE want_keep.collector_evidence_items (
  household_id uuid NOT NULL,
  page_reference text NOT NULL,
  reference text NOT NULL CHECK(length(reference) BETWEEN 1 AND 2000),
- source_id text NOT NULL CHECK(length(source_id) BETWEEN 1 AND 128),
  ciphertext bytea NOT NULL CHECK(octet_length(ciphertext) BETWEEN 1 AND 20971520),
  PRIMARY KEY(household_id,page_reference,reference),
- UNIQUE(household_id,page_reference,source_id),
  FOREIGN KEY(household_id,page_reference) REFERENCES want_keep.collector_evidence_batches(household_id,page_reference)
 );
 

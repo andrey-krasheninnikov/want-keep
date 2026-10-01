@@ -47,7 +47,7 @@ func (s *EvidenceStore) Save(ctx context.Context, batch ingestion.EvidenceBatch)
 		if err != nil {
 			return errors.Join(ingestion.ErrEvidence, err)
 		}
-		encrypted.Items = append(encrypted.Items, ingestion.EncryptedEvidenceItem{Reference: item.Reference, SourceID: item.Raw.ID, Ciphertext: ciphertext})
+		encrypted.Items = append(encrypted.Items, ingestion.EncryptedEvidenceItem{Reference: item.Reference, Ciphertext: ciphertext})
 	}
 	if encrypted.Validate() != nil {
 		return ingestion.ErrEvidence
