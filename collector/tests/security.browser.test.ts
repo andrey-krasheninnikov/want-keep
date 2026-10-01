@@ -60,6 +60,22 @@ describe("collector security boundary", () => {
     expect(JSON.parse(first.body).page.records).toHaveLength(17);
   });
 
+  it("passes the issued cursor to the next read page", async () => {
+    const portal = await startPortal("paged");
+    const collector = await start(portal.origin, "/portal");
+    const first = await post(collector.socket, "/v1/read", envelope("alpha"));
+    const second = await post(
+      collector.socket,
+      "/v1/read",
+      envelope("alpha", undefined, "page-2"),
+    );
+    expect(first.status).toBe(200);
+    expect(JSON.parse(first.body).page.nextCursor).toBe("page-2");
+    expect(second.status).toBe(200);
+    expect(JSON.parse(second.body).page.cursor).toBe("page-2");
+    expect(JSON.parse(second.body).page.complete).toBe(true);
+  });
+
   it("keeps sessions separate and maps owner challenges", async () => {
     const portal = await startPortal("session");
     const collector = await start(portal.origin, "/portal");
@@ -162,10 +178,11 @@ describe("collector security boundary", () => {
 function envelope(
   session: string,
   replayRange?: { from: string; to: string },
+  cursor?: string,
 ): unknown {
   return {
     version: 1,
-    syncRequest: { ...requestBody, replayRange },
+    syncRequest: { ...requestBody, replayRange, cursor },
     storageState: {
       cookies: [
         {
@@ -249,7 +266,11 @@ async function startPortal(scenario: string) {
         .end(`<html><body><script>${behavior}</script></body></html>`);
       return;
     }
-    if (request.url === "/api/read" || request.url === "/api/statement") {
+    if (
+      request.url === "/api/read" ||
+      request.url === "/api/statement" ||
+      (scenario === "paged" && request.url === "/api/read?cursor=page-2")
+    ) {
       if (
         scenario === "statement-redirect" &&
         request.url === "/api/statement"
@@ -268,6 +289,13 @@ async function startPortal(scenario: string) {
         return;
       }
       const result = structuredClone(golden);
+      if (scenario === "paged") {
+        const secondPage = request.url === "/api/read?cursor=page-2";
+        result.page.cursor = secondPage ? "page-2" : "";
+        result.page.complete = secondPage;
+        if (secondPage) delete result.page.nextCursor;
+        else result.page.nextCursor = "page-2";
+      }
       const cookie = request.headers.cookie ?? "";
       if (scenario === "session")
         (

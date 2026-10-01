@@ -55,7 +55,8 @@ export class CollectorRuntime {
       const entry = routeFor(binding, "entry");
       const target = routeFor(
         binding,
-        envelope.syncRequest.replayRange === undefined
+        envelope.syncRequest.replayRange === undefined ||
+          envelope.syncRequest.cursor !== undefined
           ? "read"
           : "request_statement",
       );
@@ -259,6 +260,7 @@ async function readWithContext(
       });
       if (page.url() !== binding.origin + entry.path || violation !== undefined)
         throw violation ?? new Error("redirect_blocked");
+      const targetURL = providerTargetURL(binding, target, request);
       const body =
         target.method === "POST"
           ? JSON.stringify({
@@ -306,15 +308,14 @@ async function readWithContext(
           };
         },
         {
-          url: binding.origin + target.path,
+          url: targetURL,
           method: target.method,
           body,
           maximumBytes: maximumProviderResponseBytes,
         },
       );
       if (violation !== undefined) throw violation;
-      if (response.url !== binding.origin + target.path)
-        throw new Error("redirect_blocked");
+      if (response.url !== targetURL) throw new Error("redirect_blocked");
       if (page.url() !== binding.origin + entry.path)
         throw new Error("navigation_blocked");
       if (
@@ -355,11 +356,13 @@ function requireAllowedRequest(
       candidate.path === url.pathname,
   );
   if (rule === undefined) fail();
+  if (providerRequest.url() !== providerTargetURL(binding, rule, request))
+    fail();
   if (rule.action === "entry" || rule.action === "read") {
-    if (providerRequest.postData() !== null || url.search !== "") fail();
+    if (providerRequest.postData() !== null) fail();
     return;
   }
-  if (request.replayRange === undefined || url.search !== "") fail();
+  if (request.replayRange === undefined || request.cursor !== undefined) fail();
   const contentType = providerRequest.headers()["content-type"] ?? "";
   if (!contentType.startsWith("application/json")) fail();
   const body = strictObject(
@@ -371,6 +374,17 @@ function requireAllowedRequest(
     body.to !== request.replayRange.to
   )
     fail();
+}
+
+function providerTargetURL(
+  binding: RuntimeBinding,
+  rule: RouteRule,
+  request: SyncRequest,
+): string {
+  const url = new URL(rule.path, binding.origin);
+  if (rule.action === "read" && request.cursor !== undefined)
+    url.searchParams.set("cursor", request.cursor);
+  return url.href;
 }
 
 function routeFor(

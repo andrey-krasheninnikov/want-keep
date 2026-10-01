@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -67,6 +68,36 @@ func TestClientUsesUnixSocketAndMarksOnlyProviderRead(t *testing.T) {
 	page, complete, failure := client.Outcome()
 	if !page || !complete || failure {
 		t.Fatal("page outcome not retained")
+	}
+}
+
+func TestBusyCollectorResponseIsKnownBeforeProviderIO(t *testing.T) {
+	for _, responseBody := range []string{`{"code":"collector_busy"}`, `{"code":"other"}`} {
+		t.Run(responseBody, func(t *testing.T) {
+			socket := serveUnix(t, func(response http.ResponseWriter, request *http.Request) {
+				if request.URL.Path == "/v1/read" {
+					response.WriteHeader(http.StatusConflict)
+					_, _ = io.WriteString(response, responseBody)
+				}
+			})
+			var starts atomic.Int32
+			client, err := NewClient(socket, testBinding(), 3, []byte(`{"cookies":[],"origins":[]}`), func(context.Context) error {
+				starts.Add(1)
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer client.Close()
+			_, err = client.Read(context.Background(), []byte(`{"jobId":"value"}`))
+			want := ErrUnavailable
+			if responseBody == `{"code":"collector_busy"}` {
+				want = ErrBusy
+			}
+			if !errors.Is(err, want) || starts.Load() != 1 || !client.ExternalStarted() {
+				t.Fatal("incorrect pre-provider rejection", err, starts.Load())
+			}
+		})
 	}
 }
 

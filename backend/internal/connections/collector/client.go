@@ -17,6 +17,7 @@ import (
 )
 
 var ErrUnavailable = errors.New("browser collector unavailable")
+var ErrBusy = errors.New("browser collector busy")
 
 const maxResponseBytes = 32 * 1024 * 1024
 
@@ -170,6 +171,9 @@ func (c *Client) call(ctx context.Context, path string, value any) ([]byte, erro
 	}
 	defer response.Body.Close()
 	payload, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
+	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusConflict && bytes.Equal(payload, []byte(`{"code":"collector_busy"}`)) {
+		return nil, ErrBusy
+	}
 	if err != nil || len(payload) > maxResponseBytes || response.StatusCode != http.StatusOK {
 		return nil, ErrUnavailable
 	}

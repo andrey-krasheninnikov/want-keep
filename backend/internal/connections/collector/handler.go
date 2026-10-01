@@ -45,6 +45,12 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		return err
 	})
 	if err != nil {
+		if errors.Is(err, ErrBusy) && client != nil && client.ExternalStarted() {
+			if err := execution.RejectBeforeProviderIO(ctx); err != nil {
+				return jobs.Result{}, err
+			}
+			return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.HandlerUnavailable}, nil
+		}
 		if errors.Is(err, ErrUnavailable) && (client == nil || !client.ExternalStarted()) {
 			return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.HandlerUnavailable}, nil
 		}

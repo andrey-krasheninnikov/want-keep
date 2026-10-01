@@ -131,6 +131,30 @@ func TestEncryptedEvidenceLifecycleSurvivesRestart(t *testing.T) {
 	}
 }
 
+func TestBusyRejectionClearsExternalMarkerUnderCurrentLease(t *testing.T) {
+	store, admin, principal, job, _, _ := fixture(t)
+	if err := store.BeginExternal(testContext, principal, job); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WithinHousehold(testContext, principal, func(ctx context.Context) error {
+		return store.AcknowledgeExternalResult(ctx, principal, job)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetJobOutcome(testContext, principal, job, jobs.Waiting, jobs.HandlerUnavailable, 0); err != nil {
+		t.Fatal(err)
+	}
+	var state string
+	var externalStarted bool
+	var attempt int
+	if err := admin.QueryRow(testContext, `SELECT state,external_started,attempt FROM want_keep.jobs WHERE household_id=$1 AND id=$2`, principal.HouseholdID(), job.ID).Scan(&state, &externalStarted, &attempt); err != nil {
+		t.Fatal(err)
+	}
+	if state != "waiting" || externalStarted || attempt != job.Attempt-1 {
+		t.Fatal("busy rejection did not leave a retryable job", state, externalStarted, attempt)
+	}
+}
+
 func TestStagedReconciliationUsesTerminalReceiptAfterRestart(t *testing.T) {
 	store, admin, principal, job, keys, _ := fixture(t)
 	evidence, err := collector.NewEvidenceStore(store, keys)

@@ -20,6 +20,14 @@ func TestCommittedResultSkipsSecondJobTransition(t *testing.T) {
 	}
 }
 
+func TestKnownNoIORejectionAcknowledgesWithinHousehold(t *testing.T) {
+	repository := &workerRepository{}
+	execution := Execution{repository: repository}
+	if err := execution.RejectBeforeProviderIO(context.Background()); err != nil || repository.acknowledged != 1 {
+		t.Fatal("pre-provider rejection was not acknowledged", err, repository.acknowledged)
+	}
+}
+
 type committedHandler struct{}
 
 type allowAdmission struct{}
@@ -31,8 +39,10 @@ func (committedHandler) Prepare(context.Context, Execution) (Result, error) {
 }
 
 type workerRepository struct {
-	job      jobs.Job
-	outcomes int
+	job          jobs.Job
+	outcomes     int
+	acknowledged int
+	inHousehold  bool
 }
 
 func (r *workerRepository) ClaimJobs(context.Context, string, int, time.Duration) ([]jobs.Job, error) {
@@ -47,7 +57,9 @@ func (*workerRepository) RetryJob(context.Context, household.Principal, jobs.Job
 	return nil
 }
 func (*workerRepository) RecoverJobs(context.Context, jobs.Kind) error { return nil }
-func (*workerRepository) WithinHousehold(ctx context.Context, _ household.Principal, fn func(context.Context) error) error {
+func (r *workerRepository) WithinHousehold(ctx context.Context, _ household.Principal, fn func(context.Context) error) error {
+	r.inHousehold = true
+	defer func() { r.inHousehold = false }()
 	return fn(ctx)
 }
 func (*workerRepository) JobPrincipal(context.Context, jobs.Job) (household.Principal, error) {
@@ -63,6 +75,14 @@ func (*workerRepository) RecordJobReceipt(context.Context, household.Principal, 
 	return nil
 }
 func (*workerRepository) BeginExternal(context.Context, household.Principal, jobs.Job) error {
+	return nil
+}
+
+func (r *workerRepository) AcknowledgeExternalResult(context.Context, household.Principal, jobs.Job) error {
+	if !r.inHousehold {
+		return jobs.ErrInvalidJob
+	}
+	r.acknowledged++
 	return nil
 }
 func (r *workerRepository) SetJobOutcome(context.Context, household.Principal, jobs.Job, jobs.State, jobs.Reason, time.Duration) error {

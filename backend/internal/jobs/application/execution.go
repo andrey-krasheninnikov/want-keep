@@ -18,6 +18,7 @@ type ExecutionRepository interface {
 	JobReceipt(context.Context, household.Principal, jobs.Job) (bool, error)
 	RecordJobReceipt(context.Context, household.Principal, jobs.Job) error
 	BeginExternal(context.Context, household.Principal, jobs.Job) error
+	AcknowledgeExternalResult(context.Context, household.Principal, jobs.Job) error
 	SetJobOutcome(context.Context, household.Principal, jobs.Job, jobs.State, jobs.Reason, time.Duration) error
 	PauseReady(context.Context, jobs.Kind, jobs.Reason) error
 	ResumeWaiting(context.Context, jobs.Kind, jobs.Reason) error
@@ -33,6 +34,12 @@ type Execution struct {
 
 func (e Execution) BeginExternal(ctx context.Context) error {
 	return e.repository.BeginExternal(ctx, e.Principal, e.Job)
+}
+
+func (e Execution) RejectBeforeProviderIO(ctx context.Context) error {
+	return e.repository.WithinHousehold(ctx, e.Principal, func(ctx context.Context) error {
+		return e.repository.AcknowledgeExternalResult(ctx, e.Principal, e.Job)
+	})
 }
 
 type Result struct {
