@@ -83,6 +83,31 @@ func TestRefundKeepsCashDateAndReducesOriginalExpenseAllocation(t *testing.T) {
 	}
 }
 
+func TestCreditCardRefundDoesNotInventOwnedMoney(t *testing.T) {
+	f := newFixture(t)
+	client := f.client(f.p)
+	cashID := f.account(money.RUB, "5000")
+	cardID := f.accountWithProduct(money.RUB, "0", "credit_card")
+	purchase := createExpense(t, client, cashID, money.RUB, "1000", "500")
+	created := createRefund(t, client, purchase.Result.Id, cardID, money.RUB, "400", uuid.NewString())
+	revision, found, err := f.store.CurrentLedgerRevision(testContext, f.p, created.Result.Id)
+	if err != nil || !found || len(revision.Postings) != 1 || revision.Postings[0].Funding != "unknown" {
+		t.Fatalf("credit-card refund revision=%+v found=%v err=%v", revision, found, err)
+	}
+	for _, field := range []string{"owned", "available", "debt"} {
+		balance, err := f.store.Balance(testContext, f.p, cardID, field)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, known := balance.Amount.Value(); known {
+			t.Fatalf("credit-card %s falsely known: %+v", field, balance)
+		}
+	}
+	if f.available(cashID, f.p) != "4000" {
+		t.Fatalf("purchase cash changed twice: %s", f.available(cashID, f.p))
+	}
+}
+
 func TestRefundUsesFrozenHistoricalValuation(t *testing.T) {
 	f := newFixture(t)
 	client := f.client(f.p)

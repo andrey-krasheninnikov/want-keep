@@ -138,12 +138,16 @@ func cash(value string, asset money.Asset) money.Money {
 }
 
 func (f *fixture) account(asset money.Asset, balance string) string {
+	return f.accountWithProduct(asset, balance, "cash")
+}
+
+func (f *fixture) accountWithProduct(asset money.Asset, balance, product string) string {
 	f.t.Helper()
 	id := uuid.NewString()
 	ownership, _ := household.NewOwnership(f.family.ID, household.Shared, "")
 	date, _ := calendar.ParseDate("2026-08-01")
 	err := f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error {
-		if err := f.store.CreateAccount(ctx, account.Account{ID: id, Name: "Cash", Product: "cash", Ownership: ownership, Asset: asset, Revision: 1, OpeningDate: date}); err != nil {
+		if err := f.store.CreateAccount(ctx, account.Account{ID: id, Name: product, Product: product, Ownership: ownership, Asset: asset, Revision: 1, OpeningDate: date}); err != nil {
 			return err
 		}
 		coverage, _ := reporting.NewCoverage(reporting.Complete, nil)
