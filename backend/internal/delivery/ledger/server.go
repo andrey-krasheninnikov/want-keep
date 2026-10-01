@@ -65,6 +65,7 @@ func New(s *application.Service, m *matching.Service, q *application.Queries, e 
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/undo", h.undo)
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/exclude", h.exclude)
 	h.mux.HandleFunc("GET /api/v1/transactions/{transactionId}/history", h.history)
+	h.mux.HandleFunc("GET /api/v1/transactions/{transactionId}/refund-history", h.refundHistory)
 	h.mux.HandleFunc("GET /api/v1/transactions/{transactionId}/revisions/{revision}", h.revision)
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/links", h.link)
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/allocations", h.allocate)

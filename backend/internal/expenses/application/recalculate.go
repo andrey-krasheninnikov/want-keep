@@ -72,6 +72,9 @@ func recalculate(ctx context.Context, repository Repository, principal household
 	if compared, _ := total.Compare(purchaseAmount); compared > 0 {
 		return expenses.Refund{}, expenses.ErrRefundExceedsPurchase
 	}
+	if len(activeAmounts) > 1000 {
+		return expenses.Refund{}, expenses.ErrInvalidRefund
+	}
 	valuations := map[string]expenses.ValuationShare{}
 	if basis != nil {
 		valuations, err = expenses.AllocateValuations(*basis, purchaseAmount, activeAmounts)

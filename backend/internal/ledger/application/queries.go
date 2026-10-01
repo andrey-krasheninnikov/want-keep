@@ -62,10 +62,14 @@ type QueryRepository interface {
 	RefundsForOperationAt(context.Context, household.Principal, string, uint64, calendar.Instant) ([]expenses.Refund, error)
 	RefundsForOperations(context.Context, household.Principal, []string) (map[string][]expenses.Refund, error)
 	RefundsForRevisions(context.Context, household.Principal, []ledger.Revision) (map[uint64][]expenses.Refund, error)
+	RefundHistory(context.Context, household.Principal, string, uint64, int) ([]expenses.Refund, uint64, error)
 }
 type Queries struct{ repository QueryRepository }
 
 func NewQueries(r QueryRepository) *Queries { return &Queries{r} }
+func (q *Queries) RefundHistory(ctx context.Context, p household.Principal, id string, before uint64, limit int) ([]expenses.Refund, uint64, error) {
+	return q.repository.RefundHistory(ctx, p, id, before, limit)
+}
 func (q *Queries) Read(ctx context.Context, p household.Principal, id string) (View, error) {
 	r, exists, err := q.repository.CurrentLedgerRevision(ctx, p, id)
 	if err != nil {

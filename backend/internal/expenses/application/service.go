@@ -22,7 +22,7 @@ type Repository interface {
 	Account(context.Context, household.Principal, string) (account.Account, error)
 	AccountTimezone(context.Context, household.Principal) (calendar.Timezone, error)
 	Refund(context.Context, household.Principal, string) (expenses.Refund, bool, error)
-	RefundCountForPurchase(context.Context, household.Principal, string) (int, error)
+	ActiveRefundCountForPurchase(context.Context, household.Principal, string) (int, error)
 	RefundsForOperation(context.Context, household.Principal, string) ([]expenses.Refund, error)
 	CurrentRefundRevisions(context.Context, household.Principal, []string) (map[string]ledger.Revision, error)
 	PurchaseValuation(context.Context, household.Principal, string, uint64) (*expenses.ValuationBasis, error)
@@ -145,7 +145,7 @@ func (s *Service) save(ctx context.Context, principal household.Principal, purch
 		return expenses.Refund{}, commands.Rejection{Code: "version_conflict", CurrentRevision: existing.Revision}
 	}
 	if !found {
-		count, err := s.repository.RefundCountForPurchase(ctx, principal, purchase.OperationID)
+		count, err := s.repository.ActiveRefundCountForPurchase(ctx, principal, purchase.OperationID)
 		if err != nil {
 			return expenses.Refund{}, s.reject(err)
 		}

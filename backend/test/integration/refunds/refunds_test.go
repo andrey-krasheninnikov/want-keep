@@ -128,12 +128,20 @@ func TestExcludedRefundDoesNotBlockReplacement(t *testing.T) {
 	if excluded.Status != "succeeded" || f.available(accountID, f.p) != "4000" {
 		t.Fatalf("exclude=%+v balance=%s", excluded, f.available(accountID, f.p))
 	}
+	count, err := f.store.ActiveRefundCountForPurchase(testContext, f.p, purchase.Result.Id)
+	if err != nil || count != 0 {
+		t.Fatalf("active refunds after exclusion=%d err=%v", count, err)
+	}
 	replacement := createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "1000", uuid.NewString())
 	if replacement.Status != "succeeded" || f.available(accountID, f.p) != "5000" {
 		t.Fatalf("replacement=%+v balance=%s", replacement, f.available(accountID, f.p))
 	}
 	view := readTransaction(t, client, purchase.Result.Id)
-	if len(view.Refunds) != 2 || view.Refunds[0].State != "inactive" || view.Refunds[1].State != "applied" {
+	states := map[string]generated.RefundAttributionState{}
+	for _, link := range view.Refunds {
+		states[link.Id] = link.State
+	}
+	if len(view.Refunds) != 2 || states[first.Result.Id] != "inactive" || states[replacement.Result.Id] != "applied" {
 		t.Fatalf("refund links=%+v", view.Refunds)
 	}
 }
@@ -297,6 +305,38 @@ func TestExistingRefundLinkDoesNotMoveMoneyTwice(t *testing.T) {
 	if view := readTransaction(t, client, purchase.Result.Id); len(view.Refunds) != 1 || view.Refunds[0].Id != refundID {
 		t.Fatalf("linked refund=%+v", view.Refunds)
 	}
+	history := decodeResponse[generated.RefundHistoryPage](t, client.call(http.MethodGet, "/transactions/"+refundID+"/refund-history", "", nil, http.StatusOK))
+	if len(history.Items) != 1 || history.Items[0].Refund.Revision != 1 || history.Items[0].Refund.PurchaseId != purchase.Result.Id || history.Items[0].ActorId != string(f.p.UserID()) {
+		t.Fatalf("linked refund history=%+v", history)
+	}
+	updated := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+refundID+"/links", uuid.NewString(), map[string]any{
+		"kind":   "refund",
+		"reason": "Confirm imported refund link",
+		"expectedRevisions": []any{
+			map[string]any{"transactionId": refundID, "expectedRevision": 1},
+			map[string]any{"transactionId": purchase.Result.Id, "expectedRevision": 1},
+		},
+		"refund": map[string]any{"purchaseId": purchase.Result.Id, "expectedRevision": 1, "returnedItems": []any{}},
+	}, http.StatusAccepted))
+	if updated.Status != "succeeded" || f.available(accountID, f.p) != before {
+		t.Fatalf("updated link=%+v", updated)
+	}
+	firstPage := decodeResponse[generated.RefundHistoryPage](t, client.call(http.MethodGet, "/transactions/"+refundID+"/refund-history?limit=1", "", nil, http.StatusOK))
+	if len(firstPage.Items) != 1 || firstPage.Items[0].Refund.Revision != 2 || firstPage.NextCursor == nil {
+		t.Fatalf("first refund history page=%+v", firstPage)
+	}
+	secondPage := decodeResponse[generated.RefundHistoryPage](t, client.call(http.MethodGet, "/transactions/"+refundID+"/refund-history?limit=1&cursor="+*firstPage.NextCursor, "", nil, http.StatusOK))
+	if len(secondPage.Items) != 1 || secondPage.Items[0].Refund.Revision != 1 || secondPage.NextCursor != nil {
+		t.Fatalf("second refund history page=%+v", secondPage)
+	}
+	other := f.client(f.q)
+	other.call(http.MethodGet, "/transactions/"+refundID+"/refund-history?limit=1&cursor="+*firstPage.NextCursor, "", nil, http.StatusBadRequest)
+	if visible := decodeResponse[generated.RefundHistoryPage](t, other.call(http.MethodGet, "/transactions/"+refundID+"/refund-history", "", nil, http.StatusOK)); len(visible.Items) != 2 {
+		t.Fatalf("household refund history=%+v", visible)
+	}
+	foreign := newFixture(t)
+	foreign.client(foreign.p).call(http.MethodGet, "/transactions/"+refundID+"/refund-history", "", nil, http.StatusNotFound)
+	client.call(http.MethodGet, "/transactions/"+purchase.Result.Id+"/refund-history", "", nil, http.StatusNotFound)
 }
 
 func TestRefundRoundTripsAllAssetsAndThirdAssetFee(t *testing.T) {

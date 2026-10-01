@@ -112,13 +112,13 @@ func (s *Store) Refund(ctx context.Context, p household.Principal, operationID s
 	return expenses.Refund{}, false, nil
 }
 
-func (s *Store) RefundCountForPurchase(ctx context.Context, p household.Principal, purchaseID string) (int, error) {
+func (s *Store) ActiveRefundCountForPurchase(ctx context.Context, p household.Principal, purchaseID string) (int, error) {
 	q, err := s.reader(ctx, p)
 	if err != nil {
 		return 0, err
 	}
 	var count int
-	err = q.QueryRow(ctx, `SELECT count(*) FROM want_keep.refunds WHERE household_id=$1 AND purchase_operation_id=$2`, p.HouseholdID(), purchaseID).Scan(&count)
+	err = q.QueryRow(ctx, `SELECT count(*) FROM want_keep.refunds r JOIN want_keep.refund_revisions rr ON (rr.household_id,rr.refund_operation_id,rr.revision)=(r.household_id,r.refund_operation_id,r.revision) WHERE r.household_id=$1 AND r.purchase_operation_id=$2 AND rr.state IN ('applied','clarification')`, p.HouseholdID(), purchaseID).Scan(&count)
 	return count, err
 }
 
@@ -132,7 +132,7 @@ func (s *Store) RefundsForOperations(ctx context.Context, p household.Principal,
 	if err != nil {
 		return nil, err
 	}
-	return s.loadRefunds(ctx, q, p, operationIDs, 0, nil)
+	return s.loadRefunds(ctx, q, p, operationIDs, 0, nil, 0, 0)
 }
 
 func (s *Store) RefundsForOperationAt(ctx context.Context, p household.Principal, operationID string, operationRevision uint64, at calendar.Instant) ([]expenses.Refund, error) {
@@ -140,11 +140,38 @@ func (s *Store) RefundsForOperationAt(ctx context.Context, p household.Principal
 	if err != nil {
 		return nil, err
 	}
-	values, err := s.loadRefunds(ctx, q, p, []string{operationID}, operationRevision, &at)
+	values, err := s.loadRefunds(ctx, q, p, []string{operationID}, operationRevision, &at, 0, 0)
 	return values[operationID], err
 }
 
-func (s *Store) loadRefunds(ctx context.Context, q reader, p household.Principal, operationIDs []string, operationRevision uint64, at *calendar.Instant) (map[string][]expenses.Refund, error) {
+func (s *Store) RefundHistory(ctx context.Context, p household.Principal, operationID string, before uint64, limit int) ([]expenses.Refund, uint64, error) {
+	if limit < 1 || limit > 100 || before > 9007199254740991 {
+		return nil, 0, expenses.ErrInvalidRefund
+	}
+	q, err := s.reader(ctx, p)
+	if err != nil {
+		return nil, 0, err
+	}
+	var found bool
+	if err = q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM want_keep.refunds WHERE household_id=$1 AND refund_operation_id=$2)`, p.HouseholdID(), operationID).Scan(&found); err != nil {
+		return nil, 0, err
+	}
+	if !found {
+		return nil, 0, ledger.ErrNotFound
+	}
+	values, err := s.loadRefunds(ctx, q, p, []string{operationID}, 0, nil, before, limit+1)
+	if err != nil {
+		return nil, 0, err
+	}
+	history := values[operationID]
+	if len(history) <= limit {
+		return history, 0, nil
+	}
+	history = history[:limit]
+	return history, history[len(history)-1].Revision, nil
+}
+
+func (s *Store) loadRefunds(ctx context.Context, q reader, p household.Principal, operationIDs []string, operationRevision uint64, at *calendar.Instant, historyBefore uint64, historyLimit int) (map[string][]expenses.Refund, error) {
 	result := make(map[string][]expenses.Refund, len(operationIDs))
 	if len(operationIDs) == 0 {
 		return result, nil
@@ -159,6 +186,12 @@ func (s *Store) loadRefunds(ctx context.Context, q reader, p household.Principal
 		cutoff, ns := splitInstant(*at)
 		query = `SELECT ` + columns + ` FROM want_keep.refunds r JOIN LATERAL (SELECT * FROM want_keep.refund_revisions candidate WHERE (candidate.household_id,candidate.refund_operation_id)=(r.household_id,r.refund_operation_id) AND (candidate.recorded_at,candidate.recorded_ns)<=($4,$5) AND ((r.refund_operation_id=$2 AND candidate.refund_revision<=$3) OR (r.purchase_operation_id=$2 AND candidate.purchase_revision<=$3)) ORDER BY candidate.recorded_at DESC,candidate.recorded_ns DESC,candidate.revision DESC LIMIT 1) rr ON true WHERE r.household_id=$1 AND (r.refund_operation_id=$2 OR r.purchase_operation_id=$2) ORDER BY r.refund_operation_id`
 		args = []any{p.HouseholdID(), operationIDs[0], operationRevision, cutoff, ns}
+	} else if historyLimit > 0 {
+		if len(operationIDs) != 1 {
+			return nil, expenses.ErrInvalidRefund
+		}
+		query = `SELECT ` + columns + ` FROM want_keep.refunds r JOIN want_keep.refund_revisions rr ON (rr.household_id,rr.refund_operation_id)=(r.household_id,r.refund_operation_id) WHERE r.household_id=$1 AND r.refund_operation_id=$2 AND ($3::bigint=0 OR rr.revision<$3) ORDER BY rr.revision DESC LIMIT $4`
+		args = []any{p.HouseholdID(), operationIDs[0], historyBefore, historyLimit}
 	}
 	rows, err := q.Query(ctx, query, args...)
 	if err != nil {

@@ -1740,6 +1740,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/transactions/{transactionId}/refund-history": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read immutable refund-link revisions independently of ledger revisions
+     * @description Returns one linked refund's attribution revisions, including links created after its last ledger revision. The cursor is bound to session, household and refund transaction. A purchase's current detail identifies its linked refund transactions.
+     */
+    get: operations["transactions_refund_history"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/transactions/{transactionId}/revisions/{revision}": {
     parameters: {
       query?: never;
@@ -3233,6 +3253,15 @@ export interface components {
       reason: string;
       receivingAccountId: components["schemas"]["ID"];
       returnedItems: components["schemas"]["RefundItemInput"][];
+    };
+    RefundHistoryEntry: {
+      actorId: components["schemas"]["ID"];
+      recordedAt: components["schemas"]["Instant"];
+      refund: components["schemas"]["RefundAttribution"];
+    };
+    RefundHistoryPage: {
+      items: components["schemas"]["RefundHistoryEntry"][];
+      nextCursor?: string;
     };
     RefundItemInput: {
       amount: components["schemas"]["PositiveMoney"];
@@ -8206,6 +8235,36 @@ export interface operations {
       429: components["responses"]["Problem"];
       500: components["responses"]["Problem"];
       503: components["responses"]["Problem"];
+    };
+  };
+  transactions_refund_history: {
+    parameters: {
+      query?: {
+        /** @description Opaque, bound to family, visibility and filters. */
+        cursor?: components["parameters"]["Cursor"];
+        limit?: components["parameters"]["Limit"];
+      };
+      header?: never;
+      path: {
+        transactionId: components["schemas"]["ID"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Immutable refund-link history */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RefundHistoryPage"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      401: components["responses"]["Problem"];
+      404: components["responses"]["Problem"];
+      500: components["responses"]["Problem"];
     };
   };
   transactions_revision: {
