@@ -2,7 +2,10 @@ package application
 
 import (
 	"context"
+	"errors"
 
+	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
+	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/domain"
 )
@@ -40,6 +43,9 @@ func (p *Projector) ProjectRefunds(ctx context.Context, principal household.Prin
 	}
 	basis, err := p.repository.PurchaseValuation(ctx, principal, purchase.OperationID, purchase.Revision)
 	if err != nil {
+		if errors.Is(err, expenses.ErrHistoricalBasisConflict) {
+			return commands.Rejection{Code: "decision_conflict"}
+		}
 		return err
 	}
 	_, err = recalculate(ctx, p.repository, principal, purchase, links, refunds, basis, nil, current.ActorID, current.RecordedAt)

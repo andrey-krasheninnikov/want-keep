@@ -220,6 +220,8 @@ func (s *Service) reject(err error) error {
 		return commands.Rejection{Code: "refund_exceeds_purchase"}
 	case errors.Is(err, expenses.ErrClarificationRequired):
 		return commands.Rejection{Code: "clarification_required"}
+	case errors.Is(err, expenses.ErrHistoricalBasisConflict):
+		return commands.Rejection{Code: "decision_conflict"}
 	case errors.Is(err, expenses.ErrInvalidRefund), errors.Is(err, money.ErrAssetMismatch), errors.Is(err, money.ErrInvalidMoney):
 		return commands.Rejection{Code: "invalid_refund"}
 	case errors.Is(err, command.ErrVersionConflict):

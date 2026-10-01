@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	ErrInvalidRefund         = errors.New("invalid refund")
-	ErrRefundExceedsPurchase = errors.New("refund exceeds purchase")
-	ErrClarificationRequired = errors.New("refund needs clarification")
+	ErrInvalidRefund           = errors.New("invalid refund")
+	ErrRefundExceedsPurchase   = errors.New("refund exceeds purchase")
+	ErrClarificationRequired   = errors.New("refund needs clarification")
+	ErrHistoricalBasisConflict = errors.New("historical refund valuation conflicts with purchase revision")
 )
 
 type State string
@@ -141,11 +142,13 @@ func Calculate(purchase, refund ledger.Revision, requested []ItemPortion, refund
 	if err != nil || remaining.Sign() < 0 {
 		return Refund{}, ErrRefundExceedsPurchase
 	}
-	if compared, _ := refundAmount.Compare(remaining); compared > 0 {
-		return Refund{}, ErrRefundExceedsPurchase
+	active := purchase.State == ledger.Posted && purchase.Accounting() == ledger.IncludedInAccounting && refund.State == ledger.Posted && refund.Accounting() == ledger.IncludedInAccounting
+	if active {
+		if compared, _ := refundAmount.Compare(remaining); compared > 0 {
+			return Refund{}, ErrRefundExceedsPurchase
+		}
 	}
 	result := Refund{OperationID: refund.OperationID, PurchaseID: purchase.OperationID, Revision: revision, PurchaseRevision: purchase.Revision, RefundRevision: refund.Revision, ActorID: actor, State: Applied, ExpenseMonth: purchase.ExpenseMonth, CashDate: refund.CashDate, RecordedAt: recordedAt, Amount: refundAmount, Remaining: remaining, Reason: reason, Items: cloneItems(requested)}
-	active := purchase.State == ledger.Posted && purchase.Accounting() == ledger.IncludedInAccounting && refund.State == ledger.Posted && refund.Accounting() == ledger.IncludedInAccounting
 	if active {
 		remaining, _ = remaining.Subtract(refundAmount)
 		result.Remaining = remaining
@@ -190,16 +193,18 @@ func Calculate(purchase, refund ledger.Revision, requested []ItemPortion, refund
 			if netErr != nil {
 				return Refund{}, ErrInvalidRefund
 			}
-			already := refundedItems[portion.ItemID]
-			if already.Validate() != nil {
-				already, _ = money.NewMoney("0", refundAmount.Asset())
-			}
-			left, subErr := net.Subtract(already)
-			if subErr != nil || left.Sign() < 0 {
-				return Refund{}, ErrRefundExceedsPurchase
-			}
-			if compared, _ := portion.Amount.Compare(left); compared > 0 {
-				return Refund{}, ErrRefundExceedsPurchase
+			if active {
+				already := refundedItems[portion.ItemID]
+				if already.Validate() != nil {
+					already, _ = money.NewMoney("0", refundAmount.Asset())
+				}
+				left, subErr := net.Subtract(already)
+				if subErr != nil || left.Sign() < 0 {
+					return Refund{}, ErrRefundExceedsPurchase
+				}
+				if compared, _ := portion.Amount.Compare(left); compared > 0 {
+					return Refund{}, ErrRefundExceedsPurchase
+				}
 			}
 			total, err = total.Add(portion.Amount)
 			if err != nil {

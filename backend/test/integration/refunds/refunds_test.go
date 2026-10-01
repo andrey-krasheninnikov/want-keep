@@ -97,6 +97,45 @@ func TestRefundUsesFrozenHistoricalValuation(t *testing.T) {
 	if err != nil || known.Amount.Asset != "RUB" || known.Amount.Amount != "360.000000" || known.BasisRef != "synthetic:usd-rub" {
 		t.Fatalf("valuation=%+v err=%v", known, err)
 	}
+	correction := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+purchase.Result.Id+"/corrections", uuid.NewString(), map[string]any{
+		"expectedRevision": 1, "reason": "Correct merchant label", "merchant": "Shop",
+	}, http.StatusAccepted))
+	if correction.Result.Revision != 2 {
+		t.Fatalf("merchant correction=%+v", correction)
+	}
+	view = readTransaction(t, client, created.Result.Id)
+	known, err = view.Refunds[0].Valuation.AsKnownRefundValuation()
+	if err != nil || known.Amount.Amount != "360.000000" || known.BasisRef != "synthetic:usd-rub" {
+		t.Fatalf("valuation after purchase correction=%+v err=%v", known, err)
+	}
+	conflict := decodeResponse[generated.CommandFailed](t, client.call(http.MethodPost, "/transactions/"+purchase.Result.Id+"/corrections", uuid.NewString(), map[string]any{
+		"expectedRevision": 2, "reason": "Change purchase date", "occurredAt": "2026-08-30T12:00:00Z",
+	}, http.StatusAccepted))
+	if conflict.Error.Code != "decision_conflict" || readTransaction(t, client, purchase.Result.Id).Revision != 2 {
+		t.Fatalf("incompatible purchase correction=%+v", conflict)
+	}
+}
+
+func TestExcludedRefundDoesNotBlockReplacement(t *testing.T) {
+	f := newFixture(t)
+	client := f.client(f.p)
+	accountID := f.account(money.RUB, "5000")
+	purchase := createExpense(t, client, accountID, money.RUB, "1000", "500")
+	first := createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "1000", uuid.NewString())
+	excluded := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+first.Result.Id+"/exclude", uuid.NewString(), map[string]any{
+		"expectedRevision": 1, "reason": "Duplicate refund",
+	}, http.StatusAccepted))
+	if excluded.Status != "succeeded" || f.available(accountID, f.p) != "4000" {
+		t.Fatalf("exclude=%+v balance=%s", excluded, f.available(accountID, f.p))
+	}
+	replacement := createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "1000", uuid.NewString())
+	if replacement.Status != "succeeded" || f.available(accountID, f.p) != "5000" {
+		t.Fatalf("replacement=%+v balance=%s", replacement, f.available(accountID, f.p))
+	}
+	view := readTransaction(t, client, purchase.Result.Id)
+	if len(view.Refunds) != 2 || view.Refunds[0].State != "inactive" || view.Refunds[1].State != "applied" {
+		t.Fatalf("refund links=%+v", view.Refunds)
+	}
 }
 
 func TestPartialRefundsPreserveFrozenValuationTotal(t *testing.T) {

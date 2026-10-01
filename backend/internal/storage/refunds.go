@@ -69,12 +69,24 @@ func (s *Store) PurchaseValuation(ctx context.Context, p household.Principal, op
 		return nil, err
 	}
 	var ref, nativeAmount, nativeAsset, reportingAmount, reportingAsset string
-	err = q.QueryRow(ctx, `SELECT basis_ref,native_amount::text,native_asset,reporting_amount::text,reporting_asset FROM want_keep.transaction_historical_values WHERE household_id=$1 AND operation_id=$2 AND operation_revision=$3`, p.HouseholdID(), operationID, revision).Scan(&ref, &nativeAmount, &nativeAsset, &reportingAmount, &reportingAsset)
+	var compatible bool
+	err = q.QueryRow(ctx, `SELECT h.basis_ref,h.native_amount::text,h.native_asset,h.reporting_amount::text,h.reporting_asset,
+		(source_revision.occurred_at,source_revision.occurred_ns)=(current_revision.occurred_at,current_revision.occurred_ns)
+		AND EXISTS (SELECT 1 FROM want_keep.postings posting WHERE (posting.household_id,posting.operation_id,posting.revision)=(h.household_id,h.operation_id,current_revision.revision)
+			AND posting.role='principal' AND posting.treatment IN ('','movement') AND posting.amount=-h.native_amount AND posting.asset=h.native_asset)
+		FROM want_keep.transaction_historical_values h
+		JOIN want_keep.operation_revisions source_revision ON (source_revision.household_id,source_revision.operation_id,source_revision.revision)=(h.household_id,h.operation_id,h.operation_revision)
+		JOIN want_keep.operation_revisions current_revision ON (current_revision.household_id,current_revision.operation_id,current_revision.revision)=(h.household_id,h.operation_id,$3)
+		WHERE h.household_id=$1 AND h.operation_id=$2 AND h.operation_revision<=$3
+		ORDER BY h.operation_revision DESC LIMIT 1`, p.HouseholdID(), operationID, revision).Scan(&ref, &nativeAmount, &nativeAsset, &reportingAmount, &reportingAsset, &compatible)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	if !compatible {
+		return nil, expenses.ErrHistoricalBasisConflict
 	}
 	native, err := money.NewMoney(nativeAmount, money.Asset(nativeAsset))
 	if err != nil {

@@ -156,3 +156,18 @@ func TestInactiveItemRefundStillValidatesItemIdentity(t *testing.T) {
 		t.Fatalf("wanted invalid refund, got %v", err)
 	}
 }
+
+func TestInactiveRefundDoesNotConsumeReplacementCapacity(t *testing.T) {
+	p := purchase("10", money.RUB)
+	r := refund("10", money.RUB)
+	r.AccountingState = ledger.ExcludedFromAccounting
+	result, err := expenses.Calculate(p, r, nil, cash("10", money.RUB), nil, nil, 1, "excluded duplicate", "user", r.RecordedAt)
+	if err != nil || result.State != expenses.Inactive || !equal(result.Remaining, cash("0", money.RUB)) {
+		t.Fatalf("inactive refund=%+v err=%v", result, err)
+	}
+	p.ReceiptItems = []ledger.ReceiptItem{{ID: "item", Name: "Item", Quantity: "1", Gross: cash("10", money.RUB), Discount: cash("0", money.RUB)}}
+	result, err = expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "item", Amount: cash("10", money.RUB)}}, cash("10", money.RUB), map[string]money.Money{"item": cash("10", money.RUB)}, nil, 1, "excluded duplicate", "user", r.RecordedAt)
+	if err != nil || result.State != expenses.Inactive {
+		t.Fatalf("inactive item refund=%+v err=%v", result, err)
+	}
+}
