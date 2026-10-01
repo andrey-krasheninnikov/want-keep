@@ -3886,21 +3886,32 @@
       ],
       "targets": [
         "backend/internal/ledger/",
-        "backend/internal/household/",
-        "api/openapi.yaml"
+        "backend/internal/storage/",
+        "backend/internal/delivery/reimbursements/",
+        "backend/migrations/019_family_reimbursements.sql",
+        "backend/test/integration/family-reimbursements/",
+        "api/"
       ],
       "behavior": {
-        "ru": "Вести явную запись creditor/debtor/asset/amount/revision и связь с расходом при наличии. Оплата общей доли долг автоматически не создаёт. Погашение связывается с реальным переводом/наличными один раз, допускает частичное погашение; другая валюта требует явно согласованного соответствия сумм. Внутренние требования исключить из семейных активов, доходов и расходов.",
-        "en": "Keep an explicit creditor/debtor/asset/amount/revision record and an expense link when present. Paying a joint share does not automatically create debt. Settlement links once to an actual transfer/cash movement, supports partial settlement and requires explicitly agreed amount mapping for another currency. Exclude internal claims from household assets, income and expenses."
+        "ru": "Ledger хранит явный версионный долг между двумя разными активными MembershipID; actor берётся из сессии, а optional expense связывается с текущей posted revision без вывода суммы. Состояния open, settled, attention_required и voided не влияют на активы, остатки, доходы и расходы семьи. Погашение связывает существующий posted перевод между личными счетами debtor и creditor; комиссии не входят в principal. Один стабильный transfer или matching group может погасить несколько долгов только в пределах ещё не использованной received principal. Одинаковый актив требует равенства transferAmount и settledAmount; разные активы требуют обе точные native-суммы. Финансовое изменение, exclusion или reversal перевода переводит settlement в stale и восстанавливает долг; текстовая правка не влияет. Изменение связанного расхода переводит долг в attention_required. Corrections и selective undo используют происхождение полей, expectedRevision и A-B-A conflict detection. Результат, immutable revisions, settlement usage, audit, outbox и terminal command outcome фиксируются атомарно.",
+        "en": "Ledger stores an explicit versioned debt between two distinct active MembershipIDs; actor comes from the session and an optional expense references its current posted revision without deriving the amount. Open, settled, attention_required and voided states do not affect household assets, balances, income or expenses. Settlement links an existing posted transfer between the debtor and creditor personal accounts; fees are excluded from principal. One stable transfer or matching group may settle several debts only within its unused received principal. Same-asset transferAmount and settledAmount must be equal; cross-asset settlement requires both exact native amounts. A financial edit, exclusion or reversal of the transfer makes the settlement stale and restores the debt; a text edit does not. A linked expense change makes the debt attention_required. Corrections and selective undo use field provenance, expectedRevision and A-B-A conflict detection. Result, immutable revisions, settlement usage, audit, outbox and terminal command outcome commit atomically."
       },
       "verification": {
-        "command": "make test-go PKG=./internal/ledger/...\nmake test-integration AREA=family-reimbursements",
+        "command": "make check\nmake test-integration AREA=all\nmake test-family-reimbursements-race\nmake test-integration AREA=privacy\ngit diff --check",
         "expected": {
-          "ru": "Долг 300 погашается 100+200; повтор импорта не уменьшает его снова, неизвестное соответствие не списывает долг, семейный денежный факт не дублируется.",
-          "en": "Debt 300 settles through 100+200; replay does not reduce it again, uncertain matching does not settle debt and household cash facts are not duplicated."
+          "ru": "Долг RUB 300 погашается 100+200 без второго расхода; шесть активов сохраняют точность. Cross-asset требует две суммы; replay, конкурентное перепогашение, чужой или неверно направленный перевод не создают эффект. Финансовая правка перевода восстанавливает долг, текстовая правка сохраняет settlement; изменение расхода требует внимания. Проверяются command visibility, CSRF, keyset, миграция, immutable history и права роли.",
+          "en": "A RUB 300 debt settles through 100+200 without another expense; all six assets retain precision. Cross-asset settlement requires two amounts; replay, concurrent over-settlement and foreign or misdirected transfers create no effect. A financial transfer edit restores debt, a text edit preserves settlement and an expense change requires attention. Command visibility, CSRF, keyset pagination, migration, immutable history and role grants are verified."
         }
       },
-      "github_url": "https://github.com/pchkauu/want-keep/issues/25"
+      "github_url": "https://github.com/pchkauu/want-keep/issues/25",
+      "status": {
+        "ru": "Реализованы backend/API явных семейных долгов, частичных и межвалютных погашений, corrections, selective undo и автоматическая инвалидизация изменившихся связей. UI, наличные возмещения без ledger-перевода, банковский IO и production остаются профильным задачам.",
+        "en": "The backend/API for explicit household debts, partial and cross-asset settlements, corrections, selective undo and automatic invalidation of changed links is implemented. UI, cash reimbursement without a ledger transfer, bank IO and production remain with their owning tasks."
+      },
+      "verification_note": {
+        "ru": "Task-2.4 и task-2.8 включены в базу; команды реализованы. Доказательства и границы: evidence/task-2.9-family-reimbursements.md. Доказаны backend-части AC-006/082/086; UI, реальный банк и production не подтверждаются.",
+        "en": "Task-2.4 and task-2.8 are included in the base; commands exist. Evidence and boundaries: evidence/task-2.9-family-reimbursements.en.md. Backend portions of AC-006/082/086 are proven; UI, live banking and production are not verified."
+      }
     },
     {
       "id": "task-3.1",
@@ -6359,16 +6370,16 @@
         "en": "Explicit debt and reimbursement"
       },
       "fields": {
-        "ru": "Кто кому, сумма/валюта, основание/расход; при погашении существующий семейный перевод и сумма связи.",
-        "en": "Debtor/creditor, amount/currency, reason/expense; for settlement an existing household transfer and linked amount."
+        "ru": "Кредитор и должник как участники семьи, точная сумма/валюта, основание и необязательный расход. Погашение выбирает существующий перевод и задаёт его revision, transferAmount и settledAmount.",
+        "en": "Creditor and debtor as household members, exact amount/currency, reason and optional expense. Settlement selects an existing transfer and supplies its revision, transferAmount and settledAmount."
       },
       "rules": {
-        "ru": "Только явное действие member; не выводить долг из долей. Нельзя повторно погасить одним переводом сверх его суммы; долг не капитал семьи.",
-        "en": "Explicit member action only; never infer debt from shares. One transfer cannot settle beyond its amount; debt is not household wealth."
+        "ru": "Долг создаётся только явно. Участники различны и активны. Перевод идёт между их личными счетами; комиссия не погашает долг. Один principal не используется сверх остатка. Для разных активов обе суммы обязательны. Изменённые ссылки показывают attention_required или stale вместо скрытого списания.",
+        "en": "Debt is created explicitly only. Members are distinct and active. Transfer runs between their personal accounts; fees do not settle debt. Principal cannot be reused beyond its remainder. Cross-asset settlement requires both amounts. Changed references surface attention_required or stale instead of silently reducing debt."
       },
       "result": {
-        "ru": "Непогашенный остаток обновлён без нового семейного расхода.",
-        "en": "Outstanding balance updated without another household expense."
+        "ru": "Долг создан, исправлен, погашен или восстановлен с новой revision и историей; семейный денежный факт не дублируется.",
+        "en": "The debt is created, corrected, settled or restored with a new revision and history; the household cash fact is not duplicated."
       }
     },
     {
@@ -7290,20 +7301,20 @@
         "en": "Are any reimbursements outstanding?"
       },
       "answer": {
-        "ru": "Только явно записанные долги между участниками.",
-        "en": "Only explicitly recorded debts between members."
+        "ru": "Явные долги, непогашенный остаток и состояние связанных переводов.",
+        "en": "Explicit debts, outstanding amounts and linked-transfer state."
       },
       "structure": {
-        "ru": "Кто кому/валюта/остаток → основание → связанные возмещения.",
-        "en": "Debtor/creditor/currency/outstanding → reason → linked settlements."
+        "ru": "Открытые и требующие внимания долги → кто кому/валюта/остаток → основание и исходный расход → активные или устаревшие погашения → история решений.",
+        "en": "Open and attention-required debts → debtor/creditor/currency/outstanding → reason and source expense → active or stale settlements → decision history."
       },
       "action": {
-        "ru": "Записать долг или связать перевод FORM-09; исходная покупка SCR-010.",
-        "en": "Record debt or link transfer FORM-09; original purchase SCR-010."
+        "ru": "Создать долг, связать проведённый перевод, исправить данные или отменить выбранное решение FORM-09; открыть исходную операцию SCR-010.",
+        "en": "Create debt, link a posted transfer, correct data or undo a selected decision in FORM-09; open the source transaction in SCR-010."
       },
       "detail": {
-        "ru": "50/50 не создаёт долг автоматически; погашение не новый расход семьи.",
-        "en": "50/50 never creates debt automatically; settlement is not another household expense."
+        "ru": "Распределение, плательщик и перевод сами долг не создают. Комиссия не уменьшает остаток. Межвалютное погашение показывает обе native-суммы. Изменившийся расход или перевод требует явного решения.",
+        "en": "Allocation, payer and transfer never create debt by themselves. Fees do not reduce outstanding. Cross-asset settlement shows both native amounts. A changed expense or transfer requires an explicit decision."
       },
       "rights": {
         "ru": "Оба участника видят и исправляют факты любого счёта семьи; actor из сессии.",

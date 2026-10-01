@@ -164,6 +164,9 @@ func (s *Store) AuthorizeCommandResult(ctx context.Context, p household.Principa
 	case "allocation_rule":
 		_, err := s.AllocationRule(ctx, p, r.ResourceID)
 		return err
+	case "reimbursement":
+		_, err := s.Reimbursement(ctx, p, r.ResourceID)
+		return err
 	default:
 		return household.ErrForbidden
 	}

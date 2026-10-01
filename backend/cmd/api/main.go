@@ -31,6 +31,7 @@ import (
 	delivery "github.com/pchkauu/want-keep/backend/internal/delivery/identity"
 	ledgerdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/ledger"
 	reconciliationdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reconciliation"
+	reimbursementdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reimbursements"
 	application "github.com/pchkauu/want-keep/backend/internal/identity/application"
 	"github.com/pchkauu/want-keep/backend/internal/identity/webauthn"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/application"
@@ -113,8 +114,9 @@ func run() error {
 	}
 	baseWriter := ledger.NewWriter(database, database)
 	reconciliationService := reconciliation.NewService(database, database, baseWriter, admission.NewService(database, database), now, uuid.NewString)
-	writer := ledger.NewWriterWithReconciliation(database, database, reconciliationService)
-	accountService := accounts.NewServiceWithReconciliation(database, database, reconciliationService, now, uuid.NewString)
+	reimbursementService := ledger.NewReimbursementService(database, now, uuid.NewString)
+	writer := ledger.NewWriterWithReconciliationAndReimbursements(database, database, reconciliationService, reimbursementService)
+	accountService := accounts.NewServiceWithOwnershipReconciliation(database, database, reconciliationService, reimbursementService, now, uuid.NewString)
 	executor := commands.NewExecutor(database, database, now)
 	queries := commands.NewQueries(database, database.AuthorizeCommandResult)
 	accountHandler, err := accountdelivery.New(accountService, executor, queries, service, database, config, now)
@@ -135,6 +137,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	reimbursementHandler, err := reimbursementdelivery.New(reimbursementService, executor, queries, service, database, config, now)
+	if err != nil {
+		return err
+	}
 	categoryHandler, err := categorydelivery.New(categories.NewService(database, uuid.NewString), executor, queries, service, database, config, now)
 	if err != nil {
 		return err
@@ -149,6 +155,8 @@ func run() error {
 	mux.Handle("/api/v1/allocation-rules/", allocationHandler)
 	mux.Handle("/api/v1/reconciliations", reconciliationHandler)
 	mux.Handle("/api/v1/reconciliations/", reconciliationHandler)
+	mux.Handle("/api/v1/reimbursements", reimbursementHandler)
+	mux.Handle("/api/v1/reimbursements/", reimbursementHandler)
 	mux.Handle("/api/v1/accounts", accountHandler)
 	mux.Handle("/api/v1/accounts/", accountHandler)
 	mux.Handle("/api/v1/categories", categoryHandler)

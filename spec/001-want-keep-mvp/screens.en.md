@@ -372,13 +372,13 @@ Task: [task-2.5](tasks/task-2.5.md), [task-7.2](tasks/task-7.2.md).
 
 **Question:** Are any reimbursements outstanding?
 
-**Primary answer:** Only explicitly recorded debts between members.
+**Primary answer:** Explicit debts, outstanding amounts and linked-transfer state.
 
-**Top-down structure:** Debtor/creditor/currency/outstanding → reason → linked settlements.
+**Top-down structure:** Open and attention-required debts → debtor/creditor/currency/outstanding → reason and source expense → active or stale settlements → decision history.
 
-**Next action:** Record debt or link transfer FORM-09; original purchase SCR-010.
+**Next action:** Create debt, link a posted transfer, correct data or undo a selected decision in FORM-09; open the source transaction in SCR-010.
 
-**Explanation and details:** 50/50 never creates debt automatically; settlement is not another household expense.
+**Explanation and details:** Allocation, payer and transfer never create debt by themselves. Fees do not reduce outstanding. Cross-asset settlement shows both native amounts. A changed expense or transfer requires an explicit decision.
 
 **Permissions:** Both members read/correct facts for any household account; actor from session.
 
@@ -986,11 +986,11 @@ Task: [task-7.14](tasks/task-7.14.md).
 
 #### FORM-09 — Explicit debt and reimbursement
 
-**Fields:** Debtor/creditor, amount/currency, reason/expense; for settlement an existing household transfer and linked amount.
+**Fields:** Creditor and debtor as household members, exact amount/currency, reason and optional expense. Settlement selects an existing transfer and supplies its revision, transferAmount and settledAmount.
 
-**Validation and permissions:** Explicit member action only; never infer debt from shares. One transfer cannot settle beyond its amount; debt is not household wealth.
+**Validation and permissions:** Debt is created explicitly only. Members are distinct and active. Transfer runs between their personal accounts; fees do not settle debt. Principal cannot be reused beyond its remainder. Cross-asset settlement requires both amounts. Changed references surface attention_required or stale instead of silently reducing debt.
 
-**Outcome:** Outstanding balance updated without another household expense.
+**Outcome:** The debt is created, corrected, settled or restored with a new revision and history; the household cash fact is not duplicated.
 
 #### FORM-10 — Plan line and income forecast
 

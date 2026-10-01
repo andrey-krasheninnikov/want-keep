@@ -150,6 +150,13 @@ jobs:
           make test-integration AREA=family-allocation
           make test-family-allocation-race
 
+      - name: Verify explicit reimbursements and concurrent settlements
+        env:
+          WANT_KEEP_TEST_DATABASE_URL: postgres://postgres:synthetic-admin@127.0.0.1:5432/want_keep_test?sslmode=disable
+        run: |
+          make test-integration AREA=family-reimbursements
+          make test-family-reimbursements-race
+
       - name: Verify balance reconciliation and concurrent resolutions
         env:
           WANT_KEEP_TEST_DATABASE_URL: postgres://postgres:synthetic-admin@127.0.0.1:5432/want_keep_test?sslmode=disable

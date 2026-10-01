@@ -88,6 +88,12 @@ paths:
     "$ref": "./paths/transactions.yaml#/~1reimbursements~1{reimbursementId}"
   "/reimbursements/{reimbursementId}/settlements":
     "$ref": "./paths/transactions.yaml#/~1reimbursements~1{reimbursementId}~1settlements"
+  "/reimbursements/{reimbursementId}/corrections":
+    "$ref": "./paths/transactions.yaml#/~1reimbursements~1{reimbursementId}~1corrections"
+  "/reimbursements/{reimbursementId}/undo":
+    "$ref": "./paths/transactions.yaml#/~1reimbursements~1{reimbursementId}~1undo"
+  "/reimbursements/{reimbursementId}/history":
+    "$ref": "./paths/transactions.yaml#/~1reimbursements~1{reimbursementId}~1history"
   "/connections":
     "$ref": "./paths/connections.yaml#/~1connections"
   "/connections/{connectionId}":
@@ -486,11 +492,17 @@ components:
     RefundCreate:
       "$ref": "./schemas/transactions.yaml#/RefundCreate"
     Reimbursement:
-      "$ref": "./schemas/transactions.yaml#/Reimbursement"
+      "$ref": "./schemas/reimbursements.yaml#/Reimbursement"
+    ReimbursementSettlement:
+      "$ref": "./schemas/reimbursements.yaml#/ReimbursementSettlement"
     ReimbursementCreate:
-      "$ref": "./schemas/transactions.yaml#/ReimbursementCreate"
+      "$ref": "./schemas/reimbursements.yaml#/ReimbursementCreate"
     SettlementCreate:
-      "$ref": "./schemas/transactions.yaml#/SettlementCreate"
+      "$ref": "./schemas/reimbursements.yaml#/SettlementCreate"
+    ReimbursementCorrection:
+      "$ref": "./schemas/reimbursements.yaml#/ReimbursementCorrection"
+    ReimbursementUndo:
+      "$ref": "./schemas/reimbursements.yaml#/ReimbursementUndo"
     Reconciliation:
       "$ref": "./schemas/accounts.yaml#/Reconciliation"
     Connection:
@@ -634,7 +646,7 @@ components:
     ReconciliationResolutionInput:
       "$ref": "./schemas/accounts.yaml#/ReconciliationResolutionInput"
     ReimbursementPage:
-      "$ref": "./schemas/transactions.yaml#/ReimbursementPage"
+      "$ref": "./schemas/reimbursements.yaml#/ReimbursementPage"
     ConnectionPage:
       "$ref": "./schemas/connections.yaml#/ConnectionPage"
     MessagePage:
