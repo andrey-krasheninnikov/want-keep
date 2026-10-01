@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Tasks live in GitHub Issues for `pchkauu/want-keep`. See `docs/agents/issue-tracker.md`.
+Tasks live in GitHub Issues for `andrey-krasheninnikov/want-keep`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
