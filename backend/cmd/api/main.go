@@ -116,7 +116,7 @@ func run() error {
 	reconciliationService := reconciliation.NewService(database, database, baseWriter, admission.NewService(database, database), now, uuid.NewString)
 	reimbursementService := ledger.NewReimbursementService(database, now, uuid.NewString)
 	writer := ledger.NewWriterWithReconciliationAndReimbursements(database, database, reconciliationService, reimbursementService)
-	accountService := accounts.NewServiceWithReconciliation(database, database, reconciliationService, now, uuid.NewString)
+	accountService := accounts.NewServiceWithOwnershipReconciliation(database, database, reconciliationService, reimbursementService, now, uuid.NewString)
 	executor := commands.NewExecutor(database, database, now)
 	queries := commands.NewQueries(database, database.AuthorizeCommandResult)
 	accountHandler, err := accountdelivery.New(accountService, executor, queries, service, database, config, now)

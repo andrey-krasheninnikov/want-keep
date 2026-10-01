@@ -149,6 +149,8 @@ CREATE TABLE want_keep.reimbursement_audit (
  FOREIGN KEY(household_id,decision_id) REFERENCES want_keep.reimbursement_decisions(household_id,id),
  FOREIGN KEY(household_id,actor_id) REFERENCES want_keep.memberships(household_id,user_id)
 );
+-- One command may reconcile several debts; retain every audit row for durable replay detection.
+CREATE INDEX reimbursement_audit_command ON want_keep.reimbursement_audit(household_id,actor_id,command_id) WHERE command_id IS NOT NULL;
 
 DO $$ DECLARE relation text; BEGIN
  FOREACH relation IN ARRAY ARRAY['reimbursement_revisions','reimbursement_field_versions','reimbursement_decisions','reimbursement_decision_fields','reimbursement_settlements','reimbursement_settlement_operations','reimbursement_settlement_events','reimbursement_audit'] LOOP

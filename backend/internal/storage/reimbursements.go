@@ -468,6 +468,31 @@ func (s *Store) ReimbursementIDsForOperation(ctx context.Context, principal hous
 	return result, rows.Err()
 }
 
+func (s *Store) SettlementOperationIDsForAccount(ctx context.Context, principal household.Principal, accountID string) ([]string, error) {
+	q, err := s.reader(ctx, principal)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `SELECT DISTINCT o.operation_id::text FROM want_keep.reimbursement_settlement_operations o
+ JOIN want_keep.reimbursement_settlements s ON(s.household_id,s.id)=(o.household_id,o.settlement_id)
+ JOIN LATERAL(SELECT state FROM want_keep.reimbursement_settlement_events e WHERE e.household_id=s.household_id AND e.settlement_id=s.id ORDER BY reimbursement_revision DESC LIMIT 1)e ON e.state='active'
+ JOIN want_keep.postings p ON(p.household_id,p.operation_id,p.revision)=(o.household_id,o.operation_id,o.operation_revision)
+ WHERE o.household_id=$1 AND p.account_id=$2 ORDER BY o.operation_id::text`, principal.HouseholdID(), accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func (s *Store) ActiveTransferUsage(ctx context.Context, principal household.Principal, key string, asset money.Asset) (money.Money, error) {
 	q, err := s.reader(ctx, principal)
 	if err != nil {

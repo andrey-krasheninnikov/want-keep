@@ -39,6 +39,7 @@ type ReimbursementRepository interface {
 	ReimbursementDecisionUndone(context.Context, household.Principal, string) (bool, error)
 	SaveReimbursement(context.Context, household.Principal, ledger.Reimbursement, uint64, ledger.ReimbursementDecision) error
 	ReimbursementIDsForOperation(context.Context, household.Principal, string) ([]string, error)
+	SettlementOperationIDsForAccount(context.Context, household.Principal, string) ([]string, error)
 	ActiveTransferUsage(context.Context, household.Principal, string, money.Asset) (money.Money, error)
 	CurrentLedgerRevision(context.Context, household.Principal, string) (ledger.Revision, bool, error)
 	MatchingGroup(context.Context, household.Principal, string) (matching.Group, error)
@@ -252,14 +253,26 @@ func (s *ReimbursementService) Undo(ctx context.Context, principal household.Pri
 	if undone {
 		return command.Result{}, s.reject(ledger.ErrReimbursementConflict)
 	}
-	before, err := s.repository.ReimbursementRevision(ctx, principal, id, decision.Before)
-	if err != nil {
-		return command.Result{}, s.reject(err)
+	var before ledger.Reimbursement
+	if decision.Kind == "correction" {
+		before, err = s.repository.ReimbursementRevision(ctx, principal, id, decision.Before)
+		if err != nil {
+			return command.Result{}, s.reject(err)
+		}
 	}
 	undoID := s.newID()
 	next, fields, err := current.Undo(decision, before, principal.UserID(), s.now(), undoID)
 	if err != nil {
 		return command.Result{}, s.reject(err)
+	}
+	if slices.Contains(fields, ledger.ReimbursementExpenseField) && next.ExpenseID != "" {
+		expense, found, loadErr := s.repository.CurrentLedgerRevision(ctx, principal, next.ExpenseID)
+		if loadErr != nil {
+			return command.Result{}, loadErr
+		}
+		if !found || expense.Revision != next.ExpenseRevision || requireReimbursementExpense(expense) != nil {
+			return command.Result{}, s.reject(ledger.ErrReimbursementConflict)
+		}
 	}
 	undo := ledger.ReimbursementDecision{ID: undoID, Kind: "undo", ReimbursementID: id, ActorID: principal.UserID(), At: next.RecordedAt, Reason: input.Reason, UndoOf: decision.ID, Before: current.Revision, After: next.Revision, Fields: fields}
 	if err = s.repository.SaveReimbursement(ctx, principal, next, current.Revision, undo); err != nil {
@@ -332,6 +345,26 @@ func (s *ReimbursementService) ReconcileLedgerRevision(ctx context.Context, prin
 			if err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (s *ReimbursementService) ReconcileAccountOwnership(ctx context.Context, principal household.Principal, accountID string) error {
+	ids, err := s.repository.SettlementOperationIDsForAccount(ctx, principal, accountID)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		current, found, loadErr := s.repository.CurrentLedgerRevision(ctx, principal, id)
+		if loadErr != nil {
+			return loadErr
+		}
+		if !found {
+			return ledger.ErrNotFound
+		}
+		if err := s.ReconcileLedgerRevision(ctx, principal, current, nil); err != nil {
+			return err
 		}
 	}
 	return nil
