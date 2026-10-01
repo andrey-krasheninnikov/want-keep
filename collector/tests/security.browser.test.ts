@@ -76,6 +76,36 @@ describe("collector security boundary", () => {
     expect(JSON.parse(second.body).page.complete).toBe(true);
   });
 
+  it("ignores a provider page that replaces fetch", async () => {
+    const portal = await startPortal("forged-fetch");
+    const collector = await start(portal.origin, "/portal");
+    const result = await post(collector.socket, "/v1/read", envelope("alpha"));
+    expect(result.status).toBe(200);
+    expect(JSON.parse(result.body).page.records).toHaveLength(17);
+  });
+
+  it("prevents the provider page from sending a second statement request", async () => {
+    const portal = await startPortal("statement-hijack");
+    const collector = await start(portal.origin, "/portal");
+    const result = await post(
+      collector.socket,
+      "/v1/read",
+      envelope("alpha", {
+        from: "2026-09-01T00:00:00Z",
+        to: "2026-09-02T00:00:00Z",
+      }),
+    );
+    expect(result.status).toBe(200);
+    expect(portal.statementRequests()).toBe(1);
+  });
+
+  it("removes WebRTC before provider scripts run", async () => {
+    const portal = await startPortal("webrtc");
+    const collector = await start(portal.origin, "/portal");
+    const result = await post(collector.socket, "/v1/read", envelope("alpha"));
+    expect(result.status).toBe(200);
+  });
+
   it("keeps sessions separate and maps owner challenges", async () => {
     const portal = await startPortal("session");
     const collector = await start(portal.origin, "/portal");
@@ -104,8 +134,8 @@ describe("collector security boundary", () => {
     }
   });
 
-  it.each(["payment", "redirect", "popup", "download", "websocket"])(
-    "blocks %s behavior outside the build-owned read policy",
+  it.each(["payment", "popup", "websocket"])(
+    "prevents %s behavior in the provider page",
     async (scenario) => {
       const portal = await startPortal(scenario);
       const collector = await start(portal.origin, "/portal");
@@ -114,10 +144,24 @@ describe("collector security boundary", () => {
         "/v1/read",
         envelope("alpha"),
       );
-      expect(result.status).toBe(503);
-      expect(result.body).toBe('{"code":"collector_unavailable"}');
+      expect(result.status).toBe(200);
+      expect(portal.actionRequests()).toBe(0);
     },
   );
+
+  it("blocks an entry redirect outside the allowlist", async () => {
+    const portal = await startPortal("redirect");
+    const collector = await start(portal.origin, "/portal");
+    const result = await post(collector.socket, "/v1/read", envelope("alpha"));
+    expect(result.status).toBe(503);
+  });
+
+  it("blocks the page download request", async () => {
+    const portal = await startPortal("download");
+    const collector = await start(portal.origin, "/portal");
+    await post(collector.socket, "/v1/read", envelope("alpha"));
+    expect(portal.downloadRequests()).toBe(0);
+  });
 
   it("blocks service workers without failing the allowed read", async () => {
     const portal = await startPortal("serviceworker");
@@ -242,6 +286,9 @@ function config(
 async function startPortal(scenario: string) {
   let workerRequests = 0;
   let requests = 0;
+  let statementRequests = 0;
+  let downloadRequests = 0;
+  let actionRequests = 0;
   const server = createServer((request, response) => {
     requests++;
     if (request.url === "/portal") {
@@ -260,7 +307,13 @@ async function startPortal(scenario: string) {
                 ? "new WebSocket('ws://127.0.0.1:1/socket')"
                 : scenario === "serviceworker"
                   ? "navigator.serviceWorker.register('/worker.js').catch(()=>{})"
-                  : "";
+                  : scenario === "forged-fetch"
+                    ? "window.fetch=()=>Promise.resolve({url:location.origin+'/api/read',status:200,body:new Response('{}').body,headers:new Headers()})"
+                    : scenario === "statement-hijack"
+                      ? "fetch('/api/statement',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({from:'2026-09-01T00:00:00Z',to:'2026-09-02T00:00:00Z'})}).catch(()=>{})"
+                      : scenario === "webrtc"
+                        ? "if(typeof RTCPeerConnection==='function')fetch('/api/read?webrtc=present').catch(()=>{})"
+                        : "";
       response
         .writeHead(200, { "content-type": "text/html" })
         .end(`<html><body><script>${behavior}</script></body></html>`);
@@ -271,6 +324,7 @@ async function startPortal(scenario: string) {
       request.url === "/api/statement" ||
       (scenario === "paged" && request.url === "/api/read?cursor=page-2")
     ) {
+      if (request.url === "/api/statement") statementRequests++;
       if (
         scenario === "statement-redirect" &&
         request.url === "/api/statement"
@@ -311,6 +365,9 @@ async function startPortal(scenario: string) {
       return;
     }
     if (request.url === "/worker.js") workerRequests++;
+    if (request.url === "/download") downloadRequests++;
+    if (["/api/payment", "/popup", "/socket"].includes(request.url ?? ""))
+      actionRequests++;
     response.writeHead(200).end("blocked target");
   });
   await listen(server);
@@ -321,6 +378,9 @@ async function startPortal(scenario: string) {
   return {
     origin: `http://127.0.0.1:${address.port}`,
     workerRequests: () => workerRequests,
+    statementRequests: () => statementRequests,
+    downloadRequests: () => downloadRequests,
+    actionRequests: () => actionRequests,
     requests: () => requests,
   };
 }

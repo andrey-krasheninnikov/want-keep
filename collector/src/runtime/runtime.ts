@@ -216,6 +216,7 @@ async function readWithContext(
 ): Promise<SyncResult> {
   const context = await browser.newContext({
     acceptDownloads: false,
+    javaScriptEnabled: false,
     serviceWorkers: "block",
     storageState: storageState as NonNullable<
       Parameters<Browser["newContext"]>[0]
@@ -251,7 +252,7 @@ async function readWithContext(
     });
     page.on("download", (download) => {
       reject("download_blocked");
-      void download.cancel();
+      void download.cancel().catch(() => undefined);
     });
     try {
       await page.goto(binding.origin + entry.path, {
@@ -268,52 +269,39 @@ async function readWithContext(
               to: request.replayRange?.to,
             })
           : undefined;
-      const response = await page.evaluate(
-        async ({ url, method, body: requestBody, maximumBytes }) => {
-          const response = await fetch(url, {
-            method,
-            body: requestBody,
-            headers:
-              requestBody === undefined
-                ? undefined
-                : { "content-type": "application/json" },
-            credentials: "include",
-            redirect: "error",
-          });
-          if (response.body === null) throw new Error("provider_body_missing");
-          const reader = response.body.getReader();
-          const chunks: Uint8Array[] = [];
-          let size = 0;
-          while (true) {
-            const result = await reader.read();
-            if (result.done) break;
-            size += result.value.byteLength;
-            if (size > maximumBytes) {
-              await reader.cancel();
-              throw new Error("provider_body_too_large");
-            }
-            chunks.push(result.value);
-          }
-          const data = new Uint8Array(size);
-          let offset = 0;
-          for (const chunk of chunks) {
-            data.set(chunk, offset);
-            offset += chunk.byteLength;
-          }
-          return {
-            url: response.url,
-            status: response.status,
-            challenge: response.headers.get("x-want-keep-challenge"),
-            text: new TextDecoder("utf-8", { fatal: true }).decode(data),
-          };
+      const cookies = await context.cookies(targetURL);
+      const response = await fetch(targetURL, {
+        method: target.method,
+        body,
+        headers: {
+          cookie: cookies
+            .map((cookie) => `${cookie.name}=${cookie.value}`)
+            .join("; "),
+          ...(body === undefined ? {} : { "content-type": "application/json" }),
         },
-        {
-          url: targetURL,
-          method: target.method,
-          body,
-          maximumBytes: maximumProviderResponseBytes,
-        },
-      );
+        redirect: "error",
+        signal: AbortSignal.any([signal, AbortSignal.timeout(timeout)]),
+      });
+      if (response.body === null) throw new Error("provider_body_missing");
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        size += result.value.byteLength;
+        if (size > maximumProviderResponseBytes) {
+          await reader.cancel();
+          throw new Error("provider_body_too_large");
+        }
+        chunks.push(result.value);
+      }
+      const data = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) {
+        data.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
       if (violation !== undefined) throw violation;
       if (response.url !== targetURL) throw new Error("redirect_blocked");
       if (page.url() !== binding.origin + entry.path)
@@ -321,13 +309,20 @@ async function readWithContext(
       if (
         response.status === 401 ||
         response.status === 403 ||
-        response.challenge === "mfa" ||
-        response.challenge === "captcha"
+        response.headers.get("x-want-keep-challenge") === "mfa" ||
+        response.headers.get("x-want-keep-challenge") === "captcha"
       ) {
-        return providerFailure(request, response);
+        return providerFailure(request, {
+          status: response.status,
+          challenge: response.headers.get("x-want-keep-challenge"),
+          text: new TextDecoder("utf-8", { fatal: true }).decode(data),
+        });
       }
       if (response.status !== 200) throw new Error("provider_read_failed");
-      return parseSyncResultJSON(response.text, request);
+      return parseSyncResultJSON(
+        new TextDecoder("utf-8", { fatal: true }).decode(data),
+        request,
+      );
     } finally {
       signal.removeEventListener("abort", abort);
     }
@@ -356,24 +351,10 @@ function requireAllowedRequest(
       candidate.path === url.pathname,
   );
   if (rule === undefined) fail();
+  if (rule.action !== "entry") fail();
   if (providerRequest.url() !== providerTargetURL(binding, rule, request))
     fail();
-  if (rule.action === "entry" || rule.action === "read") {
-    if (providerRequest.postData() !== null) fail();
-    return;
-  }
-  if (request.replayRange === undefined || request.cursor !== undefined) fail();
-  const contentType = providerRequest.headers()["content-type"] ?? "";
-  if (!contentType.startsWith("application/json")) fail();
-  const body = strictObject(
-    JSON.parse(providerRequest.postData() ?? "null") as unknown,
-    ["from", "to"],
-  );
-  if (
-    body.from !== request.replayRange.from ||
-    body.to !== request.replayRange.to
-  )
-    fail();
+  if (providerRequest.postData() !== null) fail();
 }
 
 function providerTargetURL(
