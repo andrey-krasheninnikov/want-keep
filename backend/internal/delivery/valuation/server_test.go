@@ -57,6 +57,21 @@ func TestCurrentTotalDistinguishesKnownPartialFromUnknown(t *testing.T) {
 	}
 }
 
+func TestReportEndUsesHouseholdDate(t *testing.T) {
+	zone, _ := calendar.ParseTimezone("Europe/Moscow")
+	now := time.Date(2026, 10, 1, 22, 0, 0, 0, time.UTC)
+	today, _ := calendar.ParseDate("2026-10-02")
+	future, err := reportEndIsFuture(now, zone, today)
+	if err != nil || future {
+		t.Fatalf("local current date rejected: %v %v", future, err)
+	}
+	tomorrow, _ := calendar.ParseDate("2026-10-03")
+	future, err = reportEndIsFuture(now, zone, tomorrow)
+	if err != nil || !future {
+		t.Fatalf("future local date accepted: %v %v", future, err)
+	}
+}
+
 func TestHistoricalSnapshotKeepsKnownValueWithPartialQuality(t *testing.T) {
 	boundary, err := contract.NewBoundary()
 	if err != nil {

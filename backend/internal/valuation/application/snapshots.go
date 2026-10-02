@@ -51,6 +51,9 @@ func (s SnapshotPreparer) PrepareRevision(ctx context.Context, p household.Princ
 					return nil, lookupErr
 				}
 				if reference.Reason != "" {
+					if reference.Reason == "missing_observation" {
+						return nil, valuation.ErrRateUnavailable
+					}
 					item.Reason = reference.Reason
 				} else {
 					converted, _, _, convertErr := valuation.Convert(component.Money, target, reference.Legs)

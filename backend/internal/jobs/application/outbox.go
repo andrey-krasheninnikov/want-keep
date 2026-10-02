@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
@@ -53,6 +54,11 @@ func (h OutboxHandler) Prepare(ctx context.Context, x Execution) (Result, error)
 	if h.Valuation != nil {
 		snapshots, err = h.Valuation.PrepareRevision(ctx, x.Principal, event.ResourceID, event.Revision)
 		if err != nil {
+			if errors.Is(err, valuation.ErrRateUnavailable) {
+				return Result{State: jobs.Waiting, Reason: jobs.GatewayUnavailable, MinimumDelay: jobs.DefaultRetryPolicy().Maximum, Apply: func(ctx context.Context, p household.Principal) error {
+					return h.Repository.EnqueueReview(ctx, p, event)
+				}}, nil
+			}
 			return Result{}, err
 		}
 	}
