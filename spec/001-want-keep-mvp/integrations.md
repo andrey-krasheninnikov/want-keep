@@ -36,4 +36,4 @@ D-39 задаёт identity: `household + provider + stable external account + pr
 
 ## Курсы
 
-D-40: CBR — основной USD/RUB; Frankfurter `providers=CBR` — fallback/cross-check; CoinGecko Demo — current и история BTC/ETH/USDT/USDC в USD до 365 дней. Старше 365 дней — `valuation_unavailable` с сохранением native amount. Platform quote без direction/amount/time/known fee-spread — `quote_unavailable`; reference rate его не заменяет. Demo key/quota/attribution проверяет task-6.1 перед runtime.
+D-40: CBR — основной USD/RUB; Frankfurter `providers=cbr` (код источника CBR) — fallback/cross-check; CoinGecko Demo — current и история BTC/ETH/USDT/USDC в USD до 365 дней. Старше 365 дней — `valuation_unavailable` с сохранением native amount. Platform quote без direction/amount/time/known fee-spread — `quote_unavailable`; reference rate его не заменяет. Demo key/quota/attribution проверяет task-6.1 перед runtime.

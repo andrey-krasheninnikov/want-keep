@@ -4629,6 +4629,10 @@
         "ru": "Сохранять историческую оценку и показывать текущие эквиваленты/котировки.",
         "en": "Preserve historical valuation and show current equivalents/quotes."
       },
+      "status": {
+        "ru": "Реализованы backend/API курсов, семейных валютных итогов и версионной исторической оценки; UI, обратное восстановление старых оценок и production остаются отдельной работой.",
+        "en": "Rates API, household valuation totals and versioned historical valuation are implemented; UI, backfilling older valuations and production remain separate work."
+      },
       "depends_on": [
         "task-0.7",
         "task-2.2",
@@ -4647,20 +4651,28 @@
       ],
       "targets": [
         "backend/internal/valuation/",
-        "backend/internal/integrations/rates/"
+        "backend/internal/integrations/rates/",
+        "backend/internal/delivery/valuation/",
+        "backend/internal/storage/rates.go",
+        "backend/migrations/020_rates_valuation.sql",
+        "api/paths/reports.yaml"
       ],
       "behavior": {
-        "ru": "Использовать CBR как основной USD/RUB, Frankfurter `providers=CBR` как fallback/cross-check и CoinGecko Demo для текущих и исторических ≤365 дней BTC/ETH/USDT/USDC в USD. Для более старой криптоистории возвращать `valuation_unavailable`, сохраняя native facts. Текущая цена не переписывает историческую оценку. Platform executable quote хранится только с направлением, amount, временем и известными fee/spread; иначе `quote_unavailable`. Reference rate никогда не подменяет platform quote. Missing/stale/unsupported не равны нулю или peg. Free-key quota, attribution и live probe являются task-6.1 configuration/runtime gate.",
-        "en": "Use CBR as the primary USD/RUB source, Frankfurter `providers=CBR` as fallback/cross-check, and CoinGecko Demo for current and ≤365-day historical BTC/ETH/USDT/USDC prices in USD. Older crypto history returns `valuation_unavailable` while preserving native facts. A current price never rewrites historical valuation. Retain a platform executable quote only with direction, amount, time and known fee/spread; otherwise return `quote_unavailable`. A reference rate never substitutes for a platform quote. Missing/stale/unsupported is neither zero nor a peg. Free-key quota, attribution and a live probe are task-6.1 configuration/runtime gates."
+        "ru": "Использовать CBR как основной USD/RUB, Frankfurter `providers=cbr` (код источника CBR) как fallback/cross-check и CoinGecko Demo для текущих и исторических ≤365 дней BTC/ETH/USDT/USDC в USD. Для более старой криптоистории возвращать `valuation_unavailable`, сохраняя native facts. Текущая цена не переписывает историческую оценку. Platform executable quote хранится только с направлением, amount, временем и известными fee/spread; иначе `quote_unavailable`. Reference rate никогда не подменяет platform quote. Missing/stale/unsupported не равны нулю или peg. Free-key quota, attribution и live probe являются task-6.1 configuration/runtime gate.",
+        "en": "Use CBR as the primary USD/RUB source, Frankfurter `providers=cbr` (CBR source code) as fallback/cross-check, and CoinGecko Demo for current and ≤365-day historical BTC/ETH/USDT/USDC prices in USD. Older crypto history returns `valuation_unavailable` while preserving native facts. A current price never rewrites historical valuation. Retain a platform executable quote only with direction, amount, time and known fee/spread; otherwise return `quote_unavailable`. A reference rate never substitutes for a platform quote. Missing/stale/unsupported is neither zero nor a peg. Free-key quota, attribution and a live probe are task-6.1 configuration/runtime gates."
       },
       "verification": {
-        "command": "make test-go PKG=./internal/valuation/... && make test-contract PROVIDER=rates",
+        "command": "make test-go PKG=./internal/valuation/... && make test-contract PROVIDER=rates && make test-integration AREA=rates",
         "expected": {
           "ru": "RUB, USD, USDT, USDC, BTC и ETH, cross-rates без условного паритета, partial refund, остатки точнее UI и отсутствие исторической цены проверены без изменения native ledger.",
           "en": "RUB, USD, USDT, USDC, BTC and ETH, cross-rates without assumed parity, partial refund, residuals beyond UI precision and missing historical prices pass without changing the native ledger."
         }
       },
-      "github_url": "https://github.com/pchkauu/want-keep/issues/40"
+      "github_url": "https://github.com/pchkauu/want-keep/issues/40",
+      "verification_note": {
+        "ru": "Результат backend/API и границы: evidence/task-6.1-rates-valuation.md. Доказанные части AC-003/037/038/039/059/074; AC-065 остаётся частичным до связывания возврата task-2.7. Старые операции требуют отдельного восстановления оценок. Платформенные котировки не поступают до реализации соответствующих адаптеров; UI и production не проверены.",
+        "en": "Backend/API result and limits: evidence/task-6.1-rates-valuation.en.md. Backend portions of AC-003/037/038/039/059/074 are covered; AC-065 remains partial until task-2.7 links refunds. Existing operations require a separate valuation backfill. Platform quotes need their provider adapters; UI and production are not verified."
+      }
     },
     {
       "id": "task-6.2",

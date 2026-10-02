@@ -19,11 +19,13 @@ import (
 	"github.com/pchkauu/want-keep/backend/internal/connections/admission"
 	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	openaigateway "github.com/pchkauu/want-keep/backend/internal/gateways/openai"
+	ratesource "github.com/pchkauu/want-keep/backend/internal/integrations/rates"
 	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/application"
 	domain "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/application"
 	reconciliation "github.com/pchkauu/want-keep/backend/internal/reconciliation/application"
 	"github.com/pchkauu/want-keep/backend/internal/storage"
+	valuationapp "github.com/pchkauu/want-keep/backend/internal/valuation/application"
 )
 
 func main() {
@@ -78,6 +80,8 @@ func run() error {
 		return at
 	}
 	reconciliationService := reconciliation.NewService(db, db, ledger.NewWriter(db, db), admissionService, now, uuid.NewString)
+	rateService := valuationapp.Service{Repository: db, Sources: ratesource.New(&http.Client{Timeout: 3 * time.Second}, os.Getenv("WANT_KEEP_COINGECKO_KEY_FILE"), db), Now: time.Now}
+	valuationService := valuationapp.SnapshotPreparer{Rates: rateService, Repository: db, Now: time.Now}
 	var aiHandler jobs.Handler = ai.WaitingHandler{}
 	var aiBudgetQueue *ai.BudgetQueue
 	var aiGatewayQueue *ai.GatewayQueue
@@ -121,7 +125,7 @@ func run() error {
 	for _, kind := range []domain.Kind{domain.Sync, domain.Outbox, domain.AI} {
 		var handler jobs.Handler
 		if kind == domain.Outbox {
-			handler = jobs.OutboxHandler{Repository: db, Reconciliation: reconciliationService}
+			handler = jobs.OutboxHandler{Repository: db, Reconciliation: reconciliationService, Valuation: valuationService}
 		} else if kind == domain.AI {
 			handler = aiHandler
 		}

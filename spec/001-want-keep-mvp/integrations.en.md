@@ -36,4 +36,4 @@ Every adapter retains raw revision/hash reference, fetched/occurred time, status
 
 ## Rates
 
-D-40: CBR is primary USD/RUB; Frankfurter `providers=CBR` is fallback/cross-check; CoinGecko Demo supplies current and up-to-365-day BTC/ETH/USDT/USDC prices in USD. Older history yields `valuation_unavailable` while retaining native amount. A platform quote without direction/amount/time/known fee-spread yields `quote_unavailable`; a reference rate never substitutes for it. task-6.1 verifies Demo key/quota/attribution before runtime.
+D-40: CBR is primary USD/RUB; Frankfurter `providers=cbr` (CBR source code) is fallback/cross-check; CoinGecko Demo supplies current and up-to-365-day BTC/ETH/USDT/USDC prices in USD. Older history yields `valuation_unavailable` while retaining native amount. A platform quote without direction/amount/time/known fee-spread yields `quote_unavailable`; a reference rate never substitutes for it. task-6.1 verifies Demo key/quota/attribution before runtime.

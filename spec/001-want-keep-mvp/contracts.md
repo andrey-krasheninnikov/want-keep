@@ -53,13 +53,15 @@ Pending влияет на доступность через hold, а факти�
 
 ## Контракт справочных курсов
 
-[Evidence task-0.7](evidence/fx.md) и D-40 выбирают Банк России как основной USD/RUB, Frankfurter v2 только с `providers=CBR` как fallback/cross-check и CoinGecko Demo для отдельных BTC/USD, ETH/USD, USDT/USD и USDC/USD observations current и не старше 365 дней. Default blend и TradingView запрещены.
+[Evidence task-0.7](evidence/fx.md) и D-40 выбирают Банк России как основной USD/RUB, Frankfurter v2 только с `providers=cbr` (код источника CBR) как fallback/cross-check и CoinGecko Demo для отдельных BTC/USD, ETH/USD, USDT/USD и USDC/USD observations current и не старше 365 дней. Default blend и TradingView запрещены.
 
 Для `P_USD(X,D)` — USD за единицу актива — кросс равен `R(S→T,D) = P_USD(S,D) / P_USD(T,D)`. `P_USD(USD,D)=1`, `P_USD(RUB,D)=1/CBR_USD_RUB(D)`. Каждая leg хранит provider asset ID, requested date, observed/effective time, fetchedAt, granularity, source/transport и revision. Расчёт выполняется Decimal; округление — только на границе отображения.
 
 Для CBR берётся последняя effective date `≤ D`; выходной не создаёт observation. CoinGecko history — дневная UTC snapshot для даты операции в timezone бюджета. Crypto history старше 365 дней возвращает `valuation_unavailable`; native amount, source coverage и причина сохраняются. Последний cache можно показать только как stale с датами. Free Demo key, quota/usage и attribution проверяются в task-6.1 перед runtime.
 
 Reference valuation не заменяет фактический обмен или исполнимую котировку. Platform quote существует только при известных direction, applicable amount, provider timestamp и fee/spread coverage; иначе возвращается `quote_unavailable`. Mismatch primary/cross-check сохраняет обе observations и диагностику без скрытого усреднения.
+
+Реализация task-6.1 хранит каждое наблюдение источника неизменяемо вместе с версией, временем, транспортом и внешним обозначением актива. `/rates` выдаёт составной справочный курс с исходными legs либо явную недоступность; платформенную котировку выдаёт только по точному направлению, паре и сумме из сохранённого доказательства. Внешние адаптеры пока не записывают такие котировки. `/reports/valuation` показывает native-суммы, текущие эквиваленты и отдельную справочную переоценку текущих остатков; компоненты операций используют закреплённые оценки даты операции. При отсутствии исторической оценки отчёт показывает `valuation_pending` или причину недоступности, не подставляя текущий курс. Новый `transaction.changed` подготавливает снимки до фиксации результата фонового задания. Старые операции требуют отдельного восстановления снимков; чтение отчёта их не изменяет. Для частичного возврата `RefundShare` вычисляет долю от исходной закреплённой оценки по накопительным границам, а связывание возврата с покупкой остаётся task-2.7. Бюджет CoinGecko Demo резервируется перед запросом; секрет читается только из приватного файла. [Проверки и границы](evidence/task-6.1-rates-valuation.md).
 
 ## Дневные лимиты
 
