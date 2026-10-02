@@ -53,6 +53,27 @@ func TestCAMTIdentityAndAmounts(t *testing.T) {
 	if a.Transaction.ProviderRecordID != b.Transaction.ProviderRecordID || string(a.CanonicalPayload) == string(b.CanonicalPayload) || b.Transaction.Postings[0].Amount != "1000.000000000000000123" {
 		t.Fatal("identity included optional aliases, amount or date")
 	}
+	for _, alias := range []string{"InstrId", "TxId"} {
+		withAlias := strings.ReplaceAll(string(data), "<Refs>", "<Refs><"+alias+">SYNTHETIC-OPTIONAL</"+alias+">")
+		aliased, err := Normalize([]byte(withAlias), sampleAccount(), "synthetic-alias")
+		if err != nil || aliased.Facts[0].Record.Transaction.ProviderRecordID != a.Transaction.ProviderRecordID {
+			t.Fatal("optional structured reference changed identity", err)
+		}
+	}
+	withProprietary := strings.ReplaceAll(string(data), "<Refs>", "<Refs><Prtry><Ref>SYNTHETIC-OPTIONAL</Ref></Prtry>")
+	aliased, err := Normalize([]byte(withProprietary), sampleAccount(), "synthetic-proprietary")
+	if err != nil || aliased.Facts[0].Record.Transaction.ProviderRecordID != a.Transaction.ProviderRecordID {
+		t.Fatal("optional proprietary reference changed identity", err)
+	}
+	for _, weak := range []string{
+		strings.ReplaceAll(string(data), "<Ustrd>Синтетическое поступление</Ustrd>", "<Ustrd>  </Ustrd>"),
+		strings.ReplaceAll(string(data), "SYNTHETIC-DEBTOR", "NOTPROVIDED"),
+	} {
+		statement, err := Normalize([]byte(weak), sampleAccount(), "synthetic-weak")
+		if err != nil || statement.Facts[0].Record.Transaction.Classification != "ambiguous" {
+			t.Fatal("insufficient identity posted", err)
+		}
+	}
 	for _, bad := range []string{strings.ReplaceAll(string(data), "00000000000000000000", "11111111111111111111"), strings.ReplaceAll(string(data), "1000.00", "NaN"), strings.ReplaceAll(string(data), "camt.053.001.08", "camt.053.001.02"), "<!DOCTYPE x [<!ENTITY x SYSTEM 'file:///etc/passwd'>]>" + string(data)} {
 		if _, err := Normalize([]byte(bad), sampleAccount(), "synthetic"); err == nil {
 			t.Fatal("invalid statement accepted")
@@ -99,6 +120,24 @@ func TestHTTPAllowlistAndUnknownTokenExchange(t *testing.T) {
 	}
 }
 
+func TestReportRechecksPermit(t *testing.T) {
+	allowed, calls := true, 0
+	client := NewClient(transportFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		allowed = false
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"status":"completed"}`)), Header: http.Header{}}, nil
+	})).withPermit(func(context.Context) error {
+		if !allowed {
+			return connections.ErrProviderNotAdmitted
+		}
+		return nil
+	})
+	_, _, err := client.Report(context.Background(), Tokens{Access: "synthetic", ID: "synthetic", Refresh: "synthetic", Type: "bearer"}, sampleAccount().ID)
+	if err != connections.ErrProviderNotAdmitted || calls != 1 {
+		t.Fatal("file requested after revocation", err, calls)
+	}
+}
+
 func TestOIDCSignatureAndBindings(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -116,6 +155,26 @@ func TestOIDCSignatureAndBindings(t *testing.T) {
 	bundle := Tokens{Access: "synthetic-access", ID: encoded, Refresh: "synthetic-refresh", Type: "bearer"}
 	if _, err := a.validate(bundle, claims.Nonce, "", now); err != nil {
 		t.Fatal(err)
+	}
+	// The provider mints the token after the request starts. Validation uses response time.
+	a.Now = func() time.Time { return now }
+	a.Client = NewClient(transportFunc(func(*http.Request) (*http.Response, error) {
+		now = now.Add(time.Second)
+		claims.IssuedAt = jwt.NewNumericDate(now)
+		responseToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		responseToken.Header["kid"] = "synthetic"
+		value, err := responseToken.SignedString(key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, _ := json.Marshal(Tokens{Access: "synthetic-access", ID: value, Refresh: "synthetic-refresh", Type: "bearer"})
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(response))), Header: http.Header{}}, nil
+	}))
+	if _, err := a.Exchange(context.Background(), "synthetic-code", connections.OAuthSecrets{Nonce: claims.Nonce}); err != nil {
+		t.Fatal("response-time exchange rejected", err)
+	}
+	if _, err := a.Refresh(context.Background(), connections.TokenSet{Refresh: "synthetic-refresh", Subject: claims.Subject}); err != nil {
+		t.Fatal("response-time refresh rejected", err)
 	}
 	for _, input := range []struct {
 		nonce, subject string

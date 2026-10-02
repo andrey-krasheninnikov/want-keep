@@ -40,7 +40,7 @@ type Repository interface {
 type Authorizer interface {
 	Available() bool
 	URL(domain.OAuthSecrets) (string, error)
-	Exchange(context.Context, string, domain.OAuthSecrets, time.Time) (domain.TokenSet, error)
+	Exchange(context.Context, string, domain.OAuthSecrets) (domain.TokenSet, error)
 }
 type SecretBox interface {
 	Available() bool
@@ -307,7 +307,7 @@ func (s *Service) Callback(ctx context.Context, a identity.Access, state, code s
 	if s.Authorizer == nil || !s.Authorizer.Available() {
 		return "", domain.ErrOAuthUnavailable
 	}
-	tokens, exchangeErr := s.Authorizer.Exchange(ctx, code, secrets, now)
+	tokens, exchangeErr := s.Authorizer.Exchange(ctx, code, secrets)
 	err = s.Sessions.WithinSession(ctx, a.Token, func(ctx context.Context, current identity.Access) error {
 		if current.Principal != a.Principal {
 			return household.ErrForbidden

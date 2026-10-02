@@ -25,6 +25,14 @@ type OAuthConfig struct {
 type Authorizer struct {
 	Config OAuthConfig
 	Client *Client
+	Now    func() time.Time
+}
+
+func (a *Authorizer) validationTime() time.Time {
+	if a.Now != nil {
+		return a.Now()
+	}
+	return time.Now()
 }
 
 func LoadOAuth(clientFile, secretFile, issuer, jwksFile, redirect string) (*Authorizer, error) {
@@ -128,7 +136,7 @@ func (a *Authorizer) validate(t Tokens, nonce, subject string, now time.Time) (c
 	}
 	return connections.TokenSet{Access: t.Access, ID: t.ID, Refresh: t.Refresh, Type: t.Type, Subject: claims.Subject, IssuedAt: now, ExpiresAt: claims.ExpiresAt.Time}, nil
 }
-func (a *Authorizer) Exchange(ctx context.Context, code string, s connections.OAuthSecrets, now time.Time) (connections.TokenSet, error) {
+func (a *Authorizer) Exchange(ctx context.Context, code string, s connections.OAuthSecrets) (connections.TokenSet, error) {
 	if !a.Available() {
 		return connections.TokenSet{}, connections.ErrOAuthUnavailable
 	}
@@ -136,13 +144,13 @@ func (a *Authorizer) Exchange(ctx context.Context, code string, s connections.OA
 	if err != nil {
 		return connections.TokenSet{}, oauthError(err)
 	}
-	result, err := a.validate(t, s.Nonce, "", now)
+	result, err := a.validate(t, s.Nonce, "", a.validationTime())
 	if err != nil {
 		return result, connections.ErrOAuthUnknown
 	}
 	return result, nil
 }
-func (a *Authorizer) Refresh(ctx context.Context, old connections.TokenSet, now time.Time) (connections.TokenSet, error) {
+func (a *Authorizer) Refresh(ctx context.Context, old connections.TokenSet) (connections.TokenSet, error) {
 	if !a.Available() {
 		return connections.TokenSet{}, connections.ErrOAuthUnavailable
 	}
@@ -150,7 +158,7 @@ func (a *Authorizer) Refresh(ctx context.Context, old connections.TokenSet, now 
 	if err != nil {
 		return connections.TokenSet{}, oauthError(err)
 	}
-	result, err := a.validate(t, "", old.Subject, now)
+	result, err := a.validate(t, "", old.Subject, a.validationTime())
 	if err != nil {
 		return result, connections.ErrOAuthUnknown
 	}

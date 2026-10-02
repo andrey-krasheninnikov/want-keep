@@ -214,8 +214,11 @@ func signed(n *element, direction string) (money.Money, error) {
 func fingerprint(tx, entry *element) (string, bool) {
 	parts := []string{"camt-cross-report-v1"}
 	references := 0
-	for _, path := range []string{"Refs/InstrId", "Refs/TxId", "Refs/Prtry/Ref", "RltdPties/DbtrAcct/Id/Othr/Id", "RltdPties/CdtrAcct/Id/Othr/Id", "RltdPties/Dbtr/Pty/Id/OrgId/Othr/Id", "RltdPties/Cdtr/Pty/Id/OrgId/Othr/Id", "RltdAgts/DbtrAgt/FinInstnId/ClrSysMmbId/MmbId", "RltdAgts/CdtrAgt/FinInstnId/ClrSysMmbId/MmbId"} {
+	for _, path := range []string{"RltdPties/DbtrAcct/Id/Othr/Id", "RltdPties/CdtrAcct/Id/Othr/Id", "RltdPties/Dbtr/Pty/Id/OrgId/Othr/Id", "RltdPties/Cdtr/Pty/Id/OrgId/Othr/Id", "RltdAgts/DbtrAgt/FinInstnId/ClrSysMmbId/MmbId", "RltdAgts/CdtrAgt/FinInstnId/ClrSysMmbId/MmbId"} {
 		v := tx.value(path)
+		if v == "NOTPROVIDED" {
+			v = ""
+		}
 		parts = append(parts, path, v)
 		if v != "" {
 			references++
@@ -223,7 +226,9 @@ func fingerprint(tx, entry *element) (string, bool) {
 	}
 	remittance := []string{}
 	for _, n := range tx.at("RmtInf").all("Ustrd") {
-		remittance = append(remittance, strings.TrimSpace(n.Text))
+		if value := strings.TrimSpace(n.Text); value != "" {
+			remittance = append(remittance, value)
+		}
 	}
 	code := tx.value("BkTxCd/Prtry/Cd")
 	if code == "" {

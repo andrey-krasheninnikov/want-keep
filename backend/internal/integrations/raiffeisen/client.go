@@ -57,7 +57,14 @@ type Account struct {
 }
 
 // Client admits only the legacy RBO read/report and OAuth routes. Redirects are forbidden.
-type Client struct{ http *http.Client }
+type Client struct {
+	http          *http.Client
+	beforeRequest func(context.Context) error
+}
+
+func (c *Client) withPermit(permit func(context.Context) error) *Client {
+	return &Client{http: c.http, beforeRequest: permit}
+}
 
 func NewClient(transport http.RoundTripper) *Client {
 	if transport == nil {
@@ -83,6 +90,11 @@ func permitted(method, endpoint string) bool {
 func (c *Client) request(ctx context.Context, method, endpoint string, tokens Tokens, body []byte, basic []string) (int, []byte, error) {
 	if !permitted(method, endpoint) {
 		return 0, nil, ErrResponse
+	}
+	if c.beforeRequest != nil {
+		if err := c.beforeRequest(ctx); err != nil {
+			return 0, nil, err
+		}
 	}
 	r, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(body))
 	if err != nil {

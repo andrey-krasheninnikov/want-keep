@@ -292,11 +292,13 @@ func TestConnectionCommandsAndOAuthClaim(t *testing.T) {
 }
 
 type fakeBank struct {
-	variant    int
-	mu         sync.Mutex
-	statements map[string]string
-	creates    int
-	afterFile  func()
+	variant     int
+	mu          sync.Mutex
+	statements  map[string]string
+	creates     int
+	afterFile   func()
+	afterStatus func()
+	files       int
 }
 
 func (b *fakeBank) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -324,13 +326,18 @@ func (b *fakeBank) RoundTrip(r *http.Request) (*http.Response, error) {
 		xml = strings.ReplaceAll(xml, "2026-08-01T00:00:00+03:00", request.From+"T00:00:00+03:00")
 		xml = strings.ReplaceAll(xml, "2026-08-31T23:59:59+03:00", request.To+"T23:59:59+03:00")
 		xml = strings.ReplaceAll(xml, "<RmtInf>", "<RltdPties><DbtrAcct><Id><Othr><Id>SYNTHETIC-PARTY</Id></Othr></Id></DbtrAcct></RltdPties><RmtInf>")
+		if b.creates == 1 {
+			xml = strings.Replace(xml, "<Refs>", "<Refs><InstrId>SYNTHETIC-OPTIONAL</InstrId>", 1)
+		}
 		xml = strings.ReplaceAll(xml, request.To+"T23:59:59+03:00", time.Now().UTC().Add(-time.Minute).Format(time.RFC3339))
 		if b.variant > 0 {
 			xml = strings.ReplaceAll(xml, "2026-09-01T06:00:00+03:00", time.Now().UTC().Format(time.RFC3339Nano))
 			xml = strings.ReplaceAll(xml, "1000.00", "1100.00")
 		}
-		if b.variant > 1 {
+		if b.variant == 2 {
 			xml = strings.ReplaceAll(xml, "1100.00", "1200.00")
+		}
+		if b.variant > 1 {
 			xml = strings.ReplaceAll(xml, "SYNTHETIC-ENTRY-1", "DIFFERENT-ENTRY-1")
 			xml = strings.ReplaceAll(xml, "SYNTHETIC-END-1", "DIFFERENT-END-1")
 		}
@@ -338,7 +345,11 @@ func (b *fakeBank) RoundTrip(r *http.Request) (*http.Response, error) {
 		status, data = 202, fmt.Sprintf(`{"reportId":%q}`, id)
 	case strings.HasSuffix(r.URL.Path, "/status"):
 		data = `{"status":"completed"}`
+		if b.afterStatus != nil {
+			b.afterStatus()
+		}
 	case strings.HasSuffix(r.URL.Path, "/file"):
+		b.files++
 		parts := strings.Split(r.URL.Path, "/")
 		data = b.statements[parts[len(parts)-2]]
 		if b.afterFile != nil {
@@ -350,9 +361,8 @@ func (b *fakeBank) RoundTrip(r *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(data)), Header: http.Header{}}, nil
 }
 
-func TestNativeIngestionReplay(t *testing.T) {
-	f := newFixture(t)
-	from, _ := calendar.ParseDate(time.Now().In(time.FixedZone("Moscow", 3*3600)).Format(time.DateOnly))
+func (f *fixture) authorizeNative(from calendar.Date) {
+	f.t.Helper()
 	err := f.db.WithinHousehold(ctx, f.p, func(ctx context.Context) error {
 		c := connections.ConnectionRecord{ID: f.connection, HouseholdID: f.p.HouseholdID(), OwnerID: f.p.UserID(), Provider: "raiffeisen", State: "pending", Revision: 1, Generation: 1, HistoryFrom: from}
 		if err := f.db.CreateConnectionRecord(ctx, f.p, c); err != nil {
@@ -370,13 +380,20 @@ func TestNativeIngestionReplay(t *testing.T) {
 		return f.db.SaveEncryptedSecret(ctx, ref, ciphertext)
 	})
 	if err != nil {
-		t.Fatal(err)
+		f.t.Fatal(err)
 	}
 	for _, kind := range []connections.CheckKind{connections.ProviderCheck, connections.HostCheck} {
 		if _, err := f.gate.RecordCheck(ctx, connections.Check{Kind: kind, Binding: f.binding, Result: connections.CheckPassed, At: f.now}); err != nil {
-			t.Fatal(err)
+			f.t.Fatal(err)
 		}
 	}
+}
+
+func TestNativeIngestionReplay(t *testing.T) {
+	f := newFixture(t)
+	from, _ := calendar.ParseDate(time.Now().In(time.FixedZone("Moscow", 3*3600)).Format(time.DateOnly))
+	f.authorizeNative(from)
+	var err error
 	bank := &fakeBank{statements: map[string]string{}}
 	for pass := 0; pass < 2; pass++ {
 		if _, err := f.gate.RequestSync(ctx, f.p, f.connection, f.binding, time.Now().Add(time.Hour)); err != nil {
@@ -406,7 +423,7 @@ func TestNativeIngestionReplay(t *testing.T) {
 	if observations < 1 {
 		t.Fatal("closing observation lost")
 	}
-	for variant := 1; variant <= 2; variant++ {
+	for _, variant := range []int{1, 3, 2} {
 		bank.variant = variant
 		if _, err := f.gate.RequestSync(ctx, f.p, f.connection, f.binding, time.Now().Add(time.Hour)); err != nil {
 			t.Fatal(err)
@@ -422,6 +439,12 @@ func TestNativeIngestionReplay(t *testing.T) {
 		if amount != "1100.00" {
 			t.Fatalf("correction/collision changed effect %s", amount)
 		}
+		if variant == 3 {
+			var ambiguous int
+			if err := f.admin.QueryRow(ctx, `SELECT count(*) FROM want_keep.source_records WHERE ambiguous`).Scan(&ambiguous); err != nil || ambiguous == 0 {
+				t.Fatal("equal-payload conflicting aliases silently deduplicated", err)
+			}
+		}
 	}
 	bank.afterFile = func() {
 		if _, err := f.gate.RecordCheck(ctx, connections.Check{Kind: connections.ProviderCheck, Binding: f.binding, Result: connections.CheckRevoked, At: instantNow()}); err != nil {
@@ -432,7 +455,7 @@ func TestNativeIngestionReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	handler := raiffeisen.Handler{Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
-	if err := (jobs.Worker{Repository: f.db, Admission: f.gate, Handler: handler, Config: jobs.DefaultWorkerConfig(jobdomain.Sync)}).Step(ctx); err != nil && !errors.Is(err, jobdomain.ErrStaleAttempt) {
+	if err := (jobs.Worker{Repository: f.db, Admission: f.gate, Handler: handler, Config: jobs.DefaultWorkerConfig(jobdomain.Sync)}).Step(ctx); err != nil && !errors.Is(err, jobdomain.ErrStaleAttempt) && !errors.Is(err, connections.ErrProviderNotAdmitted) {
 		t.Fatal(err)
 	}
 	var quarantined, after int
@@ -445,6 +468,32 @@ func TestNativeIngestionReplay(t *testing.T) {
 	if quarantined == 0 || after != operations {
 		t.Fatal("stale result reached journal")
 	}
+
+}
+
+func TestNativeRevocationBeforeFile(t *testing.T) {
+	f := newFixture(t)
+	from, _ := calendar.ParseDate(time.Now().In(time.FixedZone("Moscow", 3*3600)).Format(time.DateOnly))
+	f.authorizeNative(from)
+	bank := &fakeBank{statements: map[string]string{}, afterStatus: func() {
+		if _, err := f.gate.RecordCheck(ctx, connections.Check{Kind: connections.ProviderCheck, Binding: f.binding, Result: connections.CheckRevoked, At: instantNow()}); err != nil {
+			t.Fatal(err)
+		}
+	}}
+	if _, err := f.gate.RequestSync(ctx, f.p, f.connection, f.binding, time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	handler := raiffeisen.Handler{Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
+	if err := (jobs.Worker{Repository: f.db, Admission: f.gate, Handler: handler, Config: jobs.DefaultWorkerConfig(jobdomain.Sync)}).Step(ctx); err != nil && !errors.Is(err, jobdomain.ErrStaleAttempt) && !errors.Is(err, connections.ErrProviderNotAdmitted) {
+		t.Fatal(err)
+	}
+	if bank.files != 0 {
+		t.Fatal("file read after status-time admission revoke")
+	}
+	var records int
+	if err := f.admin.QueryRow(ctx, `SELECT count(*) FROM want_keep.source_records`).Scan(&records); err != nil || records != 0 {
+		t.Fatal("revoked page reached journal", err)
+	}
 }
 
 type syntheticAuthorizer struct{ calls int }
@@ -453,9 +502,9 @@ func (*syntheticAuthorizer) Available() bool { return true }
 func (*syntheticAuthorizer) URL(s connections.OAuthSecrets) (string, error) {
 	return "https://sso.rbo.raiffeisen.ru/authorize?state=" + url.QueryEscape(s.State), nil
 }
-func (a *syntheticAuthorizer) Exchange(_ context.Context, _ string, _ connections.OAuthSecrets, at time.Time) (connections.TokenSet, error) {
+func (a *syntheticAuthorizer) Exchange(_ context.Context, _ string, _ connections.OAuthSecrets) (connections.TokenSet, error) {
 	a.calls++
-	return connections.TokenSet{Access: "synthetic-access", ID: "synthetic-id", Refresh: "synthetic-refresh", Type: "bearer", Subject: "synthetic-owner", IssuedAt: at}, nil
+	return connections.TokenSet{Access: "synthetic-access", ID: "synthetic-id", Refresh: "synthetic-refresh", Type: "bearer", Subject: "synthetic-owner", IssuedAt: time.Now()}, nil
 }
 func TestOwnerOAuthAndCallbackReadback(t *testing.T) {
 	f := newFixture(t)

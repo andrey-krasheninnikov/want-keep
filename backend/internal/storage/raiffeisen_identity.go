@@ -28,6 +28,17 @@ func (s *Store) CheckSourceIdentity(ctx context.Context, p household.Principal, 
 		if alias.Kind == "" || alias.Value == "" || len(alias.Kind) > 128 || len(alias.Value) > 2000 {
 			return "", ledger.ErrInvalidSource
 		}
+		strong := alias.Kind == "NtryRef" || alias.Kind == "AcctSvcrRef" || alias.Kind == "Refs/AcctSvcrRef" || alias.Kind == "Refs/InstrId" || alias.Kind == "Refs/TxId" || alias.Kind == "Refs/Prtry/Ref"
+		if strong {
+			var conflicting bool
+			err = scope.tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM want_keep.source_aliases WHERE household_id=$1 AND provider=$2 AND external_account_id=$3 AND log=$4 AND canonical_id=$5 AND kind=$6 AND value<>$7)`, p.HouseholdID(), in.Key.Provider, in.Key.ExternalAccountID, in.Key.Log, in.Key.RecordID, alias.Kind, alias.Value).Scan(&conflicting)
+			if err != nil {
+				return "", err
+			}
+			if conflicting {
+				classification = "ambiguous"
+			}
+		}
 		encoded, _ := json.Marshal([]string{string(p.HouseholdID()), in.Key.Provider, in.Key.ExternalAccountID, in.Key.Log, alias.Kind, alias.Value})
 		digest := sha256.Sum256(encoded)
 		tag, insertErr := scope.tx.Exec(ctx, `INSERT INTO want_keep.source_aliases(household_id,provider,external_account_id,log,alias_digest,kind,value,canonical_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING`, p.HouseholdID(), in.Key.Provider, in.Key.ExternalAccountID, in.Key.Log, digest[:], alias.Kind, alias.Value, in.Key.RecordID)
@@ -40,7 +51,7 @@ func (s *Store) CheckSourceIdentity(ctx context.Context, p household.Principal, 
 		if err != nil {
 			return "", err
 		}
-		if tag.RowsAffected() == 0 && !ambiguous && canonical == in.Key.RecordID && (alias.Kind == "NtryRef" || alias.Kind == "AcctSvcrRef" || alias.Kind == "Refs/AcctSvcrRef" || alias.Kind == "Refs/InstrId" || alias.Kind == "Refs/TxId" || alias.Kind == "Refs/Prtry/Ref") {
+		if tag.RowsAffected() == 0 && !ambiguous && canonical == in.Key.RecordID && strong {
 			priorBankAlias = true
 		}
 		if external != in.Key.ExternalAccountID || log != in.Key.Log || kind != alias.Kind || value != alias.Value || canonical != in.Key.RecordID || ambiguous {

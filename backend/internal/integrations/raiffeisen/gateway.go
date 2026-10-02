@@ -49,10 +49,8 @@ func (g *Gateway) io(ctx context.Context) error {
 type cursor struct{ Day, AccountID string }
 
 func (g *Gateway) Read(ctx context.Context, t ingestion.JobToken) (ingestion.Result, error) {
-	if err := g.io(ctx); err != nil {
-		return ingestion.Result{}, err
-	}
-	accounts, raw, err := g.Client.Accounts(ctx, g.Tokens)
+	client := g.Client.withPermit(g.io)
+	accounts, raw, err := client.Accounts(ctx, g.Tokens)
 	if err != nil {
 		return g.failure(t, err, raw, "accounts"), nil
 	}
@@ -112,10 +110,7 @@ func (g *Gateway) Read(ctx context.Context, t ingestion.JobToken) (ingestion.Res
 		return ingestion.Result{}, err
 	}
 	if claimed {
-		if err = g.io(ctx); err != nil {
-			return ingestion.Result{}, err
-		}
-		id, response, createErr := g.Client.CreateReport(ctx, g.Tokens, a, date, date, now)
+		id, response, createErr := client.CreateReport(ctx, g.Tokens, a, date, date, now)
 		phase := "requested"
 		if errors.Is(createErr, ErrNoStatements) {
 			phase = "no_statements"
@@ -150,10 +145,7 @@ func (g *Gateway) Read(ctx context.Context, t ingestion.JobToken) (ingestion.Res
 	} else {
 		var file, status []byte
 		for attempt := 0; attempt < 10; attempt++ {
-			if err = g.io(ctx); err != nil {
-				return ingestion.Result{}, err
-			}
-			file, status, err = g.Client.Report(ctx, g.Tokens, report.ReportID)
+			file, status, err = client.Report(ctx, g.Tokens, report.ReportID)
 			if !errors.Is(err, ErrReportPending) {
 				break
 			}

@@ -86,7 +86,15 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 				if err := beforeIO(ctx); err != nil {
 					return err
 				}
-				fresh, err := h.Authorizer.Refresh(ctx, bundle, h.Now())
+				authorizer := *h.Authorizer
+				authorizer.Now = h.Now
+				authorizer.Client = authorizer.Client.withPermit(func(ctx context.Context) error {
+					if err := h.Gate.BeforeRead(ctx, execution.Principal, execution.Job); err != nil {
+						return err
+					}
+					return beforeIO(ctx)
+				})
+				fresh, err := authorizer.Refresh(ctx, bundle)
 				if err != nil {
 					_ = h.Gate.WithReadPermit(ctx, execution.Principal, execution.Job, func(ctx context.Context) error {
 						return h.Repository.FailTokenRotation(ctx, execution.Principal, execution.Job, ref, attempt)
