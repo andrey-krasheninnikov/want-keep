@@ -258,6 +258,13 @@ func (s *Service) resolveAllocationAt(ctx context.Context, p household.Principal
 	}
 	items := make([]ledger.ItemAllocationInput, 0, len(revision.ReceiptItems))
 	for _, item := range revision.ReceiptItems {
+		net, err := item.Net()
+		if err != nil {
+			return revision, false, err
+		}
+		if net.Sign() == 0 {
+			continue
+		}
 		if preserved, ok := preservedItems[item.ID]; ok {
 			items = append(items, ledger.ItemAllocationInput{ItemID: item.ID, Allocation: preserved})
 			continue

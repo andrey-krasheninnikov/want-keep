@@ -69,7 +69,11 @@ func TestRuleReviewPreservesMixedReceipt(t *testing.T) {
 	r.ReceiptItems = []ledger.ReceiptItem{
 		{ID: uuid.NewString(), Name: "Personal item", Quantity: "1", CategoryID: personalCategory, Gross: mustMoney("40"), Discount: mustMoney("0")},
 		{ID: uuid.NewString(), Name: "Shared item", Quantity: "1", CategoryID: sharedCategory, Gross: mustMoney("60"), Discount: mustMoney("0")},
+		{ID: uuid.NewString(), Name: "Free item", Quantity: "1", Gross: mustMoney("10"), Discount: mustMoney("10"), Allocation: ledger.NotApplicableAllocation()},
 	}
+	dormant := bases[1]
+	dormant.Origin = ledger.AllocationExplicitItem
+	r.ReceiptItems[2].Allocation.Basis = &dormant
 	r, err := r.WithAllocation(bases[0], []ledger.ItemAllocationInput{{ItemID: r.ReceiptItems[0].ID, Allocation: bases[1]}, {ItemID: r.ReceiptItems[1].ID, Allocation: bases[0]}}, []household.MembershipID{f.membership.ID, member.ID})
 	if err != nil {
 		t.Fatal(err)
@@ -89,8 +93,12 @@ func TestRuleReviewPreservesMixedReceipt(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if !found || current.Revision != 1 || len(current.ReceiptItems) != 2 {
+		if !found || current.Revision != 1 || len(current.ReceiptItems) != 3 {
 			t.Fatalf("unchanged item rules: %+v", current)
+		}
+		free := current.ReceiptItems[2].Allocation
+		if free.State != ledger.AllocationNotApplicable || free.Basis == nil || free.Basis.Origin != ledger.AllocationExplicitItem {
+			t.Fatalf("zero-net basis lost: %+v", free)
 		}
 		for _, amount := range current.Allocation.Members {
 			want := "30"
