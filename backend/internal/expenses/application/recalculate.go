@@ -67,7 +67,7 @@ func recalculate(ctx context.Context, repository Repository, principal household
 				links[id] = link
 			}
 		}
-		if !active(purchase, revision) {
+		if !expenses.Active(purchase, revision) {
 			continue
 		}
 		activeAmounts[id] = amount
@@ -149,10 +149,6 @@ func recalculate(ctx context.Context, repository Repository, principal household
 		}
 	}
 	return changed, nil
-}
-
-func active(purchase, refund ledger.Revision) bool {
-	return purchase.State == ledger.Posted && purchase.Accounting() == ledger.IncludedInAccounting && refund.State == ledger.Posted && refund.Accounting() == ledger.IncludedInAccounting
 }
 
 func principalAmount(revision ledger.Revision, sign int) (money.Money, error) {

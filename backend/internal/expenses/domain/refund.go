@@ -142,7 +142,7 @@ func Calculate(purchase, refund ledger.Revision, requested []ItemPortion, refund
 	if err != nil || remaining.Sign() < 0 {
 		return Refund{}, ErrRefundExceedsPurchase
 	}
-	active := purchase.State == ledger.Posted && purchase.Accounting() == ledger.IncludedInAccounting && refund.State == ledger.Posted && refund.Accounting() == ledger.IncludedInAccounting
+	active := Active(purchase, refund)
 	if active {
 		if compared, _ := refundAmount.Compare(remaining); compared > 0 {
 			return Refund{}, ErrRefundExceedsPurchase
@@ -259,6 +259,23 @@ func Calculate(purchase, refund ledger.Revision, requested []ItemPortion, refund
 		result.Valuation = &valuation
 	}
 	return result, result.Validate()
+}
+
+// Active reports whether both principal postings contribute to current accounting.
+func Active(purchase, refund ledger.Revision) bool {
+	return principalContributes(purchase) && principalContributes(refund)
+}
+
+func principalContributes(revision ledger.Revision) bool {
+	if revision.State != ledger.Posted || revision.Accounting() != ledger.IncludedInAccounting {
+		return false
+	}
+	for position, posting := range revision.Postings {
+		if posting.Role == ledger.Principal && posting.MovesMoney() {
+			return revision.Contributes(position) && revision.ContributionState(position) == ledger.Posted
+		}
+	}
+	return false
 }
 
 func Clarify(purchase, refund ledger.Revision, requested []ItemPortion, refunded money.Money, revision uint64, reason string, actor household.UserID, recordedAt calendar.Instant) (Refund, error) {

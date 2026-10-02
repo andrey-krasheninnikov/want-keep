@@ -146,6 +146,27 @@ func TestInactivePurchasePreservesLinkWithoutAnalyticalEffect(t *testing.T) {
 	}
 }
 
+func TestNonContributingPrincipalDoesNotReduceExpense(t *testing.T) {
+	p := purchase("10", money.RUB)
+	for _, candidate := range []struct {
+		name          string
+		participation ledger.Participation
+	}{
+		{"waiting", ledger.Participation{GroupID: "group", Kind: "payment", State: "waiting"}},
+		{"non-carrier", ledger.Participation{GroupID: "group", Kind: "payment", State: "linked", Parts: []ledger.Contribution{{CarrierID: "other", State: ledger.Posted}}}},
+		{"pending carrier", ledger.Participation{GroupID: "group", Kind: "payment", State: "linked", Parts: []ledger.Contribution{{CarrierID: "refund", State: ledger.Pending}}}},
+	} {
+		t.Run(candidate.name, func(t *testing.T) {
+			r := refund("4", money.RUB)
+			r.Participation = candidate.participation
+			result, err := expenses.Calculate(p, r, nil, cash("0", money.RUB), nil, nil, 1, "possible duplicate", "user", r.RecordedAt)
+			if err != nil || result.State != expenses.Inactive || result.Remaining.Amount() != "10" {
+				t.Fatalf("non-contributing refund=%+v err=%v", result, err)
+			}
+		})
+	}
+}
+
 func TestInactiveItemRefundStillValidatesItemIdentity(t *testing.T) {
 	p := purchase("10", money.RUB)
 	p.AccountingState = ledger.ExcludedFromAccounting

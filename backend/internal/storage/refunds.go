@@ -23,17 +23,19 @@ func (s *Store) CurrentRefundRevisions(ctx context.Context, p household.Principa
 	if len(ids) == 0 {
 		return result, nil
 	}
-	rows, err := q.Query(ctx, `SELECT o.id,o.revision,r.economic_type,r.state,r.cash_date,a.accounting_state,p.account_id,p.amount::text,p.asset,p.role,p.funding,p.treatment FROM want_keep.operations o JOIN want_keep.operation_revisions r ON (r.household_id,r.operation_id,r.revision)=(o.household_id,o.id,o.revision) JOIN want_keep.ledger_revision_audit a ON (a.household_id,a.operation_id,a.revision)=(r.household_id,r.operation_id,r.revision) JOIN want_keep.postings p ON (p.household_id,p.operation_id,p.revision)=(r.household_id,r.operation_id,r.revision) WHERE o.household_id=$1 AND o.id=ANY($2::uuid[]) AND p.role='principal' AND p.treatment IN ('','movement') ORDER BY o.id,p.position`, p.HouseholdID(), ids)
+	rows, err := q.Query(ctx, `SELECT o.id,o.revision,r.economic_type,r.state,r.cash_date,a.accounting_state,p.account_id,p.amount::text,p.asset,p.role,p.funding,p.treatment,lp.group_id FROM want_keep.operations o JOIN want_keep.operation_revisions r ON (r.household_id,r.operation_id,r.revision)=(o.household_id,o.id,o.revision) JOIN want_keep.ledger_revision_audit a ON (a.household_id,a.operation_id,a.revision)=(r.household_id,r.operation_id,r.revision) JOIN want_keep.postings p ON (p.household_id,p.operation_id,p.revision)=(r.household_id,r.operation_id,r.revision) LEFT JOIN want_keep.ledger_participations lp ON (lp.household_id,lp.operation_id,lp.revision)=(r.household_id,r.operation_id,r.revision) WHERE o.household_id=$1 AND o.id=ANY($2::uuid[]) AND p.role='principal' AND p.treatment IN ('','movement') ORDER BY o.id,p.position`, p.HouseholdID(), ids)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+	matched := []string{}
 	for rows.Next() {
 		var revision ledger.Revision
 		var cashDate time.Time
 		var posting ledger.Posting
 		var amount, asset string
-		if err = rows.Scan(&revision.OperationID, &revision.Revision, &revision.Type, &revision.State, &cashDate, &revision.AccountingState, &posting.AccountID, &amount, &asset, &posting.Role, &posting.Funding, &posting.Treatment); err != nil {
+		var groupID *string
+		if err = rows.Scan(&revision.OperationID, &revision.Revision, &revision.Type, &revision.State, &cashDate, &revision.AccountingState, &posting.AccountID, &amount, &asset, &posting.Role, &posting.Funding, &posting.Treatment, &groupID); err != nil {
 			return nil, err
 		}
 		if _, duplicate := result[revision.OperationID]; duplicate {
@@ -49,9 +51,20 @@ func (s *Store) CurrentRefundRevisions(ctx context.Context, p household.Principa
 		}
 		revision.Postings = []ledger.Posting{posting}
 		result[revision.OperationID] = revision
+		if groupID != nil {
+			matched = append(matched, revision.OperationID)
+		}
 	}
 	if err = rows.Err(); err != nil {
 		return nil, err
+	}
+	rows.Close()
+	for _, id := range matched {
+		full, loadErr := s.LedgerRevision(ctx, p, id, result[id].Revision)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		result[id] = full
 	}
 	unique := map[string]bool{}
 	for _, id := range ids {
