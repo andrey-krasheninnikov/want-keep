@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	accountsapp "github.com/pchkauu/want-keep/backend/internal/accounts/application"
 	"github.com/pchkauu/want-keep/backend/internal/connections/admission"
 	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
@@ -23,19 +24,20 @@ type Reports interface {
 	SaveRBOReport(context.Context, household.Principal, jobs.Job, connections.RBOReport, string, string) error
 }
 type Gateway struct {
-	Client     *Client
-	Tokens     Tokens
-	Gate       *admission.Service
-	Reports    Reports
-	Principal  household.Principal
-	Job        jobs.Job
-	Connection connections.ConnectionRecord
-	Now        func() time.Time
-	BeforeIO   func(context.Context) error
-	Complete   bool
+	Client            *Client
+	Tokens            Tokens
+	Gate              *admission.Service
+	Reports           Reports
+	Principal         household.Principal
+	Job               jobs.Job
+	Connection        connections.ConnectionRecord
+	Now               func() time.Time
+	BeforeIO          func(context.Context) error
+	Complete          bool
+	DeploymentBinding connections.Binding
 }
 
-func (g *Gateway) Binding() connections.Binding { return g.Job.Binding }
+func (g *Gateway) Binding() connections.Binding { return g.DeploymentBinding }
 func (g *Gateway) Manifest(context.Context) (ingestion.Manifest, error) {
 	return ingestion.Manifest{Provider: "raiffeisen", Version: "10", Actions: []ingestion.ReadAction{ingestion.ReadAccounts, ingestion.ReadBalances, ingestion.ReadTransactions, ingestion.ReadHistory}, Products: []string{"current"}, Logs: []ingestion.CapabilityLog{{Product: "current", Namespace: camtLog, RecordKinds: []ingestion.RecordKind{ingestion.AccountRecordKind, ingestion.BalanceRecordKind, ingestion.TransactionRecordKind}}}, Paginated: true}, nil
 }
@@ -53,6 +55,27 @@ func (g *Gateway) Read(ctx context.Context, t ingestion.JobToken) (ingestion.Res
 	accounts, raw, err := client.Accounts(ctx, g.Tokens)
 	if err != nil {
 		return g.failure(t, err, raw, "accounts"), nil
+	}
+	evidence := []ingestion.Evidence{rawEvidence(raw, "application/json", "accounts")}
+	records := []ingestion.Record{}
+	gaps := []string{}
+	supported := make([]Account, 0, len(accounts))
+	for _, account := range accounts {
+		ref := ingestion.AccountReference{ExternalAccountID: account.ID, Product: "current", AssetCode: currency(account.Currency)}
+		descriptor := ingestion.AccountRecord{Reference: ref, Name: account.Name, LogNamespace: camtLog, EvidenceID: evidence[0].ID, OpeningDate: g.Connection.HistoryFrom}
+		canonical, _ := json.Marshal(account)
+		records = append(records, ingestion.Record{Kind: ingestion.AccountRecordKind, Account: &descriptor, CanonicalPayload: canonical})
+		if _, err := accountsapp.CanonicalSourceAsset("raiffeisen", account.Currency); err != nil {
+			gaps = appendUnique(gaps, "unsupported_asset")
+		} else {
+			supported = append(supported, account)
+		}
+	}
+	accounts = supported
+	if len(accounts) == 0 {
+		coverage, _ := reporting.NewCoverage(reporting.Partial, gaps)
+		g.Complete = true
+		return ingestion.Result{Page: &ingestion.Page{Token: t, Complete: true, Coverage: coverage, Evidence: evidence, Records: records}}, nil
 	}
 	sort.Slice(accounts, func(i, j int) bool { return accounts[i].ID < accounts[j].ID })
 	zone, _ := time.LoadLocation("Europe/Moscow")
@@ -131,15 +154,6 @@ func (g *Gateway) Read(ctx context.Context, t ingestion.JobToken) (ingestion.Res
 	if report.Phase == "claimed" || report.Phase == "unknown" {
 		return g.failure(t, ErrUnknown, raw, "report_unknown"), nil
 	}
-	evidence := []ingestion.Evidence{rawEvidence(raw, "application/json", "accounts")}
-	records := []ingestion.Record{}
-	for _, account := range accounts {
-		ref := ingestion.AccountReference{ExternalAccountID: account.ID, Product: "current", AssetCode: currency(account.Currency)}
-		descriptor := ingestion.AccountRecord{Reference: ref, Name: account.Name, LogNamespace: camtLog, EvidenceID: evidence[0].ID, OpeningDate: g.Connection.HistoryFrom}
-		canonical, _ := json.Marshal(account)
-		records = append(records, ingestion.Record{Kind: ingestion.AccountRecordKind, Account: &descriptor, CanonicalPayload: canonical})
-	}
-	gaps := []string{}
 	if report.Phase == "no_statements" {
 		gaps = append(gaps, "intraday_unavailable")
 	} else {

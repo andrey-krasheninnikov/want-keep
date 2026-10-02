@@ -79,6 +79,17 @@ func TestCAMTIdentityAndAmounts(t *testing.T) {
 			t.Fatal("invalid statement accepted")
 		}
 	}
+	entries := strings.Index(string(data), "<Ntry>")
+	mismatched := string(data[:entries]) + strings.ReplaceAll(string(data[entries:]), `Ccy="RUB"`, `Ccy="USD"`)
+	if _, err := Normalize([]byte(mismatched), sampleAccount(), "synthetic-currency"); err != ErrResponse {
+		t.Fatal("entry currency reassigned to account", err)
+	}
+	placeholder := strings.ReplaceAll(string(data), "SYNTHETIC-ENTRY-1", "NOTPROVIDED")
+	placeholder = strings.ReplaceAll(placeholder, "SYNTHETIC-END-1", "NOTPROVIDED")
+	statement, err := Normalize([]byte(placeholder), sampleAccount(), "synthetic-placeholder")
+	if err != nil || len(statement.Facts[0].Aliases) != 0 {
+		t.Fatal("placeholder became correction evidence", err)
+	}
 	// Two details replace the entry principal; the entry itself is never posted.
 	detail := `<TxDtls><Refs><InstrId>PART-B</InstrId></Refs><Amt Ccy="RUB">400.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><RmtInf><Ustrd>Part B</Ustrd></RmtInf></TxDtls>`
 	multi := strings.Replace(string(data), `<EndToEndId>SYNTHETIC-END-1</EndToEndId></Refs><Amt Ccy="RUB">1000.00</Amt>`, `<EndToEndId>SYNTHETIC-END-1</EndToEndId></Refs><Amt Ccy="RUB">600.00</Amt>`, 1)

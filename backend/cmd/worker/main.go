@@ -20,6 +20,7 @@ import (
 	"github.com/pchkauu/want-keep/backend/internal/connections/admission"
 	collector "github.com/pchkauu/want-keep/backend/internal/connections/collector"
 	"github.com/pchkauu/want-keep/backend/internal/connections/credentials"
+	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	openaigateway "github.com/pchkauu/want-keep/backend/internal/gateways/openai"
 	integrations "github.com/pchkauu/want-keep/backend/internal/integrations/application"
@@ -46,6 +47,12 @@ func run() error {
 	bindings, err := admission.LoadBindings(os.Getenv("WANT_KEEP_JOB_BINDINGS_FILE"), os.Getenv("WANT_KEEP_ENV"))
 	if err != nil {
 		return err
+	}
+	var nativeBinding connections.Binding
+	for _, binding := range bindings {
+		if binding.Provider == "raiffeisen" {
+			nativeBinding = binding
+		}
 	}
 	db, err := storage.Open(ctx, storage.Config{DSN: os.Getenv("WANT_KEEP_DATABASE_URL"), Environment: os.Getenv("WANT_KEEP_ENV"), MaxConnections: 8})
 	if err != nil {
@@ -95,7 +102,7 @@ func run() error {
 			if socket != "" {
 				collectorHandler = collector.Handler{Socket: socket, Vault: vault, Service: ingestionService}
 			}
-			syncHandler = raiffeisen.Dispatcher{Native: raiffeisen.Handler{Vault: vault, Service: ingestionService, Gate: admissionService, Repository: db, Authorizer: authorizer, Now: time.Now}, Collector: collectorHandler}
+			syncHandler = raiffeisen.Dispatcher{Native: raiffeisen.Handler{Vault: vault, Service: ingestionService, Gate: admissionService, Repository: db, Authorizer: authorizer, Now: time.Now, Binding: nativeBinding}, Collector: collectorHandler}
 		}
 	}
 	rateService := valuationapp.Service{Repository: db, Sources: ratesource.New(&http.Client{Timeout: 3 * time.Second}, os.Getenv("WANT_KEEP_COINGECKO_KEY_FILE"), db), Now: time.Now}

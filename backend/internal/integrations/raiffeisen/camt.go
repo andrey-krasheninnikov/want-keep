@@ -314,12 +314,18 @@ func Normalize(data []byte, a Account, reportID string) (Statement, error) {
 		if err != nil {
 			return Statement{}, err
 		}
+		if string(entryAmount.Asset()) != ref.AssetCode {
+			return Statement{}, ErrResponse
+		}
 		sum, _ := money.NewMoney("0", entryAmount.Asset())
 		start := len(result.Facts)
 		for _, tx := range details {
 			amount, err := signed(tx.at("Amt"), tx.value("CdtDbtInd"))
 			if err != nil {
 				return Statement{}, err
+			}
+			if string(amount.Asset()) != ref.AssetCode {
+				return Statement{}, ErrResponse
 			}
 			sum, err = sum.Add(amount)
 			if err != nil {
@@ -374,7 +380,7 @@ func Normalize(data []byte, a Account, reportID string) (Statement, error) {
 			}
 			if len(details) == 1 {
 				for _, path := range []string{"NtryRef", "AcctSvcrRef"} {
-					if v := entry.value(path); v != "" {
+					if v := entry.value(path); v != "" && v != "NOTPROVIDED" {
 						aliases = append(aliases, Alias{path, v})
 					}
 				}

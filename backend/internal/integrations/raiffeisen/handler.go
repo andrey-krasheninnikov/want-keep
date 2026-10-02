@@ -30,10 +30,11 @@ type Handler struct {
 	Authorizer      *Authorizer
 	TransportClient func() *Client
 	Now             func() time.Time
+	Binding         connections.Binding
 }
 
 func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Result, error) {
-	if execution.Job.Kind != jobdomain.Sync || execution.Job.Binding.Provider != "raiffeisen" || execution.Job.SecretPurpose != connections.OAuthTokens || h.Vault == nil || h.Service == nil || h.Gate == nil || h.Repository == nil || h.Now == nil {
+	if execution.Job.Kind != jobdomain.Sync || execution.Job.Binding.Provider != "raiffeisen" || execution.Job.SecretPurpose != connections.OAuthTokens || h.Vault == nil || h.Service == nil || h.Gate == nil || h.Repository == nil || h.Now == nil || h.Binding.Validate() != nil || h.Binding != execution.Job.Binding {
 		return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.HandlerUnavailable}, nil
 	}
 	for {
@@ -123,7 +124,7 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 			if h.TransportClient != nil {
 				client = h.TransportClient()
 			}
-			gateway := &Gateway{Client: client, Tokens: tokens, Gate: h.Gate, Reports: h.Repository, Principal: execution.Principal, Job: execution.Job, Connection: c, Now: h.Now, BeforeIO: beforeIO}
+			gateway := &Gateway{Client: client, Tokens: tokens, Gate: h.Gate, Reports: h.Repository, Principal: execution.Principal, Job: execution.Job, Connection: c, Now: h.Now, BeforeIO: beforeIO, DeploymentBinding: h.Binding}
 			applied, failure, err := h.Service.Ingest(ctx, execution.Principal, execution.Job, gateway)
 			if err != nil {
 				return err

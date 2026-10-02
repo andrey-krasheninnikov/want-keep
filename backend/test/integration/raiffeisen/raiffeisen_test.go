@@ -218,6 +218,18 @@ func (f *fixture) request(member int, method, path, body, key string) *httptest.
 
 func TestConnectionCommandsAndOAuthClaim(t *testing.T) {
 	f := newFixture(t)
+	missingKey := uuid.NewString()
+	missingID := uuid.NewString()
+	for range 2 {
+		w := f.request(0, "POST", "/api/v1/connections/"+missingID+"/reauth", `{"expectedRevision":1}`, missingKey)
+		if w.Code != 202 {
+			t.Fatal("known refusal not recorded", w.Code)
+		}
+	}
+	var status string
+	if err := f.admin.QueryRow(ctx, `SELECT status FROM want_keep.command_tombstones WHERE id=$1`, missingKey).Scan(&status); err != nil || status != "failed" {
+		t.Fatal("rejected command remains pending", err, status)
+	}
 	from := time.Now().Add(-48 * time.Hour).In(time.FixedZone("Moscow", 3*3600)).Format(time.DateOnly)
 	body := fmt.Sprintf(`{"provider":"raiffeisen","externalAccountOwnerId":%q,"historyFrom":%q,"products":["current"]}`, f.p.UserID(), from)
 	key := uuid.NewString()
@@ -307,7 +319,7 @@ func (b *fakeBank) RoundTrip(r *http.Request) (*http.Response, error) {
 	status, data := 200, ""
 	switch {
 	case strings.HasSuffix(r.URL.Path, "/accounts"):
-		data = `[{"id":"00000000-0000-4000-8000-000000000001","number":"00000000000000000000","name":"Synthetic account","organizationName":"Synthetic organization","currency":"RUR"}]`
+		data = `[{"id":"00000000-0000-4000-8000-000000000001","number":"00000000000000000000","name":"Synthetic account","organizationName":"Synthetic organization","currency":"RUR"},{"id":"00000000-0000-4000-8000-000000000002","number":"00000000000000000001","name":"Unsupported account","organizationName":"Synthetic organization","currency":"EUR"}]`
 	case r.Method == "POST":
 		var request struct{ From, To string }
 		body, _ := io.ReadAll(r.Body)
@@ -395,11 +407,22 @@ func TestNativeIngestionReplay(t *testing.T) {
 	f.authorizeNative(from)
 	var err error
 	bank := &fakeBank{statements: map[string]string{}}
+	job, err := f.gate.RequestSync(ctx, f.p, f.connection, f.binding, time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, binding := range []connections.Binding{{}, func() connections.Binding { b := f.binding; b.AllowlistRevision = "changed"; return b }()} {
+		handler := raiffeisen.Handler{Binding: binding, Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
+		result, err := handler.Prepare(ctx, jobs.Execution{Principal: f.p, Job: job})
+		if err != nil || result.State != jobdomain.Waiting || bank.creates != 0 {
+			t.Fatal("unconfigured or mismatched native binding used", err)
+		}
+	}
 	for pass := 0; pass < 2; pass++ {
 		if _, err := f.gate.RequestSync(ctx, f.p, f.connection, f.binding, time.Now().Add(time.Hour)); err != nil {
 			t.Fatal(err)
 		}
-		handler := raiffeisen.Handler{Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
+		handler := raiffeisen.Handler{Binding: f.binding, Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
 		worker := jobs.Worker{Repository: f.db, Admission: f.gate, Handler: handler, Config: jobs.DefaultWorkerConfig(jobdomain.Sync)}
 		if err := worker.Step(ctx); err != nil {
 			t.Fatal(err)
@@ -423,12 +446,16 @@ func TestNativeIngestionReplay(t *testing.T) {
 	if observations < 1 {
 		t.Fatal("closing observation lost")
 	}
+	var unsupported int
+	if err = f.admin.QueryRow(ctx, `SELECT count(*) FROM want_keep.sync_progress WHERE 'unsupported_asset'=ANY(gaps)`).Scan(&unsupported); err != nil || unsupported != 1 {
+		t.Fatal("unsupported account blocked supported page or lost coverage", err)
+	}
 	for _, variant := range []int{1, 3, 2} {
 		bank.variant = variant
 		if _, err := f.gate.RequestSync(ctx, f.p, f.connection, f.binding, time.Now().Add(time.Hour)); err != nil {
 			t.Fatal(err)
 		}
-		handler := raiffeisen.Handler{Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
+		handler := raiffeisen.Handler{Binding: f.binding, Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
 		if err := (jobs.Worker{Repository: f.db, Admission: f.gate, Handler: handler, Config: jobs.DefaultWorkerConfig(jobdomain.Sync)}).Step(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -454,7 +481,7 @@ func TestNativeIngestionReplay(t *testing.T) {
 	if _, err := f.gate.RequestSync(ctx, f.p, f.connection, f.binding, time.Now().Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	handler := raiffeisen.Handler{Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
+	handler := raiffeisen.Handler{Binding: f.binding, Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
 	if err := (jobs.Worker{Repository: f.db, Admission: f.gate, Handler: handler, Config: jobs.DefaultWorkerConfig(jobdomain.Sync)}).Step(ctx); err != nil && !errors.Is(err, jobdomain.ErrStaleAttempt) && !errors.Is(err, connections.ErrProviderNotAdmitted) {
 		t.Fatal(err)
 	}
@@ -483,7 +510,7 @@ func TestNativeRevocationBeforeFile(t *testing.T) {
 	if _, err := f.gate.RequestSync(ctx, f.p, f.connection, f.binding, time.Now().Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	handler := raiffeisen.Handler{Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
+	handler := raiffeisen.Handler{Binding: f.binding, Vault: f.vault, Service: f.ingestion, Gate: f.gate, Repository: f.db, Now: time.Now, TransportClient: func() *raiffeisen.Client { return raiffeisen.NewClient(bank) }}
 	if err := (jobs.Worker{Repository: f.db, Admission: f.gate, Handler: handler, Config: jobs.DefaultWorkerConfig(jobdomain.Sync)}).Step(ctx); err != nil && !errors.Is(err, jobdomain.ErrStaleAttempt) && !errors.Is(err, connections.ErrProviderNotAdmitted) {
 		t.Fatal(err)
 	}

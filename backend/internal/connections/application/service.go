@@ -123,7 +123,17 @@ func (s *Service) Execute(ctx context.Context, a identity.Access, r commands.Req
 	})
 	return result, err
 }
-func (s *Service) mutate(ctx context.Context, p household.Principal, action, id string, revision uint64, in CreateInput) (command.Result, error) {
+func (s *Service) mutate(ctx context.Context, p household.Principal, action, id string, revision uint64, in CreateInput) (result command.Result, err error) {
+	defer func() {
+		switch {
+		case errors.Is(err, domain.ErrConnectionNotFound):
+			err = commands.Rejection{Code: "not_found"}
+		case errors.Is(err, household.ErrForbidden):
+			err = commands.Rejection{Code: "forbidden"}
+		case errors.Is(err, domain.ErrInvalidConnection):
+			err = commands.Rejection{Code: "invalid_request"}
+		}
+	}()
 	if action == "create" {
 		if in.Provider != "raiffeisen" || in.HistoryFrom.String() == "" || len(in.Products) != 1 || in.Products[0] != "current" {
 			return command.Result{}, commands.Rejection{Code: "feature_unavailable"}
