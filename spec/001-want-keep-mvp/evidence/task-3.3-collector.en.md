@@ -20,6 +20,8 @@ Baseline matrix commands are `make check`; `make test-collector FILTER=security`
 
 For completion, only affected checks were repeated as requested; the full local suite was not repeated. Current CI is verified separately.
 
+A Unix-socket disconnect after the complete request body is consumed propagates cancellation to the runtime through premature response closure. A regression covers this boundary; successful response completion does not trigger cancellation. Typecheck, lint, build and two affected tests, including a successful read, passed after the correction.
+
 Tests cover safe GET and statement POST, separate session cookies, MFA/CAPTCHA, HTTP 429, invalid 401 body bytes, Chromium restart, route normalization, page fetch replacement, duplicate statement prevention, WebRTC suppression, payment/redirect/popup/download/WebSocket/service-worker blocking and stale binding before browser IO. Go tests cover Unix-only transport, the `external_started` boundary, three proven pre-IO rejections, absence of session data in results and encryption/AAD. PostgreSQL tests cover ciphertext-only storage, absence of provider IDs from metadata, nanosecond time, household isolation, restart, idempotent terminal disposition, immutable items and staged recovery.
 
 ## Acceptance boundaries

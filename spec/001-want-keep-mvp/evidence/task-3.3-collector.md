@@ -20,6 +20,8 @@ Raw evidence шифруется существующим connection keyring до
 
 При завершении по решению пользователя повторены только затронутые проверки; полный локальный набор не повторялся. Актуальный CI проверяется отдельно.
 
+Разрыв Unix socket после полного чтения запроса передаёт отмену в runtime через преждевременное закрытие ответа. Регрессия проверяет эту границу; успешное завершение ответа не вызывает отмену. После исправления прошли typecheck, lint, build и два затронутых теста, включая успешное чтение.
+
 Тесты проверяют безопасный GET и statement POST, раздельные session cookies, MFA/CAPTCHA, HTTP 429, некорректное тело 401, восстановление Chromium, нормализацию route, подмену page fetch, отсутствие повторного statement POST, отключение WebRTC, payment/redirect/popup/download/WebSocket/service-worker блокировки и stale binding до browser IO. Go-тесты проверяют Unix-only transport, момент `external_started`, три подтверждённых отказа до IO, отсутствие session в result и encryption/AAD. PostgreSQL-тесты проверяют ciphertext-only storage, отсутствие provider ID в метаданных, наносекундное время, семейную изоляцию, рестарт, idempotent terminal disposition, неизменяемые items и staged recovery.
 
 ## Границы критериев

@@ -122,6 +122,46 @@ describe("collector security boundary", () => {
     expect(portal.requests()).toBe(0);
   });
 
+  it("cancels a read when the Unix socket closes after the complete request", async () => {
+    const portal = await startPortal("safe");
+    const collector = await start(portal.origin, "/portal");
+    let signal: AbortSignal | undefined;
+    const read = vi
+      .spyOn(CollectorRuntime.prototype, "read")
+      .mockImplementationOnce(async (_value, requestSignal) => {
+        signal = requestSignal;
+        return await new Promise((_, reject) => {
+          requestSignal.addEventListener(
+            "abort",
+            () => reject(new Error("request_aborted")),
+            { once: true },
+          );
+        });
+      });
+    const data = JSON.stringify(envelope("alpha"));
+    const call = request({
+      socketPath: collector.socket,
+      path: "/v1/read",
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "content-length": Buffer.byteLength(data),
+      },
+    });
+    call.on("error", () => undefined);
+    try {
+      call.end(data);
+      await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+      expect(signal?.aborted).toBe(false);
+      call.destroy();
+      await vi.waitFor(() => expect(signal?.aborted).toBe(true));
+      expect(portal.requests()).toBe(0);
+    } finally {
+      call.destroy();
+      read.mockRestore();
+    }
+  });
+
   it("passes the issued cursor to the next read page", async () => {
     const portal = await startPortal("paged");
     const collector = await start(portal.origin, "/portal");

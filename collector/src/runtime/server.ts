@@ -66,11 +66,16 @@ async function handle(
     return;
   }
   const controller = new AbortController();
+  const abort = () => controller.abort();
+  const disconnected = () => {
+    if (!response.writableFinished) abort();
+  };
   const timer = setTimeout(() => {
     controller.abort();
     request.destroy(new Error("request_timeout"));
   }, timeout);
-  request.once("aborted", () => controller.abort());
+  request.once("aborted", abort);
+  response.once("close", disconnected);
   try {
     const value = await readJSON(request);
     const result =
@@ -105,6 +110,8 @@ async function handle(
       );
   } finally {
     clearTimeout(timer);
+    request.off("aborted", abort);
+    response.off("close", disconnected);
   }
 }
 
