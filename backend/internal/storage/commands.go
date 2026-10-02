@@ -25,7 +25,7 @@ func (s *Store) RegisterCommand(ctx context.Context, c command.Command) (command
 	at, ns := splitInstant(state.RegisteredAt)
 	// Financial audit survives D-41 cleanup. Its command reference must not execute again.
 	var used bool
-	err = scope.tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM want_keep.operation_revisions WHERE household_id=$1 AND actor_id=$2 AND command_id=$3 UNION ALL SELECT 1 FROM want_keep.reservation_revisions WHERE household_id=$1 AND actor_id=$2 AND command_id=$3 UNION ALL SELECT 1 FROM want_keep.reimbursement_audit WHERE household_id=$1 AND actor_id=$2 AND command_id=$3)`, state.HouseholdID, state.ActorID, state.ID).Scan(&used)
+	err = scope.tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM want_keep.operation_revisions WHERE household_id=$1 AND actor_id=$2 AND command_id=$3 UNION ALL SELECT 1 FROM want_keep.reservation_revisions WHERE household_id=$1 AND actor_id=$2 AND command_id=$3 UNION ALL SELECT 1 FROM want_keep.reimbursement_audit WHERE household_id=$1 AND actor_id=$2 AND command_id=$3 UNION ALL SELECT 1 FROM want_keep.connection_events WHERE household_id=$1 AND actor_id=$2 AND command_id=$3)`, state.HouseholdID, state.ActorID, state.ID).Scan(&used)
 	if err != nil {
 		return c, err
 	}

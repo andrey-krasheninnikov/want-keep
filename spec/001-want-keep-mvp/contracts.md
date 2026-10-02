@@ -491,6 +491,16 @@ Go worker создаёт Unix-socket gateway из сохранённого за�
 
 Миграция 022 хранит зашифрованные raw evidence items и метаданные batch; provider evidence ID остаётся внутри ciphertext. AAD связывает ciphertext с household, job, page и evidence reference. Items неизменяемы; batch меняет только `staged` на один terminal disposition. Приложение не получает plaintext из storage. Restart reconciliation перечисляет staged batches и использует существующие terminal receipts; это не повторяет provider IO или финансовый эффект. Реальные provider selectors/routes, пользовательские браузерные профили и production egress сюда не входят. [Проверки и границы](evidence/task-3.3-collector.md).
 
+## Нативное подключение RBO — task-4.2
+
+Пользовательский API подключений читает только семейную область. Оба участника управляют подключением; OAuth URL и callback доступны только владельцу внешнего аккаунта в той же сессии. Церемония действует пять минут; state хранится как hash, nonce/verifier зашифрованы. Code Flow и refresh используют legacy `/authorize` и `/token`; новая `/oauth2` схема не подставляется. Signed ID token проверяется по заранее подтверждённым issuer/JWKS, audience, expiry, nonce и subject. Нет подтверждённой конфигурации — нет авторизации. Завершённый callback читается повторно без обмена code. Неизвестный обмен не повторяется; нужна явная reauth.
+
+Create/sync/reauth/disconnect используют общий idempotent command executor. Смена поколения отзывает секрет и задания. Admission остаётся read-only; наличие токенов не означает допуск. Нативный gateway перед каждым запросом проверяет admission и сохраняет страницы через общий CommitPage. Отозванный после IO результат остаётся только в quarantine. Day cursor закрепляет Account UUID; accountKeys использует отдельный банковский number. История читается дневными страницами; текущий день запрашивает camt.052, исторические дни — camt.053. Старые подключения без historyFrom не получают выдуманную дату.
+
+Canonical fingerprint v1 исключает optional aliases, amount/time и report ID. Повтор идентичного смысла из другой выписки не создаёт revision. Изменение суммы/статуса требует прежней сильной reference и более нового sourceAsOf; простое совпадение parties/remittance не доказывает correction. Alias conflict и недостаточный fingerprint сохраняются без нового эффекта. CLBD — только owned observation; available/locked/debt/credit limit без доказательства остаются unknown, OPBD не становится доходом или подтверждённым историческим открытием. FCHG без подтверждённой семантики не создаёт комиссию.
+
+[Проверки и границы live-доступа](evidence/task-4.2-raiffeisen.md).
+
 ## Task-5.2 — проверка версий и разрешённые команды
 
 Runtime `transaction_review_v1` проверяет уже существующую операцию. `classification` выбирает только предоставленные активные категории/продавцов; `distribution` использует подтверждённое назначение или сохранённые правила. `link` предлагает связь через matching; совпадение суммы/даты не подтверждает идентичность. `clarify`, `no_change` и `reject` не создают финансовых движений. Изменения бюджета/цели требуют явного решения уполномоченного участника; неподключённый продуктовый обработчик возвращает `feature_unavailable`. Денежные суммы, даты, комиссии, статусы банка и principal не входят в модельный контракт команд.

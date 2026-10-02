@@ -181,6 +181,23 @@ func (s *Service) Rebind(ctx context.Context, b connections.Binding) (connection
 func (s *Service) RequestSync(ctx context.Context, p household.Principal, id string, b connections.Binding, deadline time.Time) (jobs.Job, error) {
 	return s.requestSync(ctx, p, id, b, deadline, false)
 }
+
+// EnqueueLocked is for an authenticated command already holding admission before household.
+// The repository enforces that lock scope again when creating the job.
+func (s *Service) EnqueueLocked(ctx context.Context, p household.Principal, id string, b connections.Binding, deadline time.Time) (jobs.Job, error) {
+	a, _, err := s.repository.Admission(ctx, b.Provider, b.Environment)
+	if err != nil {
+		return jobs.Job{}, err
+	}
+	if err = a.RequireSync(b); err != nil {
+		return jobs.Job{}, err
+	}
+	c, err := s.repository.Connection(ctx, p, id)
+	if err != nil {
+		return jobs.Job{}, err
+	}
+	return s.repository.CreateSyncJob(ctx, c, a, deadline)
+}
 func (s *Service) ScheduleSync(ctx context.Context, p household.Principal, id string, b connections.Binding, deadline time.Time) (jobs.Job, error) {
 	return s.requestSync(ctx, p, id, b, deadline, true)
 }

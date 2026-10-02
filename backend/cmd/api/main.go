@@ -24,11 +24,16 @@ import (
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
 	categories "github.com/pchkauu/want-keep/backend/internal/categories/application"
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
+	connectionaccess "github.com/pchkauu/want-keep/backend/internal/connections/access"
 	admission "github.com/pchkauu/want-keep/backend/internal/connections/admission"
+	connectionapp "github.com/pchkauu/want-keep/backend/internal/connections/application"
+	"github.com/pchkauu/want-keep/backend/internal/connections/credentials"
+	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	accountdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/accounts"
 	allocationdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/allocation"
 	attachmentdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/attachments"
 	categorydelivery "github.com/pchkauu/want-keep/backend/internal/delivery/categories"
+	connectiondelivery "github.com/pchkauu/want-keep/backend/internal/delivery/connections"
 	delivery "github.com/pchkauu/want-keep/backend/internal/delivery/identity"
 	ledgerdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/ledger"
 	reconciliationdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reconciliation"
@@ -38,6 +43,7 @@ import (
 	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	application "github.com/pchkauu/want-keep/backend/internal/identity/application"
 	"github.com/pchkauu/want-keep/backend/internal/identity/webauthn"
+	"github.com/pchkauu/want-keep/backend/internal/integrations/raiffeisen"
 	ratesource "github.com/pchkauu/want-keep/backend/internal/integrations/rates"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/application"
 	matching "github.com/pchkauu/want-keep/backend/internal/matching/application"
@@ -125,6 +131,28 @@ func run() error {
 	accountService := accounts.NewServiceWithOwnershipReconciliation(database, database, reconciliationService, reimbursementService, now, uuid.NewString)
 	executor := commands.NewExecutor(database, database, now)
 	queries := commands.NewQueries(database, database.AuthorizeCommandResult)
+	bindings, err := admission.LoadBindings(os.Getenv("WANT_KEEP_JOB_BINDINGS_FILE"), os.Getenv("WANT_KEEP_ENV"))
+	if err != nil {
+		return err
+	}
+	byProvider := map[string]connections.Binding{}
+	for _, binding := range bindings {
+		byProvider[binding.Provider] = binding
+	}
+	gate := admission.NewService(database, database)
+	connectionVault := credentials.New(connectionaccess.NewService(service, database, gate), database, connectionKeys)
+	var authorizer connectionapp.Authorizer
+	if os.Getenv("WANT_KEEP_RAIF_CLIENT_ID_FILE") != "" {
+		configured, loadErr := raiffeisen.LoadOAuth(os.Getenv("WANT_KEEP_RAIF_CLIENT_ID_FILE"), os.Getenv("WANT_KEEP_RAIF_CLIENT_SECRET_FILE"), os.Getenv("WANT_KEEP_RAIF_ISSUER"), os.Getenv("WANT_KEEP_RAIF_JWKS_FILE"), "https://want-keep.tech/api/v1/connections/raiffeisen/callback")
+		if loadErr == nil {
+			authorizer = configured
+		}
+	}
+	connectionService := &connectionapp.Service{Repository: database, Sessions: service, Executor: executor, Admission: gate, Vault: connectionVault, Authorizer: authorizer, Bindings: byProvider, NewID: uuid.NewString}
+	connectionHandler, err := connectiondelivery.New(connectionService, service, queries, config, now)
+	if err != nil {
+		return err
+	}
 	accountHandler, err := accountdelivery.New(accountService, executor, queries, service, database, config, now)
 	if err != nil {
 		return err
@@ -163,6 +191,8 @@ func run() error {
 		return err
 	}
 	mux := http.NewServeMux()
+	mux.Handle("/api/v1/connections", connectionHandler)
+	mux.Handle("/api/v1/connections/", connectionHandler)
 	mux.Handle("/api/v1/clarifications", reviewHandler)
 	mux.Handle("/api/v1/clarifications/", reviewHandler)
 	mux.Handle("/api/v1/proposals/", reviewHandler)

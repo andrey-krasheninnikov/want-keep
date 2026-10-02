@@ -28,6 +28,29 @@ func New(a *access.Service, r Repository, k *cryptobox.Keyring) *Vault {
 	return &Vault{access: a, repo: r, keys: k}
 }
 func (v *Vault) Available() bool { return v != nil && v.keys.Available() }
+func (v *Vault) Seal(ref domain.SecretReference, plain []byte) ([]byte, error) {
+	if !v.Available() {
+		return nil, cryptobox.ErrUnavailable
+	}
+	if len(plain) == 0 || len(plain) > MaxSecretBytes {
+		return nil, domain.ErrSecretAccess
+	}
+	aad, err := v.aad(ref)
+	if err != nil {
+		return nil, err
+	}
+	return v.keys.Seal(plain, aad)
+}
+func (v *Vault) Open(ref domain.SecretReference, ciphertext []byte) ([]byte, error) {
+	if !v.Available() {
+		return nil, cryptobox.ErrUnavailable
+	}
+	aad, err := v.aad(ref)
+	if err != nil {
+		return nil, err
+	}
+	return v.keys.Open(ciphertext, aad)
+}
 func (v *Vault) aad(ref domain.SecretReference) ([]byte, error) {
 	if err := ref.Validate(); err != nil {
 		return nil, err
@@ -61,6 +84,10 @@ func (v *Vault) Save(ctx context.Context, token identity.Token, grantID string, 
 // WithJobSecret lends bytes only to the concrete provider adapter for one permitted read.
 // The callback runs outside database transactions and must not retain the borrowed buffer.
 func (v *Vault) WithJobSecret(ctx context.Context, p household.Principal, job jobs.Job, purpose domain.SecretPurpose, use func([]byte) error) error {
+	return v.WithJobReference(ctx, p, job, purpose, func(_ domain.SecretReference, plain []byte) error { return use(plain) })
+}
+
+func (v *Vault) WithJobReference(ctx context.Context, p household.Principal, job jobs.Job, purpose domain.SecretPurpose, use func(domain.SecretReference, []byte) error) error {
 	if !v.Available() {
 		return cryptobox.ErrUnavailable
 	}
@@ -94,5 +121,5 @@ func (v *Vault) WithJobSecret(ctx context.Context, p household.Principal, job jo
 	}); err != nil {
 		return err
 	}
-	return use(plain)
+	return use(borrowed, plain)
 }

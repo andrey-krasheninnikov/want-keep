@@ -41,13 +41,13 @@ Connection:
   - revision
   - provider
   - externalAccountOwnerId
-  - historyFrom
   - products
   - state
   - quality
   - generation
   - deploymentGate
 ConnectionCreate:
+  description: Current implementation admits only Raiffeisen entrepreneur current accounts; other products return feature_unavailable. historyFrom cannot be after the current Moscow date.
   type: object
   additionalProperties: false
   properties:

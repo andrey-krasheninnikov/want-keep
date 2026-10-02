@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5"
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 )
@@ -80,8 +81,20 @@ func (s *Store) AddMember(ctx context.Context, user household.User, m household.
 }
 func (s *Store) Membership(ctx context.Context, family household.HouseholdID, user household.UserID) (household.Membership, error) {
 	m := household.Membership{HouseholdID: family, UserID: user}
-	if err := s.pool.QueryRow(ctx, "SELECT id,active FROM want_keep.memberships WHERE household_id=$1 AND user_id=$2", family, user).Scan(&m.ID, &m.Active); err != nil {
+	var q reader = s.pool
+	if ctx.Value(transactionKey{}) != nil {
+		scope, err := s.scope(ctx)
+		if err != nil {
+			return m, err
+		}
+		q = scope.tx
+	}
+	err := q.QueryRow(ctx, "SELECT id,active FROM want_keep.memberships WHERE household_id=$1 AND user_id=$2", family, user).Scan(&m.ID, &m.Active)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return m, household.ErrForbidden
+	}
+	if err != nil {
+		return m, err
 	}
 	if _, err := m.Principal(); err != nil {
 		return m, errors.Join(household.ErrForbidden, err)

@@ -491,6 +491,16 @@ The Go worker creates the Unix-socket gateway from the stored job and exact admi
 
 Migration 022 stores encrypted raw-evidence items and batch metadata; provider evidence IDs stay inside ciphertext. AAD binds each ciphertext to household, job, page and evidence reference. Items are immutable; a batch can move only from `staged` to one terminal disposition. The application cannot read plaintext from storage. Restart reconciliation lists staged batches and uses existing terminal receipts without repeating provider IO or a financial effect. Live provider selectors/routes, user browser profiles and production egress are outside this task. [Verification and boundaries](evidence/task-3.3-collector.en.md).
 
+## Native RBO connection — task-4.2
+
+The connection API reads only the household scope. Both members manage connections; OAuth URL and callback require the external-account owner in the same session. The ceremony lasts five minutes; state is hashed and nonce/verifier encrypted. Code Flow and refresh use legacy `/authorize` and `/token`; the new `/oauth2` scheme is not substituted. Signed ID tokens require previously confirmed issuer/JWKS, audience, expiry, nonce and subject. Missing trusted configuration denies authorization. A completed callback is read back without exchanging the code again. Unknown exchanges are never retried; explicit reauthentication is required.
+
+Create/sync/reauth/disconnect use the shared idempotent command executor. Generation changes revoke secrets and jobs. Admission remains read-only; tokens do not grant it. The native gateway checks admission before every request and commits through shared CommitPage. Results revoked after IO remain only in quarantine. A day cursor binds the Account UUID; accountKeys uses the separate bank number. History uses daily pages: camt.052 for today, camt.053 for historical days. Legacy connections without historyFrom receive no invented date.
+
+Canonical fingerprint v1 excludes optional aliases, amount/time and report ID. Identical meaning from another statement creates no revision. Changed amount/status requires a prior strong reference and newer sourceAsOf; matching parties/remittance alone do not prove a correction. Alias conflicts and insufficient fingerprints retain evidence without a new effect. CLBD is only an owned observation; available/locked/debt/credit limit without proof remain unknown, and OPBD is neither income nor a confirmed historical opening. FCHG alone does not establish fee semantics.
+
+[Checks and live-access boundaries](evidence/task-4.2-raiffeisen.en.md).
+
 ## Task-5.2 — revision review and allowed commands
 
 Runtime `transaction_review_v1` reviews an existing transaction. `classification` selects supplied active categories/merchants only; `distribution` uses confirmed purpose or saved rules. `link` proposes a relationship through matching; amount/date similarity does not establish identity. `clarify`, `no_change` and `reject` create no financial movements. Budget/goal changes require an explicit authorized decision; an unconnected product handler returns `feature_unavailable`. Monetary amounts, dates, fees, bank statuses and principal are outside the model command contract.
