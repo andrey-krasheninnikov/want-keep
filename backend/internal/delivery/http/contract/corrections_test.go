@@ -79,17 +79,27 @@ func TestVersionConflictCarriesAuthorizedCurrentRevision(t *testing.T) {
 	}
 }
 
-func TestUnrelatedReimbursementAndLinkContractsStayClosed(t *testing.T) {
+func TestReimbursementContractsAreTypedAndLinkCommandsStayClosed(t *testing.T) {
 	b, err := contract.NewBoundary()
 	if err != nil {
 		t.Fatal(err)
 	}
 	const id = "10000000-0000-4000-8000-000000000001"
-	reimbursement := map[string]any{"id": id, "revision": 1, "creditorMemberId": id, "debtorMemberId": id, "principal": map[string]any{"amount": "100", "asset": "RUB"}, "outstanding": map[string]any{"amount": "100", "asset": "RUB"}, "reason": "Explicit debt"}
+	reimbursement := map[string]any{"id": id, "revision": 1, "decisionId": id, "state": "open", "creditorMemberId": id, "debtorMemberId": id, "principal": map[string]any{"amount": "100", "asset": "RUB"}, "outstanding": map[string]any{"amount": "100", "asset": "RUB"}, "reason": "Explicit debt", "actorId": id, "recordedAt": "2026-09-14T00:00:00Z", "settlements": []any{}}
 	data, _ := json.Marshal(reimbursement)
 	var out json.RawMessage
 	if err := b.Decode("Reimbursement", data, &out); err != nil {
 		t.Fatal(err)
+	}
+	for schema, value := range map[string]any{
+		"ReimbursementCorrection": map[string]any{"expectedRevision": 1, "amount": map[string]any{"amount": "200", "asset": "RUB"}, "reason": "Correct amount"},
+		"ReimbursementUndo":       map[string]any{"expectedRevision": 2, "decisionId": id, "reason": "Undo correction"},
+		"SettlementCreate":        map[string]any{"expectedRevision": 2, "transferId": id, "transferExpectedRevision": 1, "transferAmount": map[string]any{"amount": "100", "asset": "RUB"}, "settledAmount": map[string]any{"amount": "100", "asset": "RUB"}},
+	} {
+		data, _ := json.Marshal(value)
+		if err := b.Decode(schema, data, &out); err != nil {
+			t.Fatalf("%s rejected: %v", schema, err)
+		}
 	}
 	for field, value := range map[string]any{"accountingState": "excluded", "decisionId": id, "protectedFields": []any{}, "sourceConflict": false} {
 		link := map[string]any{"transactionId": id, "expectedRevision": 1, field: value}

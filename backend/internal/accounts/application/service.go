@@ -20,12 +20,16 @@ type Journal interface {
 type ReconciliationTrigger interface {
 	ReconcileAccount(context.Context, household.Principal, string) error
 }
+type OwnershipChangeTrigger interface {
+	ReconcileAccountOwnership(context.Context, household.Principal, string) error
+}
 type Service struct {
-	repository CatalogRepository
-	journal    Journal
-	reconciler ReconciliationTrigger
-	now        func() calendar.Instant
-	newID      func() string
+	repository   CatalogRepository
+	journal      Journal
+	reconciler   ReconciliationTrigger
+	ownerChanges OwnershipChangeTrigger
+	now          func() calendar.Instant
+	newID        func() string
 }
 
 func NewService(r CatalogRepository, j Journal, now func() calendar.Instant, newID func() string) *Service {
@@ -34,6 +38,9 @@ func NewService(r CatalogRepository, j Journal, now func() calendar.Instant, new
 
 func NewServiceWithReconciliation(r CatalogRepository, j Journal, reconciler ReconciliationTrigger, now func() calendar.Instant, newID func() string) *Service {
 	return &Service{repository: r, journal: j, reconciler: reconciler, now: now, newID: newID}
+}
+func NewServiceWithOwnershipReconciliation(r CatalogRepository, j Journal, reconciler ReconciliationTrigger, ownership OwnershipChangeTrigger, now func() calendar.Instant, newID func() string) *Service {
+	return &Service{repository: r, journal: j, reconciler: reconciler, ownerChanges: ownership, now: now, newID: newID}
 }
 
 type CreateInput struct {
@@ -152,6 +159,11 @@ func (s *Service) ChangeOwnership(ctx context.Context, p household.Principal, id
 	}
 	if err := s.repository.ChangeAccountOwnership(ctx, p, id, expected, next); err != nil {
 		return command.Result{}, s.reject(err)
+	}
+	if s.ownerChanges != nil {
+		if err := s.ownerChanges.ReconcileAccountOwnership(ctx, p, id); err != nil {
+			return command.Result{}, err
+		}
 	}
 	return s.result(ctx, p, id, "ownership_changed", reason, "interactive")
 }

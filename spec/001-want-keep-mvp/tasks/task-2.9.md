@@ -5,7 +5,7 @@
 
 Учитывать явные долги и возмещения внутри семьи.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Реализованы backend/API явных семейных долгов, частичных и межвалютных погашений, corrections, selective undo и автоматическая инвалидизация изменившихся связей. UI, наличные возмещения без ledger-перевода, банковский IO и production остаются профильным задачам.
 
 **Зависимости:** `task-2.4`, `task-2.8`.
 
@@ -13,13 +13,16 @@
 
 ### Изменение и контракты
 
-Вести явную запись creditor/debtor/asset/amount/revision и связь с расходом при наличии. Оплата общей доли долг автоматически не создаёт. Погашение связывается с реальным переводом/наличными один раз, допускает частичное погашение; другая валюта требует явно согласованного соответствия сумм. Внутренние требования исключить из семейных активов, доходов и расходов.
+Ledger хранит явный версионный долг между двумя разными активными MembershipID; actor берётся из сессии, а optional expense связывается с текущей posted revision без вывода суммы. Состояния open, settled, attention_required и voided не влияют на активы, остатки, доходы и расходы семьи. Погашение связывает существующий posted перевод между личными счетами debtor и creditor; комиссии не входят в principal. Один стабильный transfer или matching group может погасить несколько долгов только в пределах ещё не использованной received principal. Одинаковый актив требует равенства transferAmount и settledAmount; разные активы требуют обе точные native-суммы. Финансовое изменение, exclusion или reversal перевода переводит settlement в stale и восстанавливает долг; текстовая правка не влияет. Изменение связанного расхода переводит долг в attention_required. Corrections и selective undo используют происхождение полей, expectedRevision и A-B-A conflict detection. Результат, immutable revisions, settlement usage, audit, outbox и terminal command outcome фиксируются атомарно.
 
 ### Границы изменений
 
 - `backend/internal/ledger/`
-- `backend/internal/household/`
-- `api/openapi.yaml`
+- `backend/internal/storage/`
+- `backend/internal/delivery/reimbursements/`
+- `backend/migrations/019_family_reimbursements.sql`
+- `backend/test/integration/family-reimbursements/`
+- `api/`
 
 Пути планируемые. Общие контракты — `spec/001-want-keep-mvp/contracts.md`, архитектура/команды — `constraints.md`. Менять владельца поведения и его тесты; незакрытый контракт останавливает зависимую работу.
 
@@ -57,13 +60,16 @@
 ### Проверка результата
 
 ```sh
-make test-go PKG=./internal/ledger/...
-make test-integration AREA=family-reimbursements
+make check
+make test-integration AREA=all
+make test-family-reimbursements-race
+make test-integration AREA=privacy
+git diff --check
 ```
 
-Долг 300 погашается 100+200; повтор импорта не уменьшает его снова, неизвестное соответствие не списывает долг, семейный денежный факт не дублируется.
+Долг RUB 300 погашается 100+200 без второго расхода; шесть активов сохраняют точность. Cross-asset требует две суммы; replay, конкурентное перепогашение, чужой или неверно направленный перевод не создают эффект. Финансовая правка перевода восстанавливает долг, текстовая правка сохраняет settlement; изменение расхода требует внимания. Проверяются command visibility, CSRF, keyset, миграция, immutable history и права роли.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Task-2.4 и task-2.8 включены в базу; команды реализованы. Доказательства и границы: evidence/task-2.9-family-reimbursements.md. Доказаны backend-части AC-006/082/086; UI, реальный банк и production не подтверждаются.
 
 ### Передача следующему агенту
 
@@ -75,7 +81,7 @@ make test-integration AREA=family-reimbursements
 
 Track explicit inter-member debts and reimbursements.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** The backend/API for explicit household debts, partial and cross-asset settlements, corrections, selective undo and automatic invalidation of changed links is implemented. UI, cash reimbursement without a ledger transfer, bank IO and production remain with their owning tasks.
 
 **Dependencies:** `task-2.4`, `task-2.8`.
 
@@ -83,13 +89,16 @@ Track explicit inter-member debts and reimbursements.
 
 ### Change and contracts
 
-Keep an explicit creditor/debtor/asset/amount/revision record and an expense link when present. Paying a joint share does not automatically create debt. Settlement links once to an actual transfer/cash movement, supports partial settlement and requires explicitly agreed amount mapping for another currency. Exclude internal claims from household assets, income and expenses.
+Ledger stores an explicit versioned debt between two distinct active MembershipIDs; actor comes from the session and an optional expense references its current posted revision without deriving the amount. Open, settled, attention_required and voided states do not affect household assets, balances, income or expenses. Settlement links an existing posted transfer between the debtor and creditor personal accounts; fees are excluded from principal. One stable transfer or matching group may settle several debts only within its unused received principal. Same-asset transferAmount and settledAmount must be equal; cross-asset settlement requires both exact native amounts. A financial edit, exclusion or reversal of the transfer makes the settlement stale and restores the debt; a text edit does not. A linked expense change makes the debt attention_required. Corrections and selective undo use field provenance, expectedRevision and A-B-A conflict detection. Result, immutable revisions, settlement usage, audit, outbox and terminal command outcome commit atomically.
 
 ### Change boundaries
 
 - `backend/internal/ledger/`
-- `backend/internal/household/`
-- `api/openapi.yaml`
+- `backend/internal/storage/`
+- `backend/internal/delivery/reimbursements/`
+- `backend/migrations/019_family_reimbursements.sql`
+- `backend/test/integration/family-reimbursements/`
+- `api/`
 
 Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.md`; architecture/commands are in `constraints.en.md`. Change the behavior owner and its tests; an unresolved contract stops dependent work.
 
@@ -127,13 +136,16 @@ A link establishes coverage but does not prove the whole criterion; verification
 ### Verification
 
 ```sh
-make test-go PKG=./internal/ledger/...
-make test-integration AREA=family-reimbursements
+make check
+make test-integration AREA=all
+make test-family-reimbursements-race
+make test-integration AREA=privacy
+git diff --check
 ```
 
-Debt 300 settles through 100+200; replay does not reduce it again, uncertain matching does not settle debt and household cash facts are not duplicated.
+A RUB 300 debt settles through 100+200 without another expense; all six assets retain precision. Cross-asset settlement requires two amounts; replay, concurrent over-settlement and foreign or misdirected transfers create no effect. A financial transfer edit restores debt, a text edit preserves settlement and an expense change requires attention. Command visibility, CSRF, keyset pagination, migration, immutable history and role grants are verified.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Task-2.4 and task-2.8 are included in the base; commands exist. Evidence and boundaries: evidence/task-2.9-family-reimbursements.en.md. Backend portions of AC-006/082/086 are proven; UI, live banking and production are not verified.
 
 ### Handoff to the next agent
 

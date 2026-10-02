@@ -1261,6 +1261,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/reimbursements/{reimbursementId}/corrections": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Correct an explicit reimbursement */
+    post: operations["reimbursements_correct"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/reimbursements/{reimbursementId}/history": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read immutable reimbursement revisions */
+    get: operations["reimbursements_history"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/reimbursements/{reimbursementId}/settlements": {
     parameters: {
       query?: never;
@@ -1272,6 +1306,23 @@ export interface paths {
     put?: never;
     /** reimbursements settle */
     post: operations["reimbursements_settle"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/reimbursements/{reimbursementId}/undo": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Undo a selected reimbursement decision */
+    post: operations["reimbursements_undo"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3201,15 +3252,37 @@ export interface components {
       /** @enum {string} */
       type: "public-key";
     };
+    /** @description Explicit inter-member claim. It is excluded from household assets, balances, income and expenses. */
     Reimbursement: {
+      actorId: components["schemas"]["ID"];
+      attentionReason?: string;
       creditorMemberId: components["schemas"]["ID"];
       debtorMemberId: components["schemas"]["ID"];
+      decisionId: components["schemas"]["ID"];
       expenseId?: components["schemas"]["ID"];
+      expenseRevision?: components["schemas"]["Revision"];
       id: components["schemas"]["ID"];
       outstanding: components["schemas"]["Money"];
       principal: components["schemas"]["Money"];
       reason: string;
+      recordedAt: components["schemas"]["Instant"];
       revision: components["schemas"]["Revision"];
+      settlements: components["schemas"]["ReimbursementSettlement"][];
+      /** @enum {string} */
+      state: "open" | "settled" | "attention_required" | "voided";
+    };
+    /** @description Omitted fields remain unchanged. expenseId and clearExpense are mutually exclusive. Changes that overlap active settlements are rejected. */
+    ReimbursementCorrection: {
+      amount?: components["schemas"]["PositiveMoney"];
+      /** @default false */
+      clearExpense: boolean;
+      creditorMemberId?: components["schemas"]["ID"];
+      debtReason?: string;
+      debtorMemberId?: components["schemas"]["ID"];
+      expectedRevision: components["schemas"]["Revision"];
+      expenseId?: components["schemas"]["ID"];
+      reason: string;
+      voided?: boolean;
     };
     ReimbursementCreate: {
       amount: components["schemas"]["PositiveMoney"];
@@ -3222,6 +3295,23 @@ export interface components {
       items: components["schemas"]["Reimbursement"][];
       nextCursor?: string;
       quality: components["schemas"]["DataQuality"];
+    };
+    ReimbursementSettlement: {
+      actorId: components["schemas"]["ID"];
+      id: components["schemas"]["ID"];
+      operationIds: components["schemas"]["ID"][];
+      recordedAt: components["schemas"]["Instant"];
+      settledAmount: components["schemas"]["PositiveMoney"];
+      /** @enum {string} */
+      state: "active" | "stale" | "undone";
+      transferAmount: components["schemas"]["PositiveMoney"];
+      transferId: components["schemas"]["ID"];
+      transferRevision: components["schemas"]["Revision"];
+    };
+    ReimbursementUndo: {
+      decisionId: components["schemas"]["ID"];
+      expectedRevision: components["schemas"]["Revision"];
+      reason: string;
     };
     /** @description Complete protected monetary groups and dependent receipt items for related operations. A revision-only participant validates the group without overwriting metadata. All current group members are required for monetary changes; receipt totals remain consistent with each changed principal. */
     RelatedCorrection: {
@@ -6889,6 +6979,9 @@ export interface operations {
         /** @description Opaque, bound to family, visibility and filters. */
         cursor?: components["parameters"]["Cursor"];
         limit?: components["parameters"]["Limit"];
+        memberId?: components["schemas"]["ID"];
+        asset?: components["schemas"]["Asset"];
+        state?: "open" | "settled" | "attention_required" | "voided";
       };
       header?: never;
       path?: never;
@@ -6994,6 +7087,88 @@ export interface operations {
       503: components["responses"]["Problem"];
     };
   };
+  reimbursements_correct: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated before submission. Unique within household + actor; same ID is used for status lookup. A different operation or payload with the same key is rejected. */
+        "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+        /** @description Session-bound token; validate Origin as well. Exceptions use ceremony-bound challenge/state. */
+        "X-CSRF-Token": components["parameters"]["CSRF"];
+      };
+      path: {
+        reimbursementId: components["schemas"]["ID"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReimbursementCorrection"];
+      };
+    };
+    responses: {
+      /** @description Registered command. Inspect its stable ID after timeout. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommandStatus"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      401: components["responses"]["Problem"];
+      403: components["responses"]["Problem"];
+      404: components["responses"]["Problem"];
+      409: components["responses"]["Problem"];
+      /** @description Expired command detail. */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ExpiredCommand"];
+        };
+      };
+      422: components["responses"]["Problem"];
+      429: components["responses"]["Problem"];
+      500: components["responses"]["Problem"];
+      503: components["responses"]["Problem"];
+    };
+  };
+  reimbursements_history: {
+    parameters: {
+      query?: {
+        /** @description Opaque, bound to family, visibility and filters. */
+        cursor?: components["parameters"]["Cursor"];
+        limit?: components["parameters"]["Limit"];
+      };
+      header?: never;
+      path: {
+        reimbursementId: components["schemas"]["ID"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReimbursementPage"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      401: components["responses"]["Problem"];
+      403: components["responses"]["Problem"];
+      404: components["responses"]["Problem"];
+      429: components["responses"]["Problem"];
+      500: components["responses"]["Problem"];
+      503: components["responses"]["Problem"];
+    };
+  };
   reimbursements_settle: {
     parameters: {
       query?: never;
@@ -7029,6 +7204,55 @@ export interface operations {
       404: components["responses"]["Problem"];
       409: components["responses"]["Problem"];
       /** @description Expired command detail; authorized compact outcome may be recovered without execution. */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ExpiredCommand"];
+        };
+      };
+      422: components["responses"]["Problem"];
+      429: components["responses"]["Problem"];
+      500: components["responses"]["Problem"];
+      503: components["responses"]["Problem"];
+    };
+  };
+  reimbursements_undo: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated before submission. Unique within household + actor; same ID is used for status lookup. A different operation or payload with the same key is rejected. */
+        "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+        /** @description Session-bound token; validate Origin as well. Exceptions use ceremony-bound challenge/state. */
+        "X-CSRF-Token": components["parameters"]["CSRF"];
+      };
+      path: {
+        reimbursementId: components["schemas"]["ID"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReimbursementUndo"];
+      };
+    };
+    responses: {
+      /** @description Registered command. Inspect its stable ID after timeout. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommandStatus"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      401: components["responses"]["Problem"];
+      403: components["responses"]["Problem"];
+      404: components["responses"]["Problem"];
+      409: components["responses"]["Problem"];
+      /** @description Expired command detail. */
       410: {
         headers: {
           [name: string]: unknown;

@@ -129,13 +129,13 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 **Вопрос:** Есть ли невозмещённые суммы?
 
-**Главный ответ:** Только явно записанные долги между участниками.
+**Главный ответ:** Явные долги, непогашенный остаток и состояние связанных переводов.
 
-**Структура сверху вниз:** Кто кому/валюта/остаток → основание → связанные возмещения.
+**Структура сверху вниз:** Открытые и требующие внимания долги → кто кому/валюта/остаток → основание и исходный расход → активные или устаревшие погашения → история решений.
 
-**Следующее действие:** Записать долг или связать перевод FORM-09; исходная покупка SCR-010.
+**Следующее действие:** Создать долг, связать проведённый перевод, исправить данные или отменить выбранное решение FORM-09; открыть исходную операцию SCR-010.
 
-**Объяснение и детализация:** 50/50 не создаёт долг автоматически; погашение не новый расход семьи.
+**Объяснение и детализация:** Распределение, плательщик и перевод сами долг не создают. Комиссия не уменьшает остаток. Межвалютное погашение показывает обе native-суммы. Изменившийся расход или перевод требует явного решения.
 
 **Права:** Оба участника видят и исправляют факты любого счёта семьи; actor из сессии.
 
@@ -193,11 +193,11 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 #### FORM-09 — Явный долг и возмещение
 
-**Поля:** Кто кому, сумма/валюта, основание/расход; при погашении существующий семейный перевод и сумма связи.
+**Поля:** Кредитор и должник как участники семьи, точная сумма/валюта, основание и необязательный расход. Погашение выбирает существующий перевод и задаёт его revision, transferAmount и settledAmount.
 
-**Проверки и права:** Только явное действие member; не выводить долг из долей. Нельзя повторно погасить одним переводом сверх его суммы; долг не капитал семьи.
+**Проверки и права:** Долг создаётся только явно. Участники различны и активны. Перевод идёт между их личными счетами; комиссия не погашает долг. Один principal не используется сверх остатка. Для разных активов обе суммы обязательны. Изменённые ссылки показывают attention_required или stale вместо скрытого списания.
 
-**Результат:** Непогашенный остаток обновлён без нового семейного расхода.
+**Результат:** Долг создан, исправлен, погашен или восстановлен с новой revision и историей; семейный денежный факт не дублируется.
 
 - **UISTATE-01 — Загрузка:** Скелетон структуры и подпись загрузки; суммы не подменяются нулями.
 - **UISTATE-02 — Обновление:** Сохранить предыдущие данные и контекст, показать время последнего успеха; блокировать только конфликтующие действия.
@@ -547,13 +547,13 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 **Question:** Are any reimbursements outstanding?
 
-**Primary answer:** Only explicitly recorded debts between members.
+**Primary answer:** Explicit debts, outstanding amounts and linked-transfer state.
 
-**Top-down structure:** Debtor/creditor/currency/outstanding → reason → linked settlements.
+**Top-down structure:** Open and attention-required debts → debtor/creditor/currency/outstanding → reason and source expense → active or stale settlements → decision history.
 
-**Next action:** Record debt or link transfer FORM-09; original purchase SCR-010.
+**Next action:** Create debt, link a posted transfer, correct data or undo a selected decision in FORM-09; open the source transaction in SCR-010.
 
-**Explanation and details:** 50/50 never creates debt automatically; settlement is not another household expense.
+**Explanation and details:** Allocation, payer and transfer never create debt by themselves. Fees do not reduce outstanding. Cross-asset settlement shows both native amounts. A changed expense or transfer requires an explicit decision.
 
 **Permissions:** Both members read/correct facts for any household account; actor from session.
 
@@ -611,11 +611,11 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 #### FORM-09 — Explicit debt and reimbursement
 
-**Fields:** Debtor/creditor, amount/currency, reason/expense; for settlement an existing household transfer and linked amount.
+**Fields:** Creditor and debtor as household members, exact amount/currency, reason and optional expense. Settlement selects an existing transfer and supplies its revision, transferAmount and settledAmount.
 
-**Validation and permissions:** Explicit member action only; never infer debt from shares. One transfer cannot settle beyond its amount; debt is not household wealth.
+**Validation and permissions:** Debt is created explicitly only. Members are distinct and active. Transfer runs between their personal accounts; fees do not settle debt. Principal cannot be reused beyond its remainder. Cross-asset settlement requires both amounts. Changed references surface attention_required or stale instead of silently reducing debt.
 
-**Outcome:** Outstanding balance updated without another household expense.
+**Outcome:** The debt is created, corrected, settled or restored with a new revision and history; the household cash fact is not duplicated.
 
 - **UISTATE-01 — Loading:** Structural skeleton and loading label; amounts are never replaced by zero.
 - **UISTATE-02 — Refreshing:** Keep previous data/context and last-success time; block only conflicting actions.

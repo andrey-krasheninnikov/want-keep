@@ -722,79 +722,6 @@ RefundCreate:
   - itemIds
   description: Refund is bounded by unrefunded purchase value. Original month, audited
     allocation and historical valuation are used.
-Reimbursement:
-  type: object
-  additionalProperties: false
-  properties:
-    id:
-      "$ref": "./money.yaml#/ID"
-    revision:
-      "$ref": "./money.yaml#/Revision"
-    creditorMemberId:
-      "$ref": "./money.yaml#/ID"
-    debtorMemberId:
-      "$ref": "./money.yaml#/ID"
-    principal:
-      "$ref": "./money.yaml#/Money"
-    outstanding:
-      "$ref": "./money.yaml#/Money"
-    expenseId:
-      "$ref": "./money.yaml#/ID"
-    reason:
-      type: string
-      minLength: 1
-      maxLength: 2000
-  required:
-  - id
-  - revision
-  - creditorMemberId
-  - debtorMemberId
-  - principal
-  - outstanding
-  - reason
-ReimbursementCreate:
-  type: object
-  additionalProperties: false
-  properties:
-    creditorMemberId:
-      "$ref": "./money.yaml#/ID"
-    debtorMemberId:
-      "$ref": "./money.yaml#/ID"
-    amount:
-      "$ref": "./money.yaml#/PositiveMoney"
-    expenseId:
-      "$ref": "./money.yaml#/ID"
-    reason:
-      type: string
-      minLength: 1
-      maxLength: 2000
-  required:
-  - creditorMemberId
-  - debtorMemberId
-  - amount
-  - reason
-SettlementCreate:
-  type: object
-  additionalProperties: false
-  properties:
-    expectedRevision:
-      "$ref": "./money.yaml#/Revision"
-    transferId:
-      "$ref": "./money.yaml#/ID"
-    transferExpectedRevision:
-      "$ref": "./money.yaml#/Revision"
-    transferAmount:
-      "$ref": "./money.yaml#/PositiveMoney"
-    settledAmount:
-      "$ref": "./money.yaml#/PositiveMoney"
-  required:
-  - expectedRevision
-  - transferId
-  - transferExpectedRevision
-  - transferAmount
-  - settledAmount
-  description: Both amounts explicit for cross-asset settlement. Cannot exceed outstanding
-    debt or unused transfer amount.
 TransactionPage:
   type: object
   additionalProperties: false
@@ -803,23 +730,6 @@ TransactionPage:
       type: array
       items:
         "$ref": "./transactions.yaml#/Transaction"
-    nextCursor:
-      type: string
-      minLength: 1
-      maxLength: 2048
-    quality:
-      "$ref": "./quality.yaml#/DataQuality"
-  required:
-  - items
-  - quality
-ReimbursementPage:
-  type: object
-  additionalProperties: false
-  properties:
-    items:
-      type: array
-      items:
-        "$ref": "./transactions.yaml#/Reimbursement"
     nextCursor:
       type: string
       minLength: 1

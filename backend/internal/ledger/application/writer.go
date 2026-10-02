@@ -26,10 +26,14 @@ type Journal interface {
 type ReconciliationTrigger interface {
 	ReconcileAccount(context.Context, household.Principal, string) error
 }
+type ReimbursementTrigger interface {
+	ReconcileLedgerRevision(context.Context, household.Principal, ledger.Revision, *ledger.Revision) error
+}
 type Writer struct {
-	journal    Journal
-	accounts   accounts.Repository
-	reconciler ReconciliationTrigger
+	journal        Journal
+	accounts       accounts.Repository
+	reconciler     ReconciliationTrigger
+	reimbursements ReimbursementTrigger
 }
 
 type JournalWriter interface {
@@ -99,6 +103,9 @@ func NewWriter(j Journal, a accounts.Repository) *Writer { return &Writer{journa
 func NewWriterWithReconciliation(j Journal, a accounts.Repository, reconciler ReconciliationTrigger) *Writer {
 	return &Writer{journal: j, accounts: a, reconciler: reconciler}
 }
+func NewWriterWithReconciliationAndReimbursements(j Journal, a accounts.Repository, reconciler ReconciliationTrigger, reimbursements ReimbursementTrigger) *Writer {
+	return &Writer{journal: j, accounts: a, reconciler: reconciler, reimbursements: reimbursements}
+}
 
 // Append must be called inside the household transaction, including the command or import fence.
 func (w *Writer) Append(ctx context.Context, p household.Principal, r ledger.Revision, expected uint64) error {
@@ -109,7 +116,10 @@ func (w *Writer) Append(ctx context.Context, p household.Principal, r ledger.Rev
 	if err = accounts.NewProjector(w.accounts).Apply(ctx, p, r, previous); err != nil {
 		return err
 	}
-	return w.reconcile(ctx, p, affected)
+	if err = w.reconcile(ctx, p, affected); err != nil {
+		return err
+	}
+	return w.reconcileReimbursement(ctx, p, r, previous)
 }
 
 // AppendBatch publishes comparisons only after the complete financial group exists.
@@ -145,7 +155,23 @@ func (w *Writer) AppendBatch(ctx context.Context, p household.Principal, revisio
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	return w.reconcile(ctx, p, ids)
+	if err := w.reconcile(ctx, p, ids); err != nil {
+		return err
+	}
+	sort.Slice(changes, func(i, j int) bool { return changes[i].Revision.OperationID < changes[j].Revision.OperationID })
+	for _, change := range changes {
+		if err := w.reconcileReimbursement(ctx, p, change.Revision, change.Previous); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *Writer) reconcileReimbursement(ctx context.Context, p household.Principal, current ledger.Revision, previous *ledger.Revision) error {
+	if w.reimbursements == nil {
+		return nil
+	}
+	return w.reimbursements.ReconcileLedgerRevision(ctx, p, current, previous)
 }
 
 func (w *Writer) reconcile(ctx context.Context, p household.Principal, accounts []string) error {
