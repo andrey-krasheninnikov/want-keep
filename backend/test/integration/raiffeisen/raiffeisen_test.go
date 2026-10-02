@@ -216,6 +216,28 @@ func (f *fixture) request(member int, method, path, body, key string) *httptest.
 	return w
 }
 
+func TestConnectionOwnerUsesHouseholdTransaction(t *testing.T) {
+	f := newFixture(t)
+	u := *databaseURL
+	u.Path = "/" + f.admin.Config().ConnConfig.Database
+	u.User = url.UserPassword("want_keep_app", "synthetic-app")
+	db, err := storage.Open(ctx, storage.Config{DSN: u.String(), Environment: "test", MaxConnections: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	from, _ := calendar.ParseDate("2026-08-01")
+	c := connections.ConnectionRecord{ID: uuid.NewString(), HouseholdID: f.p.HouseholdID(), OwnerID: f.q.UserID(), Provider: "raiffeisen", Revision: 1, Generation: 1, State: "pending", HistoryFrom: from}
+	err = db.WithinHousehold(bounded, f.p, func(ctx context.Context) error {
+		return db.CreateConnectionRecord(ctx, f.p, c)
+	})
+	if err != nil {
+		t.Fatal("owner lookup requires an extra pool connection", err)
+	}
+}
+
 func TestConnectionCommandsAndOAuthClaim(t *testing.T) {
 	f := newFixture(t)
 	missingKey := uuid.NewString()

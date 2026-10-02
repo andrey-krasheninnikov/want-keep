@@ -73,11 +73,15 @@ func (s *Store) CreateConnectionRecord(ctx context.Context, p household.Principa
 	if p != scope.principal || c.Provider != "raiffeisen" || c.Revision != 1 || c.Generation != 1 || c.State != "pending" || c.HistoryFrom.String() == "" {
 		return connections.ErrInvalidConnection
 	}
-	m, err := s.Membership(ctx, p.HouseholdID(), c.OwnerID)
-	if err != nil {
+	var active bool
+	err = scope.tx.QueryRow(ctx, `SELECT active FROM want_keep.memberships WHERE household_id=$1 AND user_id=$2`, p.HouseholdID(), c.OwnerID).Scan(&active)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return household.ErrForbidden
 	}
-	if !m.Active {
+	if err != nil {
+		return err
+	}
+	if !active {
 		return household.ErrForbidden
 	}
 	if err = s.CreateConnection(ctx, admission.Connection{HouseholdID: p.HouseholdID(), ID: c.ID, Provider: c.Provider, Owner: c.OwnerID, Generation: 1, SecretPurpose: connections.OAuthTokens}); err != nil {
