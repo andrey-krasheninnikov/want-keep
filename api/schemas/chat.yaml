@@ -339,7 +339,22 @@ ReviewChange:
     distribution:
       type: string
       enum: [rule, personal, joint]
+    member:
+      "$ref": "./chat.yaml#/ReviewMember"
+    candidate:
+      "$ref": "./reports.yaml#/ResourceReference"
   required: [kind, reason]
+ReviewMember:
+  type: object
+  additionalProperties: false
+  properties:
+    id:
+      "$ref": "./money.yaml#/ID"
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+  required: [id, name]
 ProposalDecision:
   type: object
   additionalProperties: false

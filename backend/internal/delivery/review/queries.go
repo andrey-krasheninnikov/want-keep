@@ -133,6 +133,21 @@ func (s *Server) proposal(w http.ResponseWriter, r *http.Request) {
 				mode := generated.ReviewChangeDistribution(*c.Distribution)
 				value.Distribution = &mode
 			}
+			if c.Member != nil {
+				ref, err := proposal.Context.Resolve(*c.Member, "member")
+				if err != nil {
+					return err
+				}
+				value.Member = &generated.ReviewMember{Id: ref.ID, Name: ref.Label}
+			}
+			if c.Candidate != nil {
+				ref, err := proposal.Context.Resolve(*c.Candidate, "candidate")
+				if err != nil {
+					return err
+				}
+				revision := generated.Revision(ref.Revision)
+				value.Candidate = &generated.ResourceReference{Type: "transaction", Id: ref.ID, Revision: &revision}
+			}
 			out.Changes = append(out.Changes, value)
 		}
 		return nil

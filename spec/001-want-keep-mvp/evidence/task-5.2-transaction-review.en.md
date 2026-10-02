@@ -21,6 +21,8 @@ Passed `make check` (including reproducible Go/TypeScript outputs and documentat
 
 New suite scenarios: separate durable validation after provider outcome; classification without another money movement; a free-text answer with a distinct job; malformed/money/injection boundary; stale revision; competing answers and replay; household isolation; human correction protection and rollback; HTTP/CSRF, safe 404, pagination limits, command replay and clarification completion. Existing monetary/lease/budget/privacy regressions remain separate checks.
 
+Fix regressions cover historical 60/40 after a rule changes to 40/60, separately for classification and an explicit rule command; an unmatched allocation retaining the open question; operator reconciliation of an unknown ai_answer with replay and continuation; and HTTP preview of the selected member and linked transaction. The shared classification path preserves explicit allocation and user protections.
+
 ## Coverage and limitations
 
 Evidence covers backend parts of AC-012/018/019/021/022/060/064/069/078/081/085/086/090, without claiming full product acceptance. Catalogs/rules are bounded to 100 entries and candidates to 20; projections state incompleteness. Receipt-item classification, chat, budget/goals, notification delivery and UI remain with their owning tasks. Applying budget/goal proposals without their handlers returns `feature_unavailable`.

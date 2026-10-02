@@ -3473,6 +3473,7 @@ export interface components {
       returns: components["schemas"]["ReturnMetric"][];
     };
     ReviewChange: {
+      candidate?: components["schemas"]["ResourceReference"];
       category?: string;
       /** @enum {string} */
       distribution?: "rule" | "personal" | "joint";
@@ -3486,8 +3487,13 @@ export interface components {
         | "reject"
         | "budget"
         | "goal";
+      member?: components["schemas"]["ReviewMember"];
       merchant?: string;
       reason: string;
+    };
+    ReviewMember: {
+      id: components["schemas"]["ID"];
+      name: string;
     };
     ReviewReference: {
       id: components["schemas"]["ID"];

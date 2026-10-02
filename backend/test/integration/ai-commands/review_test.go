@@ -15,6 +15,7 @@ import (
 	aiapp "github.com/pchkauu/want-keep/backend/internal/ai/application"
 	ai "github.com/pchkauu/want-keep/backend/internal/ai/domain"
 	allocation "github.com/pchkauu/want-keep/backend/internal/allocation/application"
+	rule "github.com/pchkauu/want-keep/backend/internal/allocation/domain"
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
 	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
@@ -27,8 +28,9 @@ import (
 )
 
 type gateway struct {
-	output []byte
-	calls  atomic.Int32
+	output  []byte
+	failure error
+	calls   atomic.Int32
 }
 
 func (g *gateway) Contract() ai.RuntimeContract {
@@ -37,6 +39,9 @@ func (g *gateway) Contract() ai.RuntimeContract {
 func (g *gateway) Count(context.Context, ai.Request) (int64, error) { return 100, nil }
 func (g *gateway) Generate(context.Context, ai.Request) (ai.Result, error) {
 	g.calls.Add(1)
+	if g.failure != nil {
+		return ai.Result{}, g.failure
+	}
 	zero := int64(0)
 	return ai.Result{State: ai.Completed, ProviderID: "synthetic-response", ProviderModel: string(ai.Terra), Output: g.output, Usage: ai.Usage{InputTokens: 100, OutputTokens: 50, CacheWriteTokens: &zero}}, nil
 }
@@ -306,5 +311,144 @@ func TestProtectedFieldAndRollbackStayUnchanged(t *testing.T) {
 	_ = f.admin.QueryRow(testContext, `SELECT revision FROM want_keep.operations WHERE id=$1`, root).Scan(&revision)
 	if revision != 2 {
 		t.Fatal("partial correction committed")
+	}
+}
+
+func TestReviewPreservesFirstFactRuleBoundary(t *testing.T) {
+	for _, explicitRule := range []bool{false, true} {
+		t.Run(fmt.Sprintf("distribution_command=%t", explicitRule), func(t *testing.T) {
+			f := newFixture(t)
+			user := household.User{ID: household.UserID(uuid.NewString()), Name: "Member B"}
+			member := household.Membership{ID: household.MembershipID(uuid.NewString()), UserID: user.ID, HouseholdID: f.family.ID, Active: true}
+			if err := f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error { return f.store.AddMember(ctx, user, member) }); err != nil {
+				t.Fatal(err)
+			}
+			var categoryID string
+			if err := f.admin.QueryRow(testContext, `SELECT id FROM want_keep.categories WHERE household_id=$1 ORDER BY id LIMIT 1`, f.family.ID).Scan(&categoryID); err != nil {
+				t.Fatal(err)
+			}
+			allocations := allocation.NewService(f.store, func() calendar.Instant { return f.now }, uuid.NewString)
+			input := allocation.RuleInput{Priority: 10, State: rule.Active, Condition: rule.Condition{CategoryID: categoryID}, Shares: []rule.Share{{MemberID: f.membership.ID, Value: "60"}, {MemberID: member.ID, Value: "40"}}}
+			created := f.command("rules.create", func(ctx context.Context) (command.Result, error) { return allocations.CreateRule(ctx, f.p, input) })
+			if created.Status() != command.Succeeded {
+				t.Fatal(created.ErrorCode())
+			}
+			createdRule, _ := created.Result()
+			f.step(jobs.Outbox, jobapp.OutboxHandler{Repository: f.store})
+			f.enqueueReviewJobs(1)
+			input.Shares[0].Value, input.Shares[1].Value = "40", "60"
+			changed := f.command("rules.change", func(ctx context.Context) (command.Result, error) {
+				return allocations.ChangeRule(ctx, f.p, createdRule.ResourceID, 1, input)
+			})
+			if changed.Status() != command.Succeeded {
+				t.Fatal(changed.ErrorCode())
+			}
+			alias := "category-1"
+			commandList := []ai.ReviewCommand{{Kind: "classification", Category: &alias, Evidence: []string{"ledger_revision"}, Reason: "Saved category matches."}}
+			if explicitRule {
+				mode := "rule"
+				commandList = append(commandList, ai.ReviewCommand{Kind: "distribution", Distribution: &mode, Evidence: []string{"ledger_revision"}, Reason: "Use the saved rule."})
+			}
+			raw, _ := json.Marshal(ai.ReviewOutput{Version: ai.ReviewContractVersion, CaseID: "case-1", Commands: commandList})
+			f.step(jobs.AI, aiapp.NewHandler(f.store, &gateway{output: raw}, time.Now, uuid.NewString))
+			f.step(jobs.AIValidation, f.service())
+			if err := f.store.WithinFinancialRead(testContext, f.p, func(ctx context.Context) error {
+				current, found, err := f.store.CurrentLedgerRevision(ctx, f.p, f.root())
+				if err != nil {
+					return err
+				}
+				if !found || current.Revision != 2 || current.CategoryID != categoryID || current.Postings[0].Money.Amount() != "-1" {
+					t.Fatalf("classification: %+v", current)
+				}
+				if current.Allocation.State != ledger.AllocationResolved || len(current.Allocation.RuleRefs) != 1 || current.Allocation.RuleRefs[0].Revision != 1 {
+					t.Fatalf("historical allocation: %+v", current.Allocation)
+				}
+				for _, share := range current.Allocation.Inputs {
+					if share.MemberID == f.membership.ID && share.Share != "60" {
+						t.Fatalf("fact-time share: %+v", share)
+					}
+				}
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestUnmatchedRuleApprovalLeavesQuestionOpen(t *testing.T) {
+	f := newFixture(t)
+	f.enqueueReviewJobs(1)
+	mode := "rule"
+	f.step(jobs.AI, aiapp.NewHandler(f.store, &gateway{output: output(ai.ReviewCommand{Kind: "distribution", Distribution: &mode, Evidence: []string{"ledger_revision"}, Reason: "Resolve by a saved rule."})}, time.Now, uuid.NewString))
+	service := f.service()
+	f.step(jobs.AIValidation, service)
+	var question ai.Clarification
+	if err := f.store.WithinFinancialRead(testContext, f.p, func(ctx context.Context) error {
+		items, _, err := service.Clarifications(ctx, f.p, "", 50)
+		if err == nil && len(items) == 1 {
+			question = items[0]
+		}
+		return err
+	}); err != nil || question.ID == "" {
+		t.Fatalf("question: %v", err)
+	}
+	rejected := f.command("proposal.apply", func(ctx context.Context) (command.Result, error) {
+		return service.Apply(ctx, f.p, question.ProposalID, 1, 1, "apply")
+	})
+	if rejected.Status() != command.Failed || rejected.ErrorCode() != "clarification_required" {
+		t.Fatalf("approval: %s %s", rejected.Status(), rejected.ErrorCode())
+	}
+	var state string
+	if err := f.admin.QueryRow(testContext, `SELECT state FROM want_keep.review_clarifications WHERE id=$1`, question.ID).Scan(&state); err != nil || state != "open" {
+		t.Fatalf("question closed: %s %v", state, err)
+	}
+}
+
+func TestUnknownAnswerCanBeOperatorReconciled(t *testing.T) {
+	f := newFixture(t)
+	f.enqueueReviewJobs(1)
+	text := "Confirm purchase purpose."
+	g := &gateway{output: output(ai.ReviewCommand{Kind: "clarify", Question: &text, Evidence: []string{"ledger_revision"}, Reason: "Purpose is unknown."})}
+	f.step(jobs.AI, aiapp.NewHandler(f.store, g, time.Now, uuid.NewString))
+	service := f.service()
+	f.step(jobs.AIValidation, service)
+	var question ai.Clarification
+	if err := f.store.WithinFinancialRead(testContext, f.p, func(ctx context.Context) error {
+		items, _, err := service.Clarifications(ctx, f.p, "", 50)
+		if err == nil && len(items) == 1 {
+			question = items[0]
+		}
+		return err
+	}); err != nil || question.ID == "" {
+		t.Fatalf("question: %v", err)
+	}
+	value := f.command("question.answer", func(ctx context.Context) (command.Result, error) {
+		return service.Answer(ctx, f.p, ai.ReviewAnswer{ClarificationID: question.ID, ExpectedRevision: 1, SubjectExpectedRevision: 1, Text: "Shared purchase"})
+	})
+	if value.Status() != command.Succeeded {
+		t.Fatal(value.ErrorCode())
+	}
+	g.failure = aiapp.GatewayFailure{Code: "provider_timeout", OutcomeUnknown: true}
+	f.step(jobs.AIAnswer, aiapp.NewHandler(f.store, g, time.Now, uuid.NewString))
+	var attemptID, state string
+	if err := f.admin.QueryRow(testContext, `SELECT a.id,j.state FROM want_keep.ai_attempts a JOIN want_keep.jobs j ON j.id=a.job_id AND j.household_id=a.household_id WHERE j.kind='ai_answer'`).Scan(&attemptID, &state); err != nil || state != "unresolved" {
+		t.Fatalf("unknown answer: %s %v", state, err)
+	}
+	pool := f.maintenancePool()
+	for range 2 {
+		if _, err := pool.Exec(testContext, `SELECT want_keep.reconcile_ai_attempt($1,'not_charged',0,'provider-dashboard:synthetic-answer')`, attemptID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.admin.QueryRow(testContext, `SELECT j.state FROM want_keep.jobs j WHERE kind='ai_answer'`).Scan(&state); err != nil || state != "ready" {
+		t.Fatalf("reconciled answer: %s %v", state, err)
+	}
+	g.failure = nil
+	g.output = output(ai.ReviewCommand{Kind: "no_change", Evidence: []string{"ledger_revision"}, Reason: "Confirmed purpose."})
+	f.step(jobs.AIAnswer, aiapp.NewHandler(f.store, g, time.Now, uuid.NewString))
+	f.step(jobs.AIValidation, service)
+	if err := f.admin.QueryRow(testContext, `SELECT state FROM want_keep.review_clarifications WHERE id=$1`, question.ID).Scan(&state); err != nil || state != "answered" {
+		t.Fatalf("resumed answer: %s %v", state, err)
 	}
 }

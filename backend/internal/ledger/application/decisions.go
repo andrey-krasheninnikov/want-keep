@@ -160,7 +160,8 @@ func (s *Service) applyChanges(ctx context.Context, p household.Principal, chang
 				return command.Result{}, commands.Rejection{Code: "source_conflict"}
 			}
 		}
-		if kind == "correction" && in.Correction.Allocation == nil && s.shouldResolveAllocation(r, fields) {
+		_, allocationProtected := r.Protections[ledger.AllocationField]
+		if (kind == "correction" || kind == "automated" && !allocationProtected) && in.Correction.Allocation == nil && s.shouldResolveAllocation(r, fields) {
 			basis, basisErr := s.repository.FirstLedgerRuleBoundary(ctx, p, r.OperationID)
 			if basisErr != nil {
 				return command.Result{}, s.reject(basisErr)

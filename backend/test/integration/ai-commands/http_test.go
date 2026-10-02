@@ -27,9 +27,11 @@ import (
 
 func TestHTTPClarificationRightsCSRFAndRecovery(t *testing.T) {
 	f := newFixture(t)
-	f.enqueueReviewJobs(1)
-	question := "Is the purchase shared?"
-	g := &gateway{output: output(ai.ReviewCommand{Kind: "clarify", Question: &question, Evidence: []string{"ledger_revision"}, Reason: "Purpose is unknown."})}
+	f.enqueueReviewJobs(2)
+	mode, member := "personal", "member-1"
+	candidate := "candidate-1"
+	raw, _ := json.Marshal(ai.ReviewOutput{Version: ai.ReviewContractVersion, CaseID: "case-1", Commands: []ai.ReviewCommand{{Kind: "distribution", Distribution: &mode, Member: &member, Evidence: []string{"ledger_revision"}, Reason: "Purpose is unknown."}, {Kind: "link", Candidate: &candidate, Evidence: []string{"ledger_revision"}, Reason: "Confirm the saved candidate."}}})
+	g := &gateway{output: raw}
 	f.step(jobs.AI, aiapp.NewHandler(f.store, g, time.Now, uuid.NewString))
 	service := f.service()
 	f.step(jobs.AIValidation, service)
@@ -94,6 +96,26 @@ func TestHTTPClarificationRightsCSRFAndRecovery(t *testing.T) {
 		t.Fatalf("question list: %v", err)
 	}
 	value := page.Items[0]
+	preview := call("GET", "/proposals/"+value.ProposalID, "", "", "", 200)
+	var proposal struct {
+		Changes []struct {
+			Candidate struct {
+				ID       string `json:"id"`
+				Revision uint64 `json:"revision"`
+				Type     string `json:"type"`
+			} `json:"candidate"`
+			Member struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"member"`
+		} `json:"changes"`
+	}
+	if json.Unmarshal(preview.Body.Bytes(), &proposal) != nil || len(proposal.Changes) != 2 || proposal.Changes[0].Member.ID != string(f.membership.ID) || proposal.Changes[0].Member.Name != "Member A" {
+		t.Fatalf("personal target preview: %s", preview.Body.String())
+	}
+	if proposal.Changes[1].Candidate.ID == "" || proposal.Changes[1].Candidate.ID == value.OperationID || proposal.Changes[1].Candidate.Revision != 1 || proposal.Changes[1].Candidate.Type != "transaction" {
+		t.Fatalf("candidate target preview: %s", preview.Body.String())
+	}
 	call("GET", "/proposals/"+uuid.NewString(), "", "", "", 404)
 	call("GET", "/clarifications?limit=101", "", "", "", 400)
 	call("GET", "/clarifications?cursor=invalid", "", "", "", 400)

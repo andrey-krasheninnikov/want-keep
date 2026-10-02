@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -128,16 +127,6 @@ func (f *fixture) anotherHousehold() *fixture {
 	return other
 }
 
-func (f *fixture) newReviewJobs(count int) []jobs.Job {
-	f.t.Helper()
-	f.enqueueReviewJobs(count)
-	claimed, err := f.store.ClaimJobs(testContext, string(jobs.AI), count, time.Minute)
-	if err != nil || len(claimed) != count {
-		f.t.Fatalf("claim AI jobs: %d, %v", len(claimed), err)
-	}
-	return claimed
-}
-
 func (f *fixture) enqueueReviewJobs(count int) {
 	f.t.Helper()
 	accountID := f.account("100000")
@@ -196,18 +185,6 @@ func (f *fixture) revision(id, accountID string) ledger.Revision {
 		PayerState: "known", PayerMemberID: f.membership.ID,
 		Postings: []ledger.Posting{{AccountID: accountID, Money: mustMoney("-1"), Role: "principal"}},
 	}
-}
-
-func (f *fixture) maintenanceStore() *storage.Store {
-	f.t.Helper()
-	u, _ := url.Parse(f.dsn)
-	u.User = url.UserPassword("want_keep_maintenance", "synthetic-maintenance")
-	store, err := storage.Open(testContext, storage.Config{DSN: u.String(), Environment: "test", MaxConnections: 2})
-	if err != nil {
-		f.t.Fatal(err)
-	}
-	f.t.Cleanup(store.Close)
-	return store
 }
 
 func (f *fixture) maintenancePool() *pgxpool.Pool {

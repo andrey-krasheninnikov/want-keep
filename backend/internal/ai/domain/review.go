@@ -24,6 +24,7 @@ type ReviewContext struct {
 	JobID           string               `json:"jobId"`
 	OperationID     string               `json:"operationId"`
 	Revision        uint64               `json:"revision"`
+	RuleBoundary    uint64               `json:"ruleBoundary"`
 	References      map[string]Reference `json:"references"`
 	Input           json.RawMessage      `json:"input"`
 	ClarificationID string               `json:"clarificationId,omitempty"`

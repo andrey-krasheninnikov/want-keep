@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	ai "github.com/pchkauu/want-keep/backend/internal/ai/domain"
+	allocation "github.com/pchkauu/want-keep/backend/internal/allocation/domain"
 	category "github.com/pchkauu/want-keep/backend/internal/categories/domain"
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
 	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
@@ -236,8 +237,9 @@ func (s *ReviewService) prepareCommands(ctx context.Context, p household.Princip
 				merchantID = *change.MerchantID
 			}
 			var matched bool
-			var err error
-			input, matched, err = s.allocations.Resolve(ctx, p, merchantID, categoryID)
+			condition := allocation.Condition{MerchantID: merchantID, CategoryID: categoryID}
+			resolved, err := s.allocations.ResolveAtBoundary(ctx, p, []allocation.Condition{condition}, projection.RuleBoundary)
+			input, matched = resolved[condition]
 			if err != nil {
 				return change, false, err
 			}
@@ -253,7 +255,10 @@ func (s *ReviewService) prepareCommands(ctx context.Context, p household.Princip
 					return change, false, commands.Rejection{Code: "version_conflict"}
 				}
 			}
-			if !matched {
+			if !matched || input.Mode == ledger.AllocationUnknown {
+				if approved {
+					return change, false, commands.Rejection{Code: "clarification_required"}
+				}
 				approval = true
 				continue
 			}

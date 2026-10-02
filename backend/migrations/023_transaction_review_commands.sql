@@ -83,6 +83,7 @@ INSERT INTO want_keep.review_validation_jobs SELECT household_id,id,id FROM inse
 -- Answer checks use the same operator-only reconciliation fence as initial checks.
 DO $$ DECLARE definition text; BEGIN
  SELECT pg_get_functiondef('want_keep.reconcile_ai_attempt(uuid,text,numeric,text)'::regprocedure) INTO definition;
+ definition:=replace(definition,'v_job.kind <> ''ai''','v_job.kind NOT IN (''ai'',''ai_answer'')');
  definition:=replace(definition,'kind=''ai''','kind IN (''ai'',''ai_answer'')');
  EXECUTE definition;
 END $$;
