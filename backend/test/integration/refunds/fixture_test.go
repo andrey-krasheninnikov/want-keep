@@ -262,7 +262,7 @@ func (f *fixture) client(principal household.Principal) *client {
 	allocationService := allocation.NewService(f.store, now, uuid.NewString)
 	matcher := matching.NewService(f.store, f.writer, now, uuid.NewString)
 	ledgerService := journal.NewServiceWithAllocations(f.store, matcher, allocationService, now, uuid.NewString)
-	refundService := expenses.NewService(f.store, f.writer, now, uuid.NewString)
+	refundService := expenses.NewService(f.store, matcher, now, uuid.NewString)
 	handler, err := ledgerdelivery.NewWithRefunds(ledgerService, matcher, refundService, journal.NewQueries(f.store), f.executor, commandQueries, sessions, f.store, security.Config{Environment: "test", Origin: "http://localhost"}, now)
 	if err != nil {
 		f.t.Fatal(err)

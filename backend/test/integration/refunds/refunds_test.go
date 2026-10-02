@@ -14,6 +14,7 @@ import (
 	"github.com/pchkauu/want-keep/backend/internal/delivery/http/generated"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/domain"
 	matching "github.com/pchkauu/want-keep/backend/internal/matching/application"
+	matchingdomain "github.com/pchkauu/want-keep/backend/internal/matching/domain"
 	money "github.com/pchkauu/want-keep/backend/internal/money/domain"
 )
 
@@ -374,7 +375,7 @@ func TestWaitingMatchedRefundDoesNotReducePurchaseExpense(t *testing.T) {
 	accountID := f.account(money.RUB, "5000")
 	purchase := createExpense(t, client, accountID, money.RUB, "1000", "500")
 	zone, _ := calendar.ParseTimezone("Europe/Moscow")
-	entry := ledger.Revision{OperationID: uuid.NewString(), Revision: 1, ActorID: f.p.UserID(), Reason: "Confirmed incoming payment", Type: ledger.Income, State: ledger.Posted, OccurredAt: f.now, Origin: "manual", FeeKnowledge: ledger.KnownFees, PayerState: "not_applicable", Postings: []ledger.Posting{{AccountID: accountID, Money: cash("400", money.RUB), Role: ledger.Principal, Funding: ledger.OwnFunds, Treatment: ledger.Movement}}, RecordedAt: f.now}
+	entry := ledger.Revision{OperationID: uuid.NewString(), Revision: 1, ActorID: f.p.UserID(), Reason: "Confirmed refund receipt", Type: ledger.Refund, State: ledger.Posted, OccurredAt: f.now, Origin: "manual", FeeKnowledge: ledger.KnownFees, PayerState: "not_applicable", Postings: []ledger.Posting{{AccountID: accountID, Money: cash("400", money.RUB), Role: ledger.Principal, Funding: ledger.OwnFunds, Treatment: ledger.Movement}}, RecordedAt: f.now}
 	entry, err := entry.InTimezone(zone)
 	if err != nil {
 		t.Fatal(err)
@@ -408,6 +409,60 @@ func TestWaitingMatchedRefundDoesNotReducePurchaseExpense(t *testing.T) {
 	replacement := createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "1000", uuid.NewString())
 	if replacement.Status != "succeeded" || f.available(accountID, f.p) != "5400" {
 		t.Fatalf("waiting refund consumed capacity: %+v", replacement)
+	}
+}
+
+func TestManualRefundAndImportedReceiptDoNotCreditAccountTwice(t *testing.T) {
+	f := newFixture(t)
+	client := f.client(f.p)
+	accountID := f.account(money.RUB, "5000")
+	purchase := createExpense(t, client, accountID, money.RUB, "1000", "500")
+	manual := createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "400", uuid.NewString())
+	if f.available(accountID, f.p) != "4400" {
+		t.Fatal("manual refund did not credit once")
+	}
+	zone, _ := calendar.ParseTimezone("Europe/Moscow")
+	imported := ledger.Revision{OperationID: uuid.NewString(), Revision: 1, ActorID: f.p.UserID(), Reason: "Imported refund receipt", Type: ledger.Refund, State: ledger.Posted, OccurredAt: f.now, Origin: "source", FeeKnowledge: ledger.KnownFees, PayerState: "not_applicable", Postings: []ledger.Posting{{AccountID: accountID, Money: cash("400", money.RUB), Role: ledger.Principal, Funding: ledger.OwnFunds, Treatment: ledger.Movement}}, RecordedAt: f.now}
+	imported, err := imported.InTimezone(zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	matcher := matching.NewService(f.store, f.writer, func() calendar.Instant { return f.now }, uuid.NewString)
+	if err = f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error { return matcher.Append(ctx, f.p, imported, 0) }); err != nil {
+		t.Fatal(err)
+	}
+	stored, found, err := f.store.CurrentLedgerRevision(testContext, f.p, imported.OperationID)
+	if err != nil || !found || stored.Participation.State != "waiting" || f.available(accountID, f.p) != "4400" {
+		t.Fatalf("imported refund duplicated cash: %+v found=%v err=%v", stored, found, err)
+	}
+	linked := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+imported.OperationID+"/links", uuid.NewString(), map[string]any{
+		"kind": "refund", "reason": "Link imported receipt to purchase",
+		"expectedRevisions": []any{
+			map[string]any{"transactionId": imported.OperationID, "expectedRevision": 1},
+			map[string]any{"transactionId": purchase.Result.Id, "expectedRevision": 1},
+		},
+		"refund": map[string]any{"purchaseId": purchase.Result.Id, "expectedRevision": 0, "returnedItems": []any{}},
+	}, http.StatusAccepted))
+	view := readTransaction(t, client, purchase.Result.Id)
+	if linked.Status != "succeeded" || len(view.Refunds) != 2 || view.Refunds[0].State == view.Refunds[1].State || f.available(accountID, f.p) != "4400" {
+		t.Fatalf("duplicate refund attribution: manual=%s imported=%s refunds=%+v", manual.Result.Id, imported.OperationID, view.Refunds)
+	}
+	if err = f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error {
+		_, linkErr := matcher.Link(ctx, f.p, matching.LinkInput{
+			Kind: matchingdomain.Payment, PrimaryID: manual.Result.Id, Reason: "Same refund receipt",
+			Members: []matchingdomain.Member{{OperationID: manual.Result.Id, Revision: 1}, {OperationID: imported.OperationID, Revision: 1}},
+		})
+		return linkErr
+	}); err != nil {
+		t.Fatal(err)
+	}
+	stored, found, err = f.store.CurrentLedgerRevision(testContext, f.p, imported.OperationID)
+	if err != nil || !found || stored.Participation.State != "linked" || stored.Contributes(0) || f.available(accountID, f.p) != "4400" {
+		t.Fatalf("linked imported refund duplicated cash: %+v found=%v err=%v", stored, found, err)
+	}
+	view = readTransaction(t, client, purchase.Result.Id)
+	if len(view.Refunds) != 2 || view.Refunds[0].State == view.Refunds[1].State {
+		t.Fatalf("linked imported refund duplicated attribution: %+v", view.Refunds)
 	}
 }
 

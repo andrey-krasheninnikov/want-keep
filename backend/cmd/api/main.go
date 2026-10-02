@@ -126,7 +126,7 @@ func run() error {
 	}
 	matchingService := matching.NewService(database, writer, now, uuid.NewString)
 	allocationService := allocations.NewService(database, now, uuid.NewString)
-	refundService := expenses.NewService(database, writer, now, uuid.NewString)
+	refundService := expenses.NewService(database, matchingService, now, uuid.NewString)
 	ledgerHandler, err := ledgerdelivery.NewWithRefunds(ledger.NewServiceWithAllocations(database, matchingService, allocationService, now, uuid.NewString), matchingService, refundService, ledger.NewQueries(database), executor, queries, service, database, config, now)
 	if err != nil {
 		return err

@@ -38,7 +38,7 @@ func (a *effectAssignment) assign(facts []ledger.Revision, allowPartial bool) (G
 		v := r.Clone()
 		v.Participation = ledger.Participation{}
 		v, validationErr := v.RefreshAllocation()
-		if seen[r.OperationID] || validationErr != nil || v.Validate() != nil || !slices.Contains([]ledger.Type{ledger.Income, ledger.Expense, ledger.Transfer, ledger.Exchange}, r.Type) {
+		if seen[r.OperationID] || validationErr != nil || v.Validate() != nil || !slices.Contains([]ledger.Type{ledger.Income, ledger.Expense, ledger.Transfer, ledger.Exchange, ledger.Refund}, r.Type) || r.Type == ledger.Refund && a.group.Kind != Payment {
 			return a.group, nil, ErrInvalid
 		}
 		seen[r.OperationID] = true

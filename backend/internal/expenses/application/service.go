@@ -111,6 +111,10 @@ func (s *Service) Create(ctx context.Context, principal household.Principal, inp
 	if err = s.writer.Append(ctx, principal, revision, 0); err != nil {
 		return command.Result{}, s.reject(err)
 	}
+	revision, found, err := s.repository.CurrentLedgerRevision(ctx, principal, operationID)
+	if err != nil || !found {
+		return command.Result{}, s.reject(errOr(err, ledger.ErrNotFound))
+	}
 	if _, err = s.save(ctx, principal, purchase, revision, input.Items, 0, input.Reason, principal.UserID(), recordedAt); err != nil {
 		return command.Result{}, err
 	}
