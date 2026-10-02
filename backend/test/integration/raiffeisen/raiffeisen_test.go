@@ -236,6 +236,65 @@ func TestConnectionOwnerUsesHouseholdTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal("owner lookup requires an extra pool connection", err)
 	}
+	ref := connections.SecretReference{HouseholdID: f.p.HouseholdID(), ConnectionID: c.ID, Purpose: connections.OAuthTokens, Generation: 1, Revision: 1}
+	plain := []byte("synthetic-token-bundle")
+	ciphertext, err := f.vault.Seal(ref, plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.WithinHousehold(bounded, f.q, func(ctx context.Context) error {
+		if err := db.AuthorizeConnection(ctx, f.q, c); err != nil {
+			return err
+		}
+		return db.SaveEncryptedSecret(ctx, ref, ciphertext)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gate := admission.NewService(db, db)
+	for _, kind := range []connections.CheckKind{connections.ProviderCheck, connections.HostCheck} {
+		if _, err := gate.RecordCheck(bounded, connections.Check{Kind: kind, Binding: f.binding, Result: connections.CheckPassed, At: f.now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := gate.RequestSync(bounded, f.p, c.ID, f.binding, time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := db.ClaimJobs(bounded, "sync", 1, time.Minute)
+	if err != nil || len(claimed) != 1 {
+		t.Fatal("rotation job not claimed", err)
+	}
+	var attempt string
+	err = gate.WithReadPermit(bounded, f.p, claimed[0], func(ctx context.Context) error {
+		var err error
+		attempt, err = db.ClaimTokenRotation(ctx, f.p, claimed[0], ref)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref.Revision++
+	ciphertext, err = f.vault.Seal(ref, plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := ref
+	old.Revision--
+	err = gate.WithReadPermit(bounded, f.p, claimed[0], func(ctx context.Context) error {
+		return db.CompleteTokenRotation(ctx, f.p, claimed[0], old, attempt, ciphertext)
+	})
+	if err != nil {
+		t.Fatal("rotation requires an extra pool connection", err)
+	}
+	current, found, err := db.SecretReference(bounded, f.p, c.ID, connections.OAuthTokens)
+	if err != nil || !found || current != ref {
+		t.Fatal("new token revision not committed", err)
+	}
+	failed, cancelFailure := context.WithCancel(bounded)
+	cancelFailure()
+	if _, err := db.Membership(failed, f.p.HouseholdID(), f.q.UserID()); err == nil || errors.Is(err, household.ErrForbidden) {
+		t.Fatal("database failure became an access refusal", err)
+	}
 }
 
 func TestConnectionCommandsAndOAuthClaim(t *testing.T) {
