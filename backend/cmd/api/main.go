@@ -32,14 +32,17 @@ import (
 	ledgerdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/ledger"
 	reconciliationdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reconciliation"
 	reimbursementdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reimbursements"
+	valuationdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/valuation"
 	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	application "github.com/pchkauu/want-keep/backend/internal/identity/application"
 	"github.com/pchkauu/want-keep/backend/internal/identity/webauthn"
+	ratesource "github.com/pchkauu/want-keep/backend/internal/integrations/rates"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/application"
 	matching "github.com/pchkauu/want-keep/backend/internal/matching/application"
 	"github.com/pchkauu/want-keep/backend/internal/privacy/cryptobox"
 	reconciliation "github.com/pchkauu/want-keep/backend/internal/reconciliation/application"
 	"github.com/pchkauu/want-keep/backend/internal/storage"
+	valuationapp "github.com/pchkauu/want-keep/backend/internal/valuation/application"
 )
 
 func main() {
@@ -147,6 +150,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	rateService := valuationapp.Service{Repository: database, Sources: ratesource.New(&http.Client{Timeout: 3 * time.Second}, os.Getenv("WANT_KEEP_COINGECKO_KEY_FILE"), database), Now: time.Now}
+	valuationHandler, err := valuationdelivery.New(rateService, accountService, ledger.NewQueries(database), service, database, config, time.Now)
+	if err != nil {
+		return err
+	}
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/transactions", ledgerHandler)
 	mux.Handle("/api/v1/transactions/", ledgerHandler)
@@ -166,6 +174,8 @@ func run() error {
 	mux.Handle("/api/v1/categories/", categoryHandler)
 	mux.Handle("/api/v1/merchants", categoryHandler)
 	mux.Handle("/api/v1/merchants/", categoryHandler)
+	mux.Handle("/api/v1/rates", valuationHandler)
+	mux.Handle("/api/v1/reports/valuation", valuationHandler)
 	mux.Handle("/api/v1/commands/", accountHandler)
 	mux.Handle("/api/v1/attachments", attachmentHandler)
 	mux.Handle("/api/v1/attachments/", attachmentHandler)

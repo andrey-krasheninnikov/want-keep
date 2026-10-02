@@ -21,6 +21,19 @@ go tool oapi-codegen --config ../api/oapi-codegen.yaml -o "$temporary_directory/
 cd "$repository_root/api"
 ./node_modules/.bin/openapi-typescript "$temporary_directory/openapi.json" --output "$temporary_directory/openapi.gen.ts"
 "$repository_root/web/node_modules/.bin/prettier" --write "$temporary_directory/openapi.gen.ts" --no-config --no-editorconfig
+python3 - "$temporary_directory/openapi.gen.go" "$temporary_directory/openapi.gen.ts" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+go, ts = map(Path, sys.argv[1:])
+go_source = go.read_text()
+go.write_text("//go:build go1.22\n\n// Package generated provides primitives to interact with the openapi HTTP API.\npackage generated" + go_source.split("package generated", 1)[1])
+content = ts.read_text()
+content = content[content.index("export interface paths {"):]
+content = re.sub(r"(?m)^(\s*\* @description )discriminator enum property[^\n]*$", r"\1Discriminator value", content)
+ts.write_text(content)
+PY
 cd "$repository_root"
 
 go_output=backend/internal/delivery/http/generated/openapi.gen.go

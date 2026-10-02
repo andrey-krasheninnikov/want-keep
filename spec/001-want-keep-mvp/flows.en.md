@@ -193,3 +193,20 @@ sequenceDiagram
 ```
 
 A page is self-contained: every supported account used by a balance or posting has an account descriptor on that page. A later page repeats the descriptor and prior cursor; replay creates no account/opening/financial effect. `nextCursor` is either absent or non-empty. A provider failure also echoes the issued cursor; the sync-result boundary rejects a delayed outcome from an earlier page, while the shared lease identity keeps heartbeat valid after checkpoint advancement. Failure on page two never advances its cursor, while the confirmed first page stays committed with partial coverage. The cumulative gap set after merging the checkpoint is capped at 100 values; overflow rolls the page back. An ambiguous account or source cannot turn the page into a complete success and does not discard independent supported records. A confirmed `RUR → RUB` provider mapping preserves the raw code in evidence/metadata and uses RUB in the financial domain. A replay with a new evidence ID/locator, equivalent empty optional fields and the same normalized payload/raw digest creates no source revision. Evidence uses canonical base64 without CR/LF. Only the atomic receipt proves an unknown commit outcome; without it evidence remains staged. The restart reconciler finalizes disposition only from a stored terminal receipt and never replays the financial effect.
+
+## Task-6.1: rates and valuation
+
+```mermaid
+flowchart LR
+  A[CBR XML] --> R[Immutable observations]
+  B[Frankfurter filtered to CBR] --> R
+  C[CoinGecko Demo] --> R
+  R --> X[Exact USD cross-rate]
+  X --> H[Transaction-date component snapshot]
+  X --> T[Current holding equivalent]
+  H --> V[Report: actual]
+  T --> V
+  T --> F[Separate reference revaluation]
+```
+
+Missing legs retain the native amount and an incomplete-data reason. A new rate creates an observation revision without rewriting a historical snapshot. Executable provider quotes have a separate path and are never inferred from a reference cross-rate.

@@ -161,7 +161,7 @@ func TestRatesExplainUnavailableAndQuoteCoverage(t *testing.T) {
 		t.Fatal(err)
 	}
 	const quality = `"quality":{"coverage":{"state":"complete","reasons":[]},"freshness":"fresh"}`
-	const quote = `{"method":"platform_quote","provider":"bybit","base":"USDT","quote":"USD","applicableAmount":{"asset":"USDT","amount":"1.000000000001"},"rate":{"base":"USDT","quote":"USD","value":"0.9999"},"observedAt":"2026-09-07T00:00:00Z","fees":[],"feeCoverage":"included","spreadCoverage":"included",` + quality + `}`
+	const quote = `{"method":"platform_quote","provider":"bybit","direction":"sell_base","base":"USDT","quote":"USD","applicableAmount":{"asset":"USDT","amount":"1.000000000001"},"rate":{"base":"USDT","quote":"USD","value":"0.9999"},"observedAt":"2026-09-07T00:00:00Z","fees":[],"feeCoverage":"included","spreadCoverage":"included",` + quality + `}`
 	for _, data := range []string{quote, `{"method":"unavailable","base":"BTC","quote":"USD","requestedDate":"2020-01-01","reason":"valuation_unavailable","detail":"history_out_of_range",` + quality + `}`} {
 		var dto generated.RateObservation
 		if err := b.Decode("RateObservation", []byte(data), &dto); err != nil {
@@ -193,7 +193,7 @@ func TestValuationRequiresSourceLegs(t *testing.T) {
 		t.Fatal(err)
 	}
 	const source = `{"id":"10000000-0000-4000-8000-000000000001","revision":1,"rate":{"base":"BTC","quote":"RUB","value":"5000000.000000000001"},"requestedDate":"2026-09-07","observedAt":"2026-09-07T00:00:00Z","fetchedAt":"2026-09-07T01:00:00Z","source":"synthetic-cross","method":"reference","granularity":"daily","quality":{"coverage":{"state":"complete","reasons":[]},"freshness":"fresh"}}`
-	const legs = `[{"providerAssetId":"bitcoin","source":"CoinGecko","transport":"demo-api","requestedDate":"2026-09-07","effectiveAt":"2026-09-07T00:00:00Z","fetchedAt":"2026-09-07T01:00:00Z","granularity":"daily","revision":2,"rate":{"base":"BTC","quote":"USD","value":"50000.00000000000001"}},{"providerAssetId":"USD","source":"CBR","transport":"daily-xml","requestedDate":"2026-09-07","effectiveAt":"2026-09-05T00:00:00Z","fetchedAt":"2026-09-07T01:00:00Z","granularity":"daily","revision":3,"rate":{"base":"USD","quote":"RUB","value":"100"}}]`
+	const legs = `[{"providerAssetId":"bitcoin","source":"CoinGecko","attributionUrl":"https://www.coingecko.com/","transport":"demo-api","requestedDate":"2026-09-07","effectiveAt":"2026-09-07T00:00:00Z","fetchedAt":"2026-09-07T01:00:00Z","granularity":"daily","revision":2,"rate":{"base":"BTC","quote":"USD","value":"50000.00000000000001"}},{"providerAssetId":"USD","source":"CBR","attributionUrl":"https://www.cbr.ru/","transport":"daily-xml","requestedDate":"2026-09-07","effectiveAt":"2026-09-05T00:00:00Z","fetchedAt":"2026-09-07T01:00:00Z","granularity":"daily","revision":3,"rate":{"base":"USD","quote":"RUB","value":"100"}}]`
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(source), &fields); err != nil {
 		t.Fatal(err)

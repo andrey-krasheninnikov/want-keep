@@ -5,7 +5,7 @@
 
 Сохранять историческую оценку и показывать текущие эквиваленты/котировки.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Реализованы backend/API курсов, семейных валютных итогов и версионной исторической оценки; UI, обратное восстановление старых оценок и production остаются отдельной работой.
 
 **Зависимости:** `task-0.7`, `task-2.2`, `task-3.2`.
 
@@ -13,12 +13,16 @@
 
 ### Изменение и контракты
 
-Использовать CBR как основной USD/RUB, Frankfurter `providers=CBR` как fallback/cross-check и CoinGecko Demo для текущих и исторических ≤365 дней BTC/ETH/USDT/USDC в USD. Для более старой криптоистории возвращать `valuation_unavailable`, сохраняя native facts. Текущая цена не переписывает историческую оценку. Platform executable quote хранится только с направлением, amount, временем и известными fee/spread; иначе `quote_unavailable`. Reference rate никогда не подменяет platform quote. Missing/stale/unsupported не равны нулю или peg. Free-key quota, attribution и live probe являются task-6.1 configuration/runtime gate.
+Использовать CBR как основной USD/RUB, Frankfurter `providers=cbr` (код источника CBR) как fallback/cross-check и CoinGecko Demo для текущих и исторических ≤365 дней BTC/ETH/USDT/USDC в USD. Для более старой криптоистории возвращать `valuation_unavailable`, сохраняя native facts. Текущая цена не переписывает историческую оценку. Platform executable quote хранится только с направлением, amount, временем и известными fee/spread; иначе `quote_unavailable`. Reference rate никогда не подменяет platform quote. Missing/stale/unsupported не равны нулю или peg. Free-key quota, attribution и live probe являются task-6.1 configuration/runtime gate.
 
 ### Границы изменений
 
 - `backend/internal/valuation/`
 - `backend/internal/integrations/rates/`
+- `backend/internal/delivery/valuation/`
+- `backend/internal/storage/rates.go`
+- `backend/migrations/020_rates_valuation.sql`
+- `api/paths/reports.yaml`
 
 Пути планируемые. Общие контракты — `spec/001-want-keep-mvp/contracts.md`, архитектура/команды — `constraints.md`. Менять владельца поведения и его тесты; незакрытый контракт останавливает зависимую работу.
 
@@ -104,12 +108,12 @@
 ### Проверка результата
 
 ```sh
-make test-go PKG=./internal/valuation/... && make test-contract PROVIDER=rates
+make test-go PKG=./internal/valuation/... && make test-contract PROVIDER=rates && make test-integration AREA=rates
 ```
 
 RUB, USD, USDT, USDC, BTC и ETH, cross-rates без условного паритета, partial refund, остатки точнее UI и отсутствие исторической цены проверены без изменения native ledger.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Результат backend/API и границы: evidence/task-6.1-rates-valuation.md. Доказанные части AC-003/037/038/039/059/074; AC-065 остаётся частичным до связывания возврата task-2.7. Старые операции требуют отдельного восстановления оценок. Платформенные котировки не поступают до реализации соответствующих адаптеров; UI и production не проверены.
 
 ### Передача следующему агенту
 
@@ -121,7 +125,7 @@ RUB, USD, USDT, USDC, BTC и ETH, cross-rates без условного пари
 
 Preserve historical valuation and show current equivalents/quotes.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Rates API, household valuation totals and versioned historical valuation are implemented; UI, backfilling older valuations and production remain separate work.
 
 **Dependencies:** `task-0.7`, `task-2.2`, `task-3.2`.
 
@@ -129,12 +133,16 @@ Preserve historical valuation and show current equivalents/quotes.
 
 ### Change and contracts
 
-Use CBR as the primary USD/RUB source, Frankfurter `providers=CBR` as fallback/cross-check, and CoinGecko Demo for current and ≤365-day historical BTC/ETH/USDT/USDC prices in USD. Older crypto history returns `valuation_unavailable` while preserving native facts. A current price never rewrites historical valuation. Retain a platform executable quote only with direction, amount, time and known fee/spread; otherwise return `quote_unavailable`. A reference rate never substitutes for a platform quote. Missing/stale/unsupported is neither zero nor a peg. Free-key quota, attribution and a live probe are task-6.1 configuration/runtime gates.
+Use CBR as the primary USD/RUB source, Frankfurter `providers=cbr` (CBR source code) as fallback/cross-check, and CoinGecko Demo for current and ≤365-day historical BTC/ETH/USDT/USDC prices in USD. Older crypto history returns `valuation_unavailable` while preserving native facts. A current price never rewrites historical valuation. Retain a platform executable quote only with direction, amount, time and known fee/spread; otherwise return `quote_unavailable`. A reference rate never substitutes for a platform quote. Missing/stale/unsupported is neither zero nor a peg. Free-key quota, attribution and a live probe are task-6.1 configuration/runtime gates.
 
 ### Change boundaries
 
 - `backend/internal/valuation/`
 - `backend/internal/integrations/rates/`
+- `backend/internal/delivery/valuation/`
+- `backend/internal/storage/rates.go`
+- `backend/migrations/020_rates_valuation.sql`
+- `api/paths/reports.yaml`
 
 Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.md`; architecture/commands are in `constraints.en.md`. Change the behavior owner and its tests; an unresolved contract stops dependent work.
 
@@ -220,12 +228,12 @@ A link establishes coverage but does not prove the whole criterion; verification
 ### Verification
 
 ```sh
-make test-go PKG=./internal/valuation/... && make test-contract PROVIDER=rates
+make test-go PKG=./internal/valuation/... && make test-contract PROVIDER=rates && make test-integration AREA=rates
 ```
 
 RUB, USD, USDT, USDC, BTC and ETH, cross-rates without assumed parity, partial refund, residuals beyond UI precision and missing historical prices pass without changing the native ledger.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Backend/API result and limits: evidence/task-6.1-rates-valuation.en.md. Backend portions of AC-003/037/038/039/059/074 are covered; AC-065 remains partial until task-2.7 links refunds. Existing operations require a separate valuation backfill. Platform quotes need their provider adapters; UI and production are not verified.
 
 ### Handoff to the next agent
 

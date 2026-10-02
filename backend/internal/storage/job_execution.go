@@ -138,6 +138,6 @@ func (s *Store) ResumeWaiting(ctx context.Context, kind jobs.Kind, reason jobs.R
 	if !kind.Valid() || !reason.Waiting() {
 		return jobs.ErrInvalidJob
 	}
-	_, err := s.pool.Exec(ctx, `WITH pending AS (SELECT household_id,id FROM want_keep.jobs WHERE kind=$1 AND state='waiting' AND reason=$2 AND NOT cancel_requested AND NOT external_started ORDER BY available_at,id LIMIT 100 FOR UPDATE SKIP LOCKED) UPDATE want_keep.jobs j SET state='ready',reason='',run_deadline=clock_timestamp()+INTERVAL '24 hours',available_at=clock_timestamp() FROM pending p WHERE (j.household_id,j.id)=(p.household_id,p.id)`, kind, reason)
+	_, err := s.pool.Exec(ctx, `WITH pending AS (SELECT household_id,id FROM want_keep.jobs WHERE kind=$1 AND state='waiting' AND reason=$2 AND available_at<=clock_timestamp() AND NOT cancel_requested AND NOT external_started ORDER BY available_at,id LIMIT 100 FOR UPDATE SKIP LOCKED) UPDATE want_keep.jobs j SET state='ready',reason='',run_deadline=clock_timestamp()+INTERVAL '24 hours',available_at=clock_timestamp() FROM pending p WHERE (j.household_id,j.id)=(p.household_id,p.id)`, kind, reason)
 	return err
 }
