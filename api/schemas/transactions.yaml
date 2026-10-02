@@ -367,6 +367,10 @@ Transaction:
       type: array
       items:
         "$ref": "./accounts.yaml#/SourceReference"
+    reviewReferences:
+      type: array
+      maxItems: 100
+      items: { $ref: './chat.yaml#/ReviewReference' }
     aiState:
       type: string
       enum:

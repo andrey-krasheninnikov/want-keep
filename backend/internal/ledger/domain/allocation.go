@@ -597,11 +597,24 @@ func (r Revision) allocationBases() (AllocationInput, []ItemAllocationInput, []h
 	return fallback, items, active, nil
 }
 
-// AllocationBases returns the persisted purchase and item inputs used to
-// rebuild an allocation after classification changes.
+// AllocationBases returns the purchase basis and inputs for contributing items.
+// Dormant zero-net bases stay on the revision and are retained by WithAllocation.
 func (r Revision) AllocationBases() (AllocationInput, []ItemAllocationInput, error) {
 	fallback, items, _, err := r.allocationBases()
-	return fallback, items, err
+	if err != nil {
+		return fallback, nil, err
+	}
+	_, amounts, err := r.allocationComponents()
+	if err != nil {
+		return fallback, nil, err
+	}
+	active := items[:0]
+	for _, item := range items {
+		if _, ok := amounts[item.ItemID]; ok {
+			active = append(active, item)
+		}
+	}
+	return fallback, active, nil
 }
 
 func (r Revision) suspendAllocation(fallback AllocationInput, items []ItemAllocationInput) (Revision, error) {

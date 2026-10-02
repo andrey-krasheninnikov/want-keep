@@ -207,7 +207,7 @@ class SpecCatalog:
       for target in task["targets"]:
         if Path(target).is_absolute() or ".." in Path(target).parts or ".git" in Path(target).parts:
           errors.append(f"Unsafe target: {target}")
-      if task["github_url"] and not re.fullmatch(r"https://github.com/pchkauu/want-keep/issues/[1-9]\d*", task["github_url"]):
+      if task["github_url"] and not re.fullmatch(r"https://github.com/(?:pchkauu|andrey-krasheninnikov)/want-keep/issues/[1-9]\d*", task["github_url"]):
         errors.append(f"Invalid GitHub URL: {task['id']}")
     if errors:
       return errors

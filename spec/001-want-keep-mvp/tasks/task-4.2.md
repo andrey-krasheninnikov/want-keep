@@ -21,7 +21,7 @@
 - `backend/internal/connections/`
 - `backend/internal/delivery/connections/`
 - `backend/internal/storage/`
-- `backend/migrations/023_raiffeisen_connector.sql`
+- `backend/migrations/024_raiffeisen_connector.sql`
 - `backend/cmd/raiffeisen-conformance/`
 - `api/paths/connections.yaml`
 - `api/schemas/connections.yaml`
@@ -158,7 +158,7 @@ Implement the RBO API for the individual entrepreneur current account under D-35
 - `backend/internal/connections/`
 - `backend/internal/delivery/connections/`
 - `backend/internal/storage/`
-- `backend/migrations/023_raiffeisen_connector.sql`
+- `backend/migrations/024_raiffeisen_connector.sql`
 - `backend/cmd/raiffeisen-conformance/`
 - `api/paths/connections.yaml`
 - `api/schemas/connections.yaml`

@@ -2268,17 +2268,25 @@ export interface components {
       quality: components["schemas"]["DataQuality"];
     };
     Clarification: {
+      choices: components["schemas"]["ClarificationChoice"][];
       id: components["schemas"]["ID"];
+      operationId: components["schemas"]["ID"];
+      operationRevision: components["schemas"]["Revision"];
+      proposalId?: components["schemas"]["ID"];
       question: string;
       revision: components["schemas"]["Revision"];
       /** @enum {string} */
-      state: "pending" | "answered" | "superseded";
-      subject: components["schemas"]["ResourceReference"];
+      state: "open" | "checking" | "answered" | "superseded";
     };
     ClarificationAnswer: {
-      answer: string;
+      answer?: string;
+      choiceId?: string;
       expectedRevision: components["schemas"]["Revision"];
       subjectExpectedRevision: components["schemas"]["Revision"];
+    } & (unknown | unknown);
+    ClarificationChoice: {
+      id: string;
+      label: string;
     };
     ClarificationPage: {
       items: components["schemas"]["Clarification"][];
@@ -3130,12 +3138,13 @@ export interface components {
       processor: "available" | "unavailable";
     };
     Proposal: {
-      evidence: components["schemas"]["ResourceReference"][];
+      changes: components["schemas"]["ReviewChange"][];
       id: components["schemas"]["ID"];
+      operationId: components["schemas"]["ID"];
+      operationRevision: components["schemas"]["Revision"];
       revision: components["schemas"]["Revision"];
       /** @enum {string} */
       state: "pending" | "applied" | "rejected" | "superseded";
-      subject: components["schemas"]["ResourceReference"];
       summary: string;
     };
     ProposalDecision: {
@@ -3464,6 +3473,44 @@ export interface components {
       quality: components["schemas"]["DataQuality"];
       returns: components["schemas"]["ReturnMetric"][];
     };
+    ReviewChange: {
+      candidate?: components["schemas"]["ResourceReference"];
+      category?: string;
+      /** @enum {string} */
+      distribution?: "rule" | "personal" | "joint";
+      /** @enum {string} */
+      kind:
+        | "classification"
+        | "distribution"
+        | "link"
+        | "clarify"
+        | "no_change"
+        | "reject"
+        | "budget"
+        | "goal";
+      member?: components["schemas"]["ReviewMember"];
+      merchant?: string;
+      reason: string;
+    };
+    ReviewMember: {
+      id: components["schemas"]["ID"];
+      name: string;
+    };
+    ReviewReference: {
+      id: components["schemas"]["ID"];
+      /** @enum {string} */
+      kind: "proposal" | "clarification";
+      revision: components["schemas"]["Revision"];
+      /** @enum {string} */
+      state:
+        | "pending"
+        | "applied"
+        | "rejected"
+        | "superseded"
+        | "open"
+        | "checking"
+        | "answered";
+    };
     /** Format: int64 */
     Revision: number;
     Rule: {
@@ -3660,6 +3707,7 @@ export interface components {
       receiptItems: components["schemas"]["ReceiptItem"][];
       refunds: components["schemas"]["RefundAttribution"][];
       review?: components["schemas"]["TransactionReview"];
+      reviewReferences?: components["schemas"]["ReviewReference"][];
       revision: components["schemas"]["Revision"];
       sourceConflict: boolean;
       sourceFacts: components["schemas"]["SourceTransactionFact"][];

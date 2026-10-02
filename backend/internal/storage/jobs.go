@@ -89,6 +89,11 @@ func (s *Store) ClaimJobs(ctx context.Context, kind string, limit int, lease tim
 	if !jobs.Kind(kind).Valid() || limit < 1 || limit > 100 || lease < time.Second || lease > 5*time.Minute {
 		return nil, jobs.ErrInvalidJob
 	}
+	if jobs.Kind(kind) == jobs.AIValidation {
+		if err := s.recoverReviewAnswers(ctx); err != nil {
+			return nil, err
+		}
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, err

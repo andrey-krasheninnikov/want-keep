@@ -12,6 +12,7 @@ import (
 
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
+	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/domain"
 )
@@ -215,4 +216,36 @@ func proposalPayload(value *ledger.ClassificationProposal) *classificationPropos
 		out.Items = append(out.Items, classificationItemPayload{ID: item.ID, Name: item.Name, Quantity: item.Quantity, CategoryID: item.CategoryID, Gross: item.Gross.Amount(), Discount: item.Discount.Amount(), Asset: string(item.Gross.Asset())})
 	}
 	return out
+}
+
+// ApplyValidatedReview accepts only classification and allocation after reference validation.
+func (s *Service) ApplyValidatedReview(ctx context.Context, p household.Principal, id string, expected uint64, change ledger.Correction, reason string) (command.Result, error) {
+	if change.Principal != nil || change.Fees != nil || change.OccurredAt != nil || change.Payer != nil || change.Merchant != nil || change.Note != nil || change.ReceiptItems != nil {
+		return command.Result{}, commands.Rejection{Code: "source_conflict"}
+	}
+	return s.applyChanges(ctx, p, []Change{{OperationID: id, Expected: expected, Correction: change}}, reason, "automated")
+}
+
+// ReviewRuleAllocation uses the same item precedence as trusted classification.
+func (s *Service) ReviewRuleAllocation(ctx context.Context, p household.Principal, current ledger.Revision, classification ledger.Correction, boundary uint64) (ledger.AllocationChange, bool, error) {
+	current = current.Clone()
+	if classification.CategoryID != nil {
+		current.CategoryID = *classification.CategoryID
+	}
+	if classification.MerchantID != nil {
+		current.MerchantID = *classification.MerchantID
+	}
+	resolved, _, err := s.resolveAllocationAt(ctx, p, current, boundary)
+	if err != nil {
+		return ledger.AllocationChange{}, false, err
+	}
+	fallback, items, err := resolved.AllocationBases()
+	if err != nil {
+		return ledger.AllocationChange{}, false, err
+	}
+	members, err := s.allocations.ActiveMemberIDs(ctx, p)
+	if err != nil {
+		return ledger.AllocationChange{}, false, err
+	}
+	return ledger.AllocationChange{Allocation: fallback, Items: items, Members: members}, resolved.Allocation.State != ledger.AllocationUnresolved && resolved.Allocation.State != ledger.AllocationPartial, nil
 }
