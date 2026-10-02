@@ -52,7 +52,7 @@ func TestPurchaseLevelRefundPreservesMonthAllocationAndHistoricalValue(t *testin
 		t.Fatal(err)
 	}
 	share := shares["refund"]
-	result, err := expenses.Calculate(p, r, nil, zero, nil, &share, 1, "returned", household.UserID("user"), r.RecordedAt)
+	result, err := expenses.Calculate(p, r, nil, zero, nil, &share, 1, "returned", household.UserID("user"), r.RecordedAt, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,14 +107,14 @@ func TestItemRefundUsesAuditedItemAllocationAndCap(t *testing.T) {
 	p.ReceiptItems = []ledger.ReceiptItem{{ID: "joint", Name: "Joint", Quantity: "1", Gross: cash("6", money.RUB), Discount: cash("0", money.RUB), CategoryID: "food", Allocation: ledger.AllocationSnapshot{State: ledger.AllocationResolved, Purpose: ledger.AllocationShared, Mode: ledger.AllocationByAmounts, Origin: ledger.AllocationExplicitItem, Inputs: []ledger.AllocationMemberInput{{MemberID: "member-a", Amount: ptr(cash("3", money.RUB))}, {MemberID: "member-b", Amount: ptr(cash("3", money.RUB))}}, Members: []ledger.MemberAmount{{MemberID: "member-a", Money: cash("3", money.RUB)}, {MemberID: "member-b", Money: cash("3", money.RUB)}}}}, {ID: "personal", Name: "Personal", Quantity: "1", Gross: cash("4", money.RUB), Discount: cash("0", money.RUB), CategoryID: "personal", Allocation: ledger.AllocationSnapshot{State: ledger.AllocationResolved, Purpose: ledger.AllocationPersonal, Mode: ledger.AllocationByAmounts, Origin: ledger.AllocationExplicitItem, Inputs: []ledger.AllocationMemberInput{{MemberID: "member-b", Amount: ptr(cash("4", money.RUB))}}, Members: []ledger.MemberAmount{{MemberID: "member-b", Money: cash("4", money.RUB)}}}}}
 	p.Allocation = ledger.AllocationSnapshot{State: ledger.AllocationResolved, Purpose: ledger.AllocationShared, Mode: ledger.AllocationComposite, Origin: ledger.AllocationMixed, Basis: &ledger.AllocationInput{Mode: ledger.AllocationUnknown, Origin: ledger.AllocationUnknownOrigin, Reason: "item allocation"}, Members: []ledger.MemberAmount{{MemberID: "member-a", Money: cash("3", money.RUB)}, {MemberID: "member-b", Money: cash("7", money.RUB)}}}
 	r := refund("2", money.RUB)
-	result, err := expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "joint", Amount: cash("2", money.RUB)}}, cash("0", money.RUB), nil, nil, 1, "partial", "user", r.RecordedAt)
+	result, err := expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "joint", Amount: cash("2", money.RUB)}}, cash("0", money.RUB), nil, nil, 1, "partial", "user", r.RecordedAt, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(result.Members) != 2 || !equal(result.Members[0].Amount, cash("1", money.RUB)) || !equal(result.Members[1].Amount, cash("1", money.RUB)) || result.Categories[0].CategoryID != "food" {
 		t.Fatalf("wrong item attribution: %#v", result)
 	}
-	_, err = expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "joint", Amount: cash("2", money.RUB)}}, cash("9", money.RUB), nil, nil, 1, "too much", "user", r.RecordedAt)
+	_, err = expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "joint", Amount: cash("2", money.RUB)}}, cash("9", money.RUB), nil, nil, 1, "too much", "user", r.RecordedAt, true)
 	if !errors.Is(err, expenses.ErrRefundExceedsPurchase) {
 		t.Fatalf("wanted cap error, got %v", err)
 	}
@@ -124,7 +124,7 @@ func TestItemizedRefundWithoutItemsNeedsClarification(t *testing.T) {
 	p := purchase("10", money.RUB)
 	p.ReceiptItems = []ledger.ReceiptItem{{ID: "item", Name: "Item", Quantity: "1", Gross: cash("10", money.RUB), Discount: cash("0", money.RUB)}}
 	r := refund("4", money.RUB)
-	result, err := expenses.Calculate(p, r, nil, cash("0", money.RUB), nil, nil, 1, "unknown item", "user", r.RecordedAt)
+	result, err := expenses.Calculate(p, r, nil, cash("0", money.RUB), nil, nil, 1, "unknown item", "user", r.RecordedAt, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestInactivePurchasePreservesLinkWithoutAnalyticalEffect(t *testing.T) {
 	p := purchase("10", money.RUB)
 	p.AccountingState = ledger.ExcludedFromAccounting
 	r := refund("4", money.RUB)
-	result, err := expenses.Calculate(p, r, nil, cash("0", money.RUB), nil, nil, 1, "excluded purchase", "user", r.RecordedAt)
+	result, err := expenses.Calculate(p, r, nil, cash("0", money.RUB), nil, nil, 1, "excluded purchase", "user", r.RecordedAt, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestNonContributingPrincipalDoesNotReduceExpense(t *testing.T) {
 		t.Run(candidate.name, func(t *testing.T) {
 			r := refund("4", money.RUB)
 			r.Participation = candidate.participation
-			result, err := expenses.Calculate(p, r, nil, cash("0", money.RUB), nil, nil, 1, "possible duplicate", "user", r.RecordedAt)
+			result, err := expenses.Calculate(p, r, nil, cash("0", money.RUB), nil, nil, 1, "possible duplicate", "user", r.RecordedAt, candidate.name != "non-carrier")
 			if err != nil || result.State != expenses.Inactive || result.Remaining.Amount() != "10" {
 				t.Fatalf("non-contributing refund=%+v err=%v", result, err)
 			}
@@ -172,7 +172,7 @@ func TestInactiveItemRefundStillValidatesItemIdentity(t *testing.T) {
 	p.AccountingState = ledger.ExcludedFromAccounting
 	p.ReceiptItems = []ledger.ReceiptItem{{ID: "known", Name: "Known", Quantity: "1", Gross: cash("10", money.RUB), Discount: cash("0", money.RUB)}}
 	r := refund("4", money.RUB)
-	_, err := expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "unknown", Amount: cash("4", money.RUB)}}, cash("0", money.RUB), nil, nil, 1, "invalid item", "user", r.RecordedAt)
+	_, err := expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "unknown", Amount: cash("4", money.RUB)}}, cash("0", money.RUB), nil, nil, 1, "invalid item", "user", r.RecordedAt, true)
 	if !errors.Is(err, expenses.ErrInvalidRefund) {
 		t.Fatalf("wanted invalid refund, got %v", err)
 	}
@@ -182,12 +182,12 @@ func TestInactiveRefundDoesNotConsumeReplacementCapacity(t *testing.T) {
 	p := purchase("10", money.RUB)
 	r := refund("10", money.RUB)
 	r.AccountingState = ledger.ExcludedFromAccounting
-	result, err := expenses.Calculate(p, r, nil, cash("10", money.RUB), nil, nil, 1, "excluded duplicate", "user", r.RecordedAt)
+	result, err := expenses.Calculate(p, r, nil, cash("10", money.RUB), nil, nil, 1, "excluded duplicate", "user", r.RecordedAt, true)
 	if err != nil || result.State != expenses.Inactive || !equal(result.Remaining, cash("0", money.RUB)) {
 		t.Fatalf("inactive refund=%+v err=%v", result, err)
 	}
 	p.ReceiptItems = []ledger.ReceiptItem{{ID: "item", Name: "Item", Quantity: "1", Gross: cash("10", money.RUB), Discount: cash("0", money.RUB)}}
-	result, err = expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "item", Amount: cash("10", money.RUB)}}, cash("10", money.RUB), map[string]money.Money{"item": cash("10", money.RUB)}, nil, 1, "excluded duplicate", "user", r.RecordedAt)
+	result, err = expenses.Calculate(p, r, []expenses.ItemPortion{{ItemID: "item", Amount: cash("10", money.RUB)}}, cash("10", money.RUB), map[string]money.Money{"item": cash("10", money.RUB)}, nil, 1, "excluded duplicate", "user", r.RecordedAt, true)
 	if err != nil || result.State != expenses.Inactive {
 		t.Fatalf("inactive item refund=%+v err=%v", result, err)
 	}

@@ -126,7 +126,7 @@ func (r Refund) SameCalculation(other Refund) bool {
 	return r.Valuation.Ref == other.Valuation.Ref && sameMoney(r.Valuation.Value, other.Valuation.Value) && sameMembers(r.Valuation.Members, other.Valuation.Members) && sameCategories(r.Valuation.Categories, other.Valuation.Categories) && sameMoneySlice(r.Valuation.Unallocated, other.Valuation.Unallocated)
 }
 
-func Calculate(purchase, refund ledger.Revision, requested []ItemPortion, refunded money.Money, refundedItems map[string]money.Money, valuation *ValuationShare, revision uint64, reason string, actor household.UserID, recordedAt calendar.Instant) (Refund, error) {
+func Calculate(purchase, refund ledger.Revision, requested []ItemPortion, refunded money.Money, refundedItems map[string]money.Money, valuation *ValuationShare, revision uint64, reason string, actor household.UserID, recordedAt calendar.Instant, eligible bool) (Refund, error) {
 	purchaseAmount, err := principal(purchase, -1)
 	if err != nil || purchase.Type != ledger.Expense {
 		return Refund{}, ErrInvalidRefund
@@ -142,7 +142,7 @@ func Calculate(purchase, refund ledger.Revision, requested []ItemPortion, refund
 	if err != nil || remaining.Sign() < 0 {
 		return Refund{}, ErrRefundExceedsPurchase
 	}
-	active := Active(purchase, refund)
+	active := eligible && Active(purchase, refund)
 	if active {
 		if compared, _ := refundAmount.Compare(remaining); compared > 0 {
 			return Refund{}, ErrRefundExceedsPurchase
@@ -261,7 +261,7 @@ func Calculate(purchase, refund ledger.Revision, requested []ItemPortion, refund
 	return result, result.Validate()
 }
 
-// Active reports whether both principal postings contribute to current accounting.
+// Active reports whether the purchase and confirmed refund participate in accounting.
 func Active(purchase, refund ledger.Revision) bool {
 	return principalContributes(purchase) && principalContributes(refund)
 }
@@ -272,7 +272,7 @@ func principalContributes(revision ledger.Revision) bool {
 	}
 	for position, posting := range revision.Postings {
 		if posting.Role == ledger.Principal && posting.MovesMoney() {
-			return revision.Contributes(position) && revision.ContributionState(position) == ledger.Posted
+			return (revision.Contributes(position) || revision.Type == ledger.Refund && revision.Participation.State == "linked" && revision.Participation.Kind == "payment") && revision.ContributionState(position) == ledger.Posted
 		}
 	}
 	return false

@@ -2780,7 +2780,7 @@ export interface components {
        * @description Discriminator value
        * @enum {string}
        */
-      state: "KnownRefundValuation";
+      state: "known";
       unallocated: components["schemas"]["Money"][];
     };
     /** @description Dimensionless annualized D-42 XIRR ratio, rounded HALF_EVEN to 12 places. The application verifies the root lies between -1+1e-12 and 1000000; provider APR is never substituted. */
@@ -3820,7 +3820,7 @@ export interface components {
        * @description Discriminator value
        * @enum {string}
        */
-      state: "UnavailableRefundValuation";
+      state: "unavailable";
     };
     UnavailableReturn: {
       /** @enum {string} */

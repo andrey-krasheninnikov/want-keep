@@ -94,6 +94,9 @@ RefundValuation:
   - { $ref: './refunds.yaml#/UnavailableRefundValuation' }
   discriminator:
     propertyName: state
+    mapping:
+      known: ./refunds.yaml#/KnownRefundValuation
+      unavailable: ./refunds.yaml#/UnavailableRefundValuation
 RefundAttribution:
   type: object
   additionalProperties: false

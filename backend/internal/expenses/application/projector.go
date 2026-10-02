@@ -2,10 +2,8 @@ package application
 
 import (
 	"context"
-	"errors"
 
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
-	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/domain"
 )
@@ -19,8 +17,20 @@ func (p *Projector) ProjectRefunds(ctx context.Context, principal household.Prin
 	if err != nil {
 		return err
 	}
+	if current.Participation.State == "linked" {
+		groupLinks, err := p.repository.RefundsForMatchingGroup(ctx, principal, current.Participation.GroupID)
+		if err != nil {
+			return reject(err)
+		}
+		links = append(links, groupLinks...)
+	}
 	if len(links) == 0 {
 		return nil
+	}
+	for _, link := range links {
+		if link.PurchaseID != links[0].PurchaseID {
+			return commands.Rejection{Code: "matching_conflict"}
+		}
 	}
 	purchase := current
 	if current.OperationID != links[0].PurchaseID {
@@ -29,6 +39,10 @@ func (p *Projector) ProjectRefunds(ctx context.Context, principal household.Prin
 		if err != nil || !found {
 			return errOr(err, ledger.ErrNotFound)
 		}
+	}
+	links, err = p.repository.RefundsForOperation(ctx, principal, purchase.OperationID)
+	if err != nil {
+		return reject(err)
 	}
 	ids := make([]string, 0, len(links))
 	for _, link := range links {
@@ -43,11 +57,8 @@ func (p *Projector) ProjectRefunds(ctx context.Context, principal household.Prin
 	}
 	basis, err := p.repository.PurchaseValuation(ctx, principal, purchase.OperationID, purchase.Revision)
 	if err != nil {
-		if errors.Is(err, expenses.ErrHistoricalBasisConflict) {
-			return commands.Rejection{Code: "decision_conflict"}
-		}
-		return err
+		return reject(err)
 	}
 	_, err = recalculate(ctx, p.repository, principal, purchase, links, refunds, basis, nil, current.ActorID, current.RecordedAt)
-	return err
+	return reject(err)
 }

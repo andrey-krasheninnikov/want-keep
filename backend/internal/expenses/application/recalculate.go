@@ -48,6 +48,22 @@ func recalculate(ctx context.Context, repository Repository, principal household
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	// One purchase attribution per confirmed cash component, independent of its carrier.
+	selected := map[string]string{}
+	for _, id := range ids {
+		revision := revisions[id]
+		if !expenses.Active(purchase, revision) {
+			continue
+		}
+		key := principalCarrier(revision)
+		if selected[key] == "" || id == key {
+			selected[key] = id
+		}
+	}
+	eligible := map[string]bool{}
+	for _, id := range selected {
+		eligible[id] = true
+	}
 	for _, id := range ids {
 		link, revision := links[id], revisions[id]
 		amount, amountErr := principalAmount(revision, 1)
@@ -67,7 +83,7 @@ func recalculate(ctx context.Context, repository Repository, principal household
 				links[id] = link
 			}
 		}
-		if !expenses.Active(purchase, revision) {
+		if !eligible[id] {
 			continue
 		}
 		activeAmounts[id] = amount
@@ -127,7 +143,7 @@ func recalculate(ctx context.Context, repository Repository, principal household
 		if value, ok := valuations[id]; ok {
 			valuation = &value
 		}
-		next, calculateErr := expenses.Calculate(purchase, revision, items, refunded, refundedItems, valuation, expected+1, reason, actor, recordedAt)
+		next, calculateErr := expenses.Calculate(purchase, revision, items, refunded, refundedItems, valuation, expected+1, reason, actor, recordedAt, eligible[id])
 		if errors.Is(calculateErr, expenses.ErrClarificationRequired) {
 			next, calculateErr = expenses.Clarify(purchase, revision, items, refunded, expected+1, reason, actor, recordedAt)
 		}
@@ -186,4 +202,15 @@ func cloneAmounts(values map[string]money.Money) map[string]money.Money {
 		result[id] = value
 	}
 	return result
+}
+
+func principalCarrier(revision ledger.Revision) string {
+	if revision.Participation.State == "linked" {
+		for position, posting := range revision.Postings {
+			if posting.Role == ledger.Principal && posting.MovesMoney() && position < len(revision.Participation.Parts) {
+				return revision.Participation.Parts[position].CarrierID
+			}
+		}
+	}
+	return revision.OperationID
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -16,6 +17,8 @@ import (
 	matching "github.com/pchkauu/want-keep/backend/internal/matching/application"
 	matchingdomain "github.com/pchkauu/want-keep/backend/internal/matching/domain"
 	money "github.com/pchkauu/want-keep/backend/internal/money/domain"
+	reporting "github.com/pchkauu/want-keep/backend/internal/reporting/domain"
+	"github.com/pchkauu/want-keep/backend/internal/valuation"
 )
 
 func decodeResponse[T any](t *testing.T, response *httptest.ResponseRecorder) T {
@@ -75,7 +78,7 @@ func TestRefundKeepsCashDateAndReducesOriginalExpenseAllocation(t *testing.T) {
 		t.Fatalf("refund attribution=%+v", refund)
 	}
 	missing, err := refund.Valuation.AsUnavailableRefundValuation()
-	if err != nil || missing.Reason != "historical_basis_unavailable" {
+	if err != nil || missing.State != "unavailable" || missing.Reason != "historical_basis_unavailable" {
 		t.Fatalf("valuation=%+v err=%v", missing, err)
 	}
 	refundView := readTransaction(t, second, created.Result.Id)
@@ -118,13 +121,21 @@ func TestRefundUsesFrozenHistoricalValuation(t *testing.T) {
 	client := f.client(f.p)
 	accountID := f.account(money.USD, "100")
 	purchase := createExpense(t, client, accountID, money.USD, "10", "5")
-	if _, err := f.admin.Exec(testContext, `INSERT INTO want_keep.transaction_historical_values(household_id,operation_id,operation_revision,basis_ref,native_amount,native_asset,reporting_amount,reporting_asset) VALUES($1,$2,1,'synthetic:usd-rub',10,'USD',900,'RUB')`, f.family.ID, purchase.Result.Id); err != nil {
+	date, _ := calendar.ParseDate("2026-08-31")
+	rate, _ := money.NewRate(money.USD, money.RUB, "90")
+	observation, err := f.store.SaveRateObservation(testContext, valuation.Observation{ID: uuid.NewString(), ProviderAssetID: "R01235", Source: "cbr", Transport: "xml_daily", Revision: 1, RequestedDate: date, EffectiveAt: instant("2026-08-31T00:00:00Z"), FetchedAt: f.now, Granularity: "daily", Rate: rate})
+	if err != nil {
+		t.Fatal(err)
+	}
+	converted := cash("-900", money.RUB)
+	snapshot := valuation.Snapshot{OperationID: purchase.Result.Id, OperationRevision: 1, ComponentIndex: 0, ComponentKind: "expense", ValuationRevision: 1, Native: cash("-10", money.USD), Reporting: &converted, Target: money.RUB, RequestedDate: date, Freshness: reporting.Fresh, Legs: []valuation.Observation{observation}, RecordedAt: f.now}
+	if err = f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error { return f.store.SaveValuationSnapshot(ctx, f.p, snapshot) }); err != nil {
 		t.Fatal(err)
 	}
 	created := createRefund(t, client, purchase.Result.Id, accountID, money.USD, "4", uuid.NewString())
 	view := readTransaction(t, client, created.Result.Id)
 	known, err := view.Refunds[0].Valuation.AsKnownRefundValuation()
-	if err != nil || known.Amount.Asset != "RUB" || known.Amount.Amount != "360.000000" || known.BasisRef != "synthetic:usd-rub" {
+	if err != nil || known.State != "known" || known.Amount.Asset != "RUB" || known.Amount.Amount != "360.000000" || !strings.HasPrefix(known.BasisRef, "valuation:"+purchase.Result.Id+":1:0:RUB:") {
 		t.Fatalf("valuation=%+v err=%v", known, err)
 	}
 	correction := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+purchase.Result.Id+"/corrections", uuid.NewString(), map[string]any{
@@ -135,7 +146,7 @@ func TestRefundUsesFrozenHistoricalValuation(t *testing.T) {
 	}
 	view = readTransaction(t, client, created.Result.Id)
 	known, err = view.Refunds[0].Valuation.AsKnownRefundValuation()
-	if err != nil || known.Amount.Amount != "360.000000" || known.BasisRef != "synthetic:usd-rub" {
+	if err != nil || known.Amount.Amount != "360.000000" || !strings.HasPrefix(known.BasisRef, "valuation:"+purchase.Result.Id+":1:0:RUB:") {
 		t.Fatalf("valuation after purchase correction=%+v err=%v", known, err)
 	}
 	conflict := decodeResponse[generated.CommandFailed](t, client.call(http.MethodPost, "/transactions/"+purchase.Result.Id+"/corrections", uuid.NewString(), map[string]any{
@@ -413,56 +424,63 @@ func TestWaitingMatchedRefundDoesNotReducePurchaseExpense(t *testing.T) {
 }
 
 func TestManualRefundAndImportedReceiptDoNotCreditAccountTwice(t *testing.T) {
-	f := newFixture(t)
-	client := f.client(f.p)
-	accountID := f.account(money.RUB, "5000")
-	purchase := createExpense(t, client, accountID, money.RUB, "1000", "500")
-	manual := createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "400", uuid.NewString())
-	if f.available(accountID, f.p) != "4400" {
-		t.Fatal("manual refund did not credit once")
-	}
-	zone, _ := calendar.ParseTimezone("Europe/Moscow")
-	imported := ledger.Revision{OperationID: uuid.NewString(), Revision: 1, ActorID: f.p.UserID(), Reason: "Imported refund receipt", Type: ledger.Refund, State: ledger.Posted, OccurredAt: f.now, Origin: "source", FeeKnowledge: ledger.KnownFees, PayerState: "not_applicable", Postings: []ledger.Posting{{AccountID: accountID, Money: cash("400", money.RUB), Role: ledger.Principal, Funding: ledger.OwnFunds, Treatment: ledger.Movement}}, RecordedAt: f.now}
-	imported, err := imported.InTimezone(zone)
-	if err != nil {
-		t.Fatal(err)
-	}
-	matcher := matching.NewService(f.store, f.writer, func() calendar.Instant { return f.now }, uuid.NewString)
-	if err = f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error { return matcher.Append(ctx, f.p, imported, 0) }); err != nil {
-		t.Fatal(err)
-	}
-	stored, found, err := f.store.CurrentLedgerRevision(testContext, f.p, imported.OperationID)
-	if err != nil || !found || stored.Participation.State != "waiting" || f.available(accountID, f.p) != "4400" {
-		t.Fatalf("imported refund duplicated cash: %+v found=%v err=%v", stored, found, err)
-	}
-	linked := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+imported.OperationID+"/links", uuid.NewString(), map[string]any{
-		"kind": "refund", "reason": "Link imported receipt to purchase",
-		"expectedRevisions": []any{
-			map[string]any{"transactionId": imported.OperationID, "expectedRevision": 1},
-			map[string]any{"transactionId": purchase.Result.Id, "expectedRevision": 1},
-		},
-		"refund": map[string]any{"purchaseId": purchase.Result.Id, "expectedRevision": 0, "returnedItems": []any{}},
-	}, http.StatusAccepted))
-	view := readTransaction(t, client, purchase.Result.Id)
-	if linked.Status != "succeeded" || len(view.Refunds) != 2 || view.Refunds[0].State == view.Refunds[1].State || f.available(accountID, f.p) != "4400" {
-		t.Fatalf("duplicate refund attribution: manual=%s imported=%s refunds=%+v", manual.Result.Id, imported.OperationID, view.Refunds)
-	}
-	if err = f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error {
-		_, linkErr := matcher.Link(ctx, f.p, matching.LinkInput{
-			Kind: matchingdomain.Payment, PrimaryID: manual.Result.Id, Reason: "Same refund receipt",
-			Members: []matchingdomain.Member{{OperationID: manual.Result.Id, Revision: 1}, {OperationID: imported.OperationID, Revision: 1}},
+	for _, importedFirst := range []bool{false, true} {
+		t.Run(map[bool]string{false: "manual first", true: "import first"}[importedFirst], func(t *testing.T) {
+			f := newFixture(t)
+			client := f.client(f.p)
+			accountID := f.account(money.RUB, "5000")
+			purchase := createExpense(t, client, accountID, money.RUB, "1000", "500")
+			var manual generated.CommandSucceeded
+			if !importedFirst {
+				manual = createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "400", uuid.NewString())
+			}
+			zone, _ := calendar.ParseTimezone("Europe/Moscow")
+			imported := ledger.Revision{OperationID: uuid.NewString(), Revision: 1, ActorID: f.p.UserID(), Reason: "Imported refund receipt", Type: ledger.Refund, State: ledger.Posted, OccurredAt: f.now, Origin: "source", FeeKnowledge: ledger.KnownFees, PayerState: "not_applicable", Postings: []ledger.Posting{{AccountID: accountID, Money: cash("400", money.RUB), Role: ledger.Principal, Funding: ledger.OwnFunds, Treatment: ledger.Movement}}, RecordedAt: f.now}
+			imported, err := imported.InTimezone(zone)
+			if err != nil {
+				t.Fatal(err)
+			}
+			matcher := matching.NewService(f.store, f.writer, func() calendar.Instant { return f.now }, uuid.NewString)
+			if err = f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error { return matcher.Append(ctx, f.p, imported, 0) }); err != nil {
+				t.Fatal(err)
+			}
+			if importedFirst {
+				manual = createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "400", uuid.NewString())
+			}
+			stored, found, err := f.store.CurrentLedgerRevision(testContext, f.p, imported.OperationID)
+			if err != nil || !found || (!importedFirst && stored.Participation.State != "waiting") || f.available(accountID, f.p) != "4400" {
+				t.Fatalf("imported refund duplicated cash: %+v found=%v err=%v", stored, found, err)
+			}
+			linked := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+imported.OperationID+"/links", uuid.NewString(), map[string]any{
+				"kind": "refund", "reason": "Link imported receipt to purchase",
+				"expectedRevisions": []any{
+					map[string]any{"transactionId": imported.OperationID, "expectedRevision": 1},
+					map[string]any{"transactionId": purchase.Result.Id, "expectedRevision": 1},
+				},
+				"refund": map[string]any{"purchaseId": purchase.Result.Id, "expectedRevision": 0, "returnedItems": []any{}},
+			}, http.StatusAccepted))
+			view := readTransaction(t, client, purchase.Result.Id)
+			if linked.Status != "succeeded" || len(view.Refunds) != 2 || view.Refunds[0].State == view.Refunds[1].State || f.available(accountID, f.p) != "4400" {
+				t.Fatalf("duplicate refund attribution: manual=%s imported=%s refunds=%+v", manual.Result.Id, imported.OperationID, view.Refunds)
+			}
+			if err = f.store.WithinHousehold(testContext, f.p, func(ctx context.Context) error {
+				_, linkErr := matcher.Link(ctx, f.p, matching.LinkInput{
+					Kind: matchingdomain.Payment, PrimaryID: manual.Result.Id, Reason: "Same refund receipt",
+					Members: []matchingdomain.Member{{OperationID: manual.Result.Id, Revision: 1}, {OperationID: imported.OperationID, Revision: 1}},
+				})
+				return linkErr
+			}); err != nil {
+				t.Fatal(err)
+			}
+			stored, found, err = f.store.CurrentLedgerRevision(testContext, f.p, imported.OperationID)
+			if err != nil || !found || stored.Participation.State != "linked" || stored.Contributes(0) != importedFirst || f.available(accountID, f.p) != "4400" {
+				t.Fatalf("linked imported refund duplicated cash: %+v found=%v err=%v", stored, found, err)
+			}
+			view = readTransaction(t, client, purchase.Result.Id)
+			if len(view.Refunds) != 2 || view.Refunds[0].State == view.Refunds[1].State {
+				t.Fatalf("linked imported refund duplicated attribution: %+v", view.Refunds)
+			}
 		})
-		return linkErr
-	}); err != nil {
-		t.Fatal(err)
-	}
-	stored, found, err = f.store.CurrentLedgerRevision(testContext, f.p, imported.OperationID)
-	if err != nil || !found || stored.Participation.State != "linked" || stored.Contributes(0) || f.available(accountID, f.p) != "4400" {
-		t.Fatalf("linked imported refund duplicated cash: %+v found=%v err=%v", stored, found, err)
-	}
-	view = readTransaction(t, client, purchase.Result.Id)
-	if len(view.Refunds) != 2 || view.Refunds[0].State == view.Refunds[1].State {
-		t.Fatalf("linked imported refund duplicated attribution: %+v", view.Refunds)
 	}
 }
 
@@ -577,5 +595,27 @@ func TestItemRefundPreservesReceiptBasisAndCapsEachItemAfterCorrection(t *testin
 	clarification := readTransaction(t, client, clarified.Result.Id).Refunds[0]
 	if clarification.State != "clarification" || len(clarification.Members) != 0 || len(clarification.Categories) != 0 {
 		t.Fatalf("clarification=%+v", clarification)
+	}
+}
+
+func TestRefundRefusalsAreTerminalAndLeaveNoFinancialChange(t *testing.T) {
+	f := newFixture(t)
+	client := f.client(f.p)
+	accountID := f.account(money.RUB, "5000")
+	purchase := createExpense(t, client, accountID, money.RUB, "1000", "500")
+	created := createRefund(t, client, purchase.Result.Id, accountID, money.RUB, "400", uuid.NewString())
+	for _, candidate := range []struct {
+		path, code string
+		input      map[string]any
+	}{
+		{"/refunds", "not_found", map[string]any{"purchaseId": purchase.Result.Id, "purchaseExpectedRevision": 1, "receivingAccountId": uuid.NewString(), "occurredAt": "2026-09-07T12:00:00Z", "amount": map[string]any{"amount": "1", "asset": "RUB"}, "returnedItems": []any{}, "fees": []any{}, "reason": "Unknown receiving account"}},
+		{"/transactions/" + created.Result.Id + "/corrections", "refund_exceeds_purchase", map[string]any{"expectedRevision": 1, "reason": "Excessive refund", "principal": []any{map[string]any{"accountId": accountID, "money": map[string]any{"amount": "1100", "asset": "RUB"}, "role": "principal", "treatment": "movement", "funding": "own"}}}},
+	} {
+		key := uuid.NewString()
+		first := decodeResponse[generated.CommandFailed](t, client.call(http.MethodPost, candidate.path, key, candidate.input, http.StatusAccepted))
+		second := decodeResponse[generated.CommandFailed](t, client.call(http.MethodPost, candidate.path, key, candidate.input, http.StatusAccepted))
+		if first.Status != "failed" || string(first.Error.Code) != candidate.code || string(second.Error.Code) != candidate.code || f.available(accountID, f.p) != "4400" || readTransaction(t, client, created.Result.Id).Revision != 1 {
+			t.Fatalf("refusal=%+v replay=%+v", first, second)
+		}
 	}
 }

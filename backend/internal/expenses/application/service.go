@@ -22,8 +22,8 @@ type Repository interface {
 	Account(context.Context, household.Principal, string) (account.Account, error)
 	AccountTimezone(context.Context, household.Principal) (calendar.Timezone, error)
 	Refund(context.Context, household.Principal, string) (expenses.Refund, bool, error)
-	ActiveRefundCountForPurchase(context.Context, household.Principal, string) (int, error)
 	RefundsForOperation(context.Context, household.Principal, string) ([]expenses.Refund, error)
+	RefundsForMatchingGroup(context.Context, household.Principal, string) ([]expenses.Refund, error)
 	CurrentRefundRevisions(context.Context, household.Principal, []string) (map[string]ledger.Revision, error)
 	PurchaseValuation(context.Context, household.Principal, string, uint64) (*expenses.ValuationBasis, error)
 	SaveRefunds(context.Context, household.Principal, []expenses.Refund, map[string]uint64) error
@@ -79,7 +79,7 @@ func (s *Service) Create(ctx context.Context, principal household.Principal, inp
 	}
 	account, err := s.repository.Account(ctx, principal, input.AccountID)
 	if err != nil || account.Asset != input.Amount.Asset() {
-		return command.Result{}, s.reject(errOr(err, money.ErrAssetMismatch))
+		return command.Result{}, reject(errOr(err, money.ErrAssetMismatch))
 	}
 	zone, err := s.repository.AccountTimezone(ctx, principal)
 	if err != nil {
@@ -87,11 +87,11 @@ func (s *Service) Create(ctx context.Context, principal household.Principal, inp
 	}
 	date, err := input.At.DateIn(zone)
 	if err != nil {
-		return command.Result{}, s.reject(err)
+		return command.Result{}, reject(err)
 	}
 	month, err := calendar.ParseMonth(date.String()[:7])
 	if err != nil {
-		return command.Result{}, s.reject(err)
+		return command.Result{}, reject(err)
 	}
 	operationID := s.newID()
 	recordedAt := s.now()
@@ -102,18 +102,18 @@ func (s *Service) Create(ctx context.Context, principal household.Principal, inp
 		}
 		feeAccount, accountErr := s.repository.Account(ctx, principal, fee.AccountID)
 		if accountErr != nil || feeAccount.Asset != fee.Amount.Asset() {
-			return command.Result{}, s.reject(errOr(accountErr, money.ErrAssetMismatch))
+			return command.Result{}, reject(errOr(accountErr, money.ErrAssetMismatch))
 		}
 		zero, _ := money.NewMoney("0", fee.Amount.Asset())
 		value, _ := zero.Subtract(fee.Amount)
 		revision.Postings = append(revision.Postings, ledger.Posting{AccountID: fee.AccountID, Money: value, Role: ledger.Fee, Funding: fee.Funding, Treatment: ledger.Movement})
 	}
 	if err = s.writer.Append(ctx, principal, revision, 0); err != nil {
-		return command.Result{}, s.reject(err)
+		return command.Result{}, reject(err)
 	}
 	revision, found, err := s.repository.CurrentLedgerRevision(ctx, principal, operationID)
 	if err != nil || !found {
-		return command.Result{}, s.reject(errOr(err, ledger.ErrNotFound))
+		return command.Result{}, reject(errOr(err, ledger.ErrNotFound))
 	}
 	if _, err = s.save(ctx, principal, purchase, revision, input.Items, 0, input.Reason, principal.UserID(), recordedAt); err != nil {
 		return command.Result{}, err
@@ -143,23 +143,25 @@ func (s *Service) Link(ctx context.Context, principal household.Principal, input
 func (s *Service) save(ctx context.Context, principal household.Principal, purchase, refund ledger.Revision, items []expenses.ItemPortion, expected uint64, reason string, actor household.UserID, recordedAt calendar.Instant) (expenses.Refund, error) {
 	existing, found, err := s.repository.Refund(ctx, principal, refund.OperationID)
 	if err != nil {
-		return expenses.Refund{}, s.reject(err)
+		return expenses.Refund{}, reject(err)
 	}
 	if found && (existing.PurchaseID != purchase.OperationID || existing.Revision != expected) || !found && expected != 0 {
 		return expenses.Refund{}, commands.Rejection{Code: "version_conflict", CurrentRevision: existing.Revision}
 	}
-	if !found {
-		count, err := s.repository.ActiveRefundCountForPurchase(ctx, principal, purchase.OperationID)
+	if refund.Participation.State == "linked" {
+		groupLinks, err := s.repository.RefundsForMatchingGroup(ctx, principal, refund.Participation.GroupID)
 		if err != nil {
-			return expenses.Refund{}, s.reject(err)
+			return expenses.Refund{}, reject(err)
 		}
-		if count >= 1000 {
-			return expenses.Refund{}, commands.Rejection{Code: "invalid_request"}
+		for _, link := range groupLinks {
+			if link.PurchaseID != purchase.OperationID {
+				return expenses.Refund{}, commands.Rejection{Code: "matching_conflict"}
+			}
 		}
 	}
 	links, err := s.repository.RefundsForOperation(ctx, principal, purchase.OperationID)
 	if err != nil {
-		return expenses.Refund{}, s.reject(err)
+		return expenses.Refund{}, reject(err)
 	}
 	ids := make([]string, 0, len(links)+1)
 	for _, link := range links {
@@ -168,15 +170,15 @@ func (s *Service) save(ctx context.Context, principal household.Principal, purch
 	ids = append(ids, refund.OperationID)
 	refunds, err := s.repository.CurrentRefundRevisions(ctx, principal, ids)
 	if err != nil {
-		return expenses.Refund{}, s.reject(err)
+		return expenses.Refund{}, reject(err)
 	}
 	refunds[refund.OperationID] = refund
 	basis, err := s.repository.PurchaseValuation(ctx, principal, purchase.OperationID, purchase.Revision)
 	if err != nil {
-		return expenses.Refund{}, s.reject(err)
+		return expenses.Refund{}, reject(err)
 	}
 	result, err := recalculate(ctx, s.repository, principal, purchase, links, refunds, basis, &refundChange{refund: refund, items: items, expected: expected, reason: reason}, actor, recordedAt)
-	return result, s.reject(err)
+	return result, reject(err)
 }
 
 func (s *Service) after(boundary calendar.Instant) calendar.Instant {
@@ -191,7 +193,7 @@ func (s *Service) after(boundary calendar.Instant) calendar.Instant {
 func (s *Service) current(ctx context.Context, principal household.Principal, id string, expected uint64) (ledger.Revision, error) {
 	revision, found, err := s.repository.CurrentLedgerRevision(ctx, principal, id)
 	if err != nil {
-		return revision, s.reject(err)
+		return revision, reject(err)
 	}
 	if !found {
 		return revision, commands.Rejection{Code: "not_found"}
@@ -218,7 +220,7 @@ func errOr(err, fallback error) error {
 	return fallback
 }
 
-func (s *Service) reject(err error) error {
+func reject(err error) error {
 	switch {
 	case errors.Is(err, expenses.ErrRefundExceedsPurchase):
 		return commands.Rejection{Code: "refund_exceeds_purchase"}
@@ -230,7 +232,7 @@ func (s *Service) reject(err error) error {
 		return commands.Rejection{Code: "invalid_refund"}
 	case errors.Is(err, command.ErrVersionConflict):
 		return commands.Rejection{Code: "version_conflict"}
-	case errors.Is(err, ledger.ErrNotFound):
+	case errors.Is(err, ledger.ErrNotFound), errors.Is(err, account.ErrNotFound):
 		return commands.Rejection{Code: "not_found"}
 	}
 	return err

@@ -109,7 +109,7 @@ CREATE TABLE want_keep.refund_review_requests (
 );
 CREATE TRIGGER immutable_history BEFORE UPDATE OR DELETE ON want_keep.refund_review_requests FOR EACH ROW EXECUTE FUNCTION want_keep.reject_history_change();
 
-GRANT SELECT ON want_keep.transaction_historical_values TO want_keep_app;
+GRANT SELECT,INSERT ON want_keep.transaction_historical_values TO want_keep_app;
 GRANT SELECT,INSERT ON want_keep.refund_revisions,want_keep.refund_item_portions,want_keep.refund_effects,want_keep.refund_review_requests TO want_keep_app;
 GRANT SELECT,INSERT ON want_keep.refunds TO want_keep_app;
 GRANT UPDATE(revision) ON want_keep.refunds TO want_keep_app;

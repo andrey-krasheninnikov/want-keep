@@ -93,7 +93,7 @@ func (s *Store) PurchaseValuation(ctx context.Context, p household.Principal, op
 		WHERE h.household_id=$1 AND h.operation_id=$2 AND h.operation_revision<=$3
 		ORDER BY h.operation_revision DESC LIMIT 1`, p.HouseholdID(), operationID, revision).Scan(&ref, &nativeAmount, &nativeAsset, &reportingAmount, &reportingAsset, &compatible)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
+		return s.pinPurchaseValuation(ctx, p, operationID, revision)
 	}
 	if err != nil {
 		return nil, err
@@ -138,6 +138,47 @@ func (s *Store) ActiveRefundCountForPurchase(ctx context.Context, p household.Pr
 func (s *Store) RefundsForOperation(ctx context.Context, p household.Principal, operationID string) ([]expenses.Refund, error) {
 	values, err := s.RefundsForOperations(ctx, p, []string{operationID})
 	return values[operationID], err
+}
+
+// RefundsForMatchingGroup locates purchase links even when another member carries cash.
+func (s *Store) RefundsForMatchingGroup(ctx context.Context, p household.Principal, groupID string) ([]expenses.Refund, error) {
+	q, err := s.reader(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.Query(ctx, `SELECT r.refund_operation_id::text FROM want_keep.refunds r
+		JOIN want_keep.operations o ON (o.household_id,o.id)=(r.household_id,r.refund_operation_id)
+		JOIN want_keep.ledger_participations lp ON (lp.household_id,lp.operation_id,lp.revision)=(o.household_id,o.id,o.revision)
+		WHERE r.household_id=$1 AND lp.group_id=$2 AND lp.state='linked'`, p.HouseholdID(), groupID)
+	if err != nil {
+		return nil, err
+	}
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	values, err := s.RefundsForOperations(ctx, p, ids)
+	if err != nil {
+		return nil, err
+	}
+	links := make([]expenses.Refund, 0, len(ids))
+	for _, id := range ids {
+		for _, value := range values[id] {
+			if value.OperationID == id {
+				links = append(links, value)
+			}
+		}
+	}
+	return links, nil
 }
 
 func (s *Store) RefundsForOperations(ctx context.Context, p household.Principal, operationIDs []string) (map[string][]expenses.Refund, error) {

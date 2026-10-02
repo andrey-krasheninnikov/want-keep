@@ -362,7 +362,6 @@ Transaction:
       "$ref": "./money.yaml#/ID"
     refunds:
       type: array
-      maxItems: 1000
       items: { $ref: './refunds.yaml#/RefundAttribution' }
     sources:
       type: array
