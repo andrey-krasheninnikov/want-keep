@@ -101,6 +101,34 @@ func TestBusyCollectorResponseIsKnownBeforeProviderIO(t *testing.T) {
 	}
 }
 
+func TestPreflightRejectionIsDistinctFromUnknownProviderOutcome(t *testing.T) {
+	for _, test := range []struct {
+		body string
+		want error
+	}{
+		{`{"code":"collector_preflight_rejected"}`, ErrPreflightRejected},
+		{`{"code":"collector_session_invalid"}`, ErrSessionInvalid},
+	} {
+		t.Run(test.body, func(t *testing.T) {
+			socket := serveUnix(t, func(response http.ResponseWriter, request *http.Request) {
+				if request.URL.Path == "/v1/read" {
+					response.WriteHeader(http.StatusUnprocessableEntity)
+					_, _ = io.WriteString(response, test.body)
+				}
+			})
+			client, err := NewClient(socket, testBinding(), 3, []byte(`{"cookies":[null],"origins":[]}`), func(context.Context) error { return nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer client.Close()
+			_, err = client.Read(context.Background(), []byte(`{"jobId":"value"}`))
+			if !errors.Is(err, test.want) || !client.ExternalStarted() {
+				t.Fatal("preflight rejection lost its no-IO proof", err)
+			}
+		})
+	}
+}
+
 func TestEvidenceStoreEncryptsRawBytesAndBindsAAD(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "keys")
 	if err := cryptobox.Generate(path, "connections"); err != nil {

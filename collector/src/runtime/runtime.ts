@@ -9,7 +9,7 @@ import {
   type SyncRequest,
   type SyncResult,
 } from "../contracts/ingestion.js";
-import { fail, strictObject } from "../contracts/validation.js";
+import { ContractError, fail, strictObject } from "../contracts/validation.js";
 import type { RouteRule, RuntimeBinding, RuntimeConfig } from "./config.js";
 
 const maximumSessionBytes = 1024 * 1024;
@@ -45,21 +45,37 @@ export class CollectorRuntime {
     if (this.busy) throw new CollectorBusyError();
     this.busy = true;
     try {
-      const envelope = parseReadEnvelope(value);
-      const binding = this.binding({
-        version: 1,
-        binding: envelope.syncRequest.binding,
-        admissionRevision: envelope.syncRequest.admissionRevision,
-      });
-      validateStorageState(envelope.storageState, binding.origin);
-      const entry = routeFor(binding, "entry");
-      const target = routeFor(
-        binding,
-        envelope.syncRequest.replayRange === undefined ||
-          envelope.syncRequest.cursor !== undefined
-          ? "read"
-          : "request_statement",
-      );
+      let envelope: ReadEnvelope;
+      let binding: RuntimeBinding;
+      let entry: RouteRule;
+      let target: RouteRule;
+      try {
+        envelope = parseReadEnvelope(value);
+        binding = this.binding({
+          version: 1,
+          binding: envelope.syncRequest.binding,
+          admissionRevision: envelope.syncRequest.admissionRevision,
+        });
+        try {
+          validateStorageState(envelope.storageState, binding.origin);
+        } catch (error) {
+          if (error instanceof ContractError)
+            throw new CollectorSessionInvalidError();
+          throw error;
+        }
+        entry = routeFor(binding, "entry");
+        target = routeFor(
+          binding,
+          envelope.syncRequest.replayRange === undefined ||
+            envelope.syncRequest.cursor !== undefined
+            ? "read"
+            : "request_statement",
+        );
+      } catch (error) {
+        if (error instanceof CollectorPreflightError) throw error;
+        if (error instanceof ContractError) throw new CollectorPreflightError();
+        throw error;
+      }
       if (signal.aborted) throw new Error("request_aborted");
       const browser = await this.getBrowser();
       return await readWithContext(
@@ -94,7 +110,8 @@ export class CollectorRuntime {
   }
 
   private async getBrowser(): Promise<Browser> {
-    this.browser ??= await chromium.launch({ headless: true });
+    if (this.browser === undefined || !this.browser.isConnected())
+      this.browser = await chromium.launch({ headless: true });
     return this.browser;
   }
 }
@@ -157,6 +174,8 @@ function cookieDomainMatches(domain: string, host: string): boolean {
 }
 
 export class CollectorBusyError extends Error {}
+export class CollectorPreflightError extends ContractError {}
+export class CollectorSessionInvalidError extends CollectorPreflightError {}
 
 export function parseCapabilityEnvelope(value: unknown): CapabilityEnvelope {
   const object = strictObject(value, [
@@ -315,7 +334,15 @@ async function readWithContext(
         return providerFailure(request, {
           status: response.status,
           challenge: response.headers.get("x-want-keep-challenge"),
-          text: new TextDecoder("utf-8", { fatal: true }).decode(data),
+        });
+      }
+      if (response.status === 429) {
+        return providerFailure(request, {
+          status: response.status,
+          challenge: null,
+          retryAfterSeconds: retryAfterSeconds(
+            response.headers.get("retry-after"),
+          ),
         });
       }
       if (response.status !== 200) throw new Error("provider_read_failed");
@@ -379,14 +406,20 @@ function routeFor(
 
 function providerFailure(
   request: SyncRequest,
-  response: { status: number; challenge: string | null; text: string },
+  response: {
+    status: number;
+    challenge: string | null;
+    retryAfterSeconds?: number;
+  },
 ): SyncResult {
   const kind =
-    response.challenge === "mfa"
-      ? "mfa_required"
-      : response.challenge === "captcha"
-        ? "captcha_required"
-        : "reauthentication_required";
+    response.status === 429
+      ? "rate_limited"
+      : response.challenge === "mfa"
+        ? "mfa_required"
+        : response.challenge === "captcha"
+          ? "captcha_required"
+          : "reauthentication_required";
   const data = Buffer.from(
     JSON.stringify({ code: kind, status: response.status }),
     "utf8",
@@ -402,11 +435,17 @@ function providerFailure(
       admissionRevision: request.admissionRevision,
       cursor: request.cursor ?? "",
       kind,
-      retryable: false,
-      safeMessage: "Provider authorization is required",
+      retryable: kind === "rate_limited",
+      ...(response.retryAfterSeconds === undefined
+        ? {}
+        : { retryAfterSeconds: response.retryAfterSeconds }),
+      safeMessage:
+        kind === "rate_limited"
+          ? "Provider rate limit reached"
+          : "Provider authorization is required",
       evidence: [
         {
-          id: "provider-auth-state",
+          id: "provider-state",
           mediaType: "application/json",
           data: data.toString("base64"),
           sha256: createHash("sha256").update(data).digest("hex"),
@@ -415,4 +454,16 @@ function providerFailure(
       ],
     },
   };
+}
+
+function retryAfterSeconds(value: string | null): number {
+  const trimmed = value?.trim();
+  const seconds =
+    trimmed !== undefined && /^\d+$/.test(trimmed)
+      ? Number(trimmed)
+      : trimmed === undefined
+        ? Number.NaN
+        : Math.ceil((Date.parse(trimmed) - Date.now()) / 1000);
+  if (!Number.isFinite(seconds)) return 60;
+  return Math.min(86_400, Math.max(1, seconds));
 }

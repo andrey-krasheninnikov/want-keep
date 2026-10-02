@@ -45,9 +45,15 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		return err
 	})
 	if err != nil {
-		if errors.Is(err, ErrBusy) && client != nil && client.ExternalStarted() {
+		if (errors.Is(err, ErrBusy) || errors.Is(err, ErrPreflightRejected) || errors.Is(err, ErrSessionInvalid)) && client != nil && client.ExternalStarted() {
 			if err := execution.RejectBeforeProviderIO(ctx); err != nil {
 				return jobs.Result{}, err
+			}
+			if errors.Is(err, ErrSessionInvalid) {
+				return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.ReauthRequired}, nil
+			}
+			if errors.Is(err, ErrPreflightRejected) {
+				return jobs.Result{State: jobdomain.Failed, Reason: jobdomain.PermanentFailure}, nil
 			}
 			return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.HandlerUnavailable}, nil
 		}

@@ -169,6 +169,16 @@ func TestBusyRejectionClearsExternalMarkerUnderCurrentLease(t *testing.T) {
 }
 
 func TestCollectorBusyHandlerKeepsJobRetryable(t *testing.T) {
+	testCollectorRejectedBeforeIO(t, http.StatusConflict, `{"code":"collector_busy"}`, string(jobs.Waiting), string(jobs.HandlerUnavailable))
+}
+
+func TestCollectorPreflightRejectionUsesSafeJobState(t *testing.T) {
+	testCollectorRejectedBeforeIO(t, http.StatusUnprocessableEntity, `{"code":"collector_session_invalid"}`, string(jobs.Waiting), string(jobs.ReauthRequired))
+	testCollectorRejectedBeforeIO(t, http.StatusUnprocessableEntity, `{"code":"collector_preflight_rejected"}`, string(jobs.Failed), string(jobs.PermanentFailure))
+}
+
+func testCollectorRejectedBeforeIO(t *testing.T, status int, body, wantState, wantReason string) {
+	t.Helper()
 	store, admin, principal, job, keys, _ := fixture(t, false)
 	ref := connections.SecretReference{HouseholdID: principal.HouseholdID(), ConnectionID: job.ConnectionID, Purpose: connections.BrowserSession, Generation: job.ConnectionGeneration, Revision: 1}
 	aad, _ := json.Marshal(struct {
@@ -201,8 +211,8 @@ func TestCollectorBusyHandlerKeepsJobRetryable(t *testing.T) {
 		case "/v1/capabilities":
 			_, _ = response.Write(manifest)
 		case "/v1/read":
-			response.WriteHeader(http.StatusConflict)
-			_, _ = io.WriteString(response, `{"code":"collector_busy"}`)
+			response.WriteHeader(status)
+			_, _ = io.WriteString(response, body)
 		}
 	})}
 	go func() { _ = server.Serve(listener) }()
@@ -234,9 +244,10 @@ func TestCollectorBusyHandlerKeepsJobRetryable(t *testing.T) {
 		t.Fatal(err)
 	}
 	var state string
+	var reason string
 	var externalStarted bool
-	if err = admin.QueryRow(testContext, `SELECT state,external_started FROM want_keep.jobs WHERE household_id=$1 AND id=$2`, principal.HouseholdID(), job.ID).Scan(&state, &externalStarted); err != nil || state != "waiting" || externalStarted {
-		t.Fatal("collector busy stranded the job", state, externalStarted, err)
+	if err = admin.QueryRow(testContext, `SELECT state,reason,external_started FROM want_keep.jobs WHERE household_id=$1 AND id=$2`, principal.HouseholdID(), job.ID).Scan(&state, &reason, &externalStarted); err != nil || state != wantState || reason != wantReason || externalStarted {
+		t.Fatal("collector rejection left an incorrect job state", state, reason, externalStarted, err)
 	}
 }
 

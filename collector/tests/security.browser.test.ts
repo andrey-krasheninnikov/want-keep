@@ -10,6 +10,7 @@ import {
   parseRuntimeConfig,
   type RuntimeConfig,
 } from "../src/runtime/config.js";
+import { CollectorRuntime } from "../src/runtime/runtime.js";
 import { startCollectorServer } from "../src/runtime/server.js";
 
 const manifest = JSON.parse(
@@ -58,6 +59,24 @@ describe("collector security boundary", () => {
     expect(first.body).not.toContain("alpha");
     expect(second.body).not.toContain("beta");
     expect(JSON.parse(first.body).page.records).toHaveLength(17);
+  });
+
+  it("restarts Chromium after a disconnected browser", async () => {
+    const portal = await startPortal("safe");
+    const runtime = new CollectorRuntime(config(portal.origin, "/portal"));
+    cleanup.push(() => runtime.close());
+    expect(
+      (await runtime.read(envelope("alpha"), new AbortController().signal))
+        .outcome,
+    ).toBe("page");
+    const browser = Reflect.get(runtime, "browser") as {
+      close(): Promise<void>;
+    };
+    await browser.close();
+    expect(
+      (await runtime.read(envelope("alpha"), new AbortController().signal))
+        .outcome,
+    ).toBe("page");
   });
 
   it("passes the issued cursor to the next read page", async () => {
@@ -134,6 +153,32 @@ describe("collector security boundary", () => {
     }
   });
 
+  it("keeps an invalid authorization body and rate limit typed", async () => {
+    const invalid = await startPortal("invalid-auth-body");
+    const authCollector = await start(invalid.origin, "/portal");
+    const auth = await post(
+      authCollector.socket,
+      "/v1/read",
+      envelope("alpha"),
+    );
+    expect(JSON.parse(auth.body).failure.kind).toBe(
+      "reauthentication_required",
+    );
+
+    const limited = await startPortal("rate-limit");
+    const limitCollector = await start(limited.origin, "/portal");
+    const limit = await post(
+      limitCollector.socket,
+      "/v1/read",
+      envelope("alpha"),
+    );
+    expect(JSON.parse(limit.body).failure).toMatchObject({
+      kind: "rate_limited",
+      retryable: true,
+      retryAfterSeconds: 60,
+    });
+  });
+
   it.each(["payment", "popup", "websocket"])(
     "prevents %s behavior in the provider page",
     async (scenario) => {
@@ -187,6 +232,28 @@ describe("collector security boundary", () => {
     stale.syncRequest.admissionRevision = 2;
     const result = await post(collector.socket, "/v1/read", stale);
     expect(result.status).toBe(422);
+    expect(JSON.parse(result.body).code).toBe("collector_preflight_rejected");
+  });
+
+  it("rejects route normalization and malformed sessions before provider IO", async () => {
+    const portal = await startPortal("safe");
+    for (const path of ["//127.0.0.1/private", "/api/../private"]) {
+      expect(() =>
+        config(portal.origin, "/portal", [
+          { method: "GET", path: "/portal", action: "entry" },
+          { method: "GET", path, action: "read" },
+        ]),
+      ).toThrow("invalid ingestion contract");
+    }
+    const collector = await start(portal.origin, "/portal");
+    const malformed = envelope("alpha") as {
+      storageState: { cookies: unknown[] };
+    };
+    malformed.storageState.cookies = [null];
+    const result = await post(collector.socket, "/v1/read", malformed);
+    expect(result.status).toBe(422);
+    expect(JSON.parse(result.body).code).toBe("collector_session_invalid");
+    expect(portal.requests()).toBe(0);
   });
 
   it("rejects missing statement capability and allowed-route redirects before acceptance", async () => {
@@ -340,6 +407,14 @@ async function startPortal(scenario: string) {
       }
       if (scenario === "expired") {
         response.writeHead(401).end("expired");
+        return;
+      }
+      if (scenario === "invalid-auth-body") {
+        response.writeHead(401).end(Buffer.from([0xff]));
+        return;
+      }
+      if (scenario === "rate-limit") {
+        response.writeHead(429, { "retry-after": "60" }).end();
         return;
       }
       const result = structuredClone(golden);

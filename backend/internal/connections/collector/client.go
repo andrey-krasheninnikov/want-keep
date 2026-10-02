@@ -18,6 +18,8 @@ import (
 
 var ErrUnavailable = errors.New("browser collector unavailable")
 var ErrBusy = errors.New("browser collector busy")
+var ErrPreflightRejected = errors.New("browser collector rejected request before provider IO")
+var ErrSessionInvalid = errors.New("browser collector session invalid")
 
 const maxResponseBytes = 32 * 1024 * 1024
 
@@ -173,6 +175,12 @@ func (c *Client) call(ctx context.Context, path string, value any) ([]byte, erro
 	payload, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusConflict && bytes.Equal(payload, []byte(`{"code":"collector_busy"}`)) {
 		return nil, ErrBusy
+	}
+	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusUnprocessableEntity && bytes.Equal(payload, []byte(`{"code":"collector_preflight_rejected"}`)) {
+		return nil, ErrPreflightRejected
+	}
+	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusUnprocessableEntity && bytes.Equal(payload, []byte(`{"code":"collector_session_invalid"}`)) {
+		return nil, ErrSessionInvalid
 	}
 	if err != nil || len(payload) > maxResponseBytes || response.StatusCode != http.StatusOK {
 		return nil, ErrUnavailable

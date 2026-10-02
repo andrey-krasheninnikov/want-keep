@@ -8,7 +8,12 @@ import { createConnection, type Server } from "node:net";
 
 import { ContractError } from "../contracts/ingestion.js";
 import type { RuntimeConfig } from "./config.js";
-import { CollectorBusyError, CollectorRuntime } from "./runtime.js";
+import {
+  CollectorBusyError,
+  CollectorPreflightError,
+  CollectorSessionInvalidError,
+  CollectorRuntime,
+} from "./runtime.js";
 
 const maximumRequestBytes = 2 * 1024 * 1024;
 
@@ -87,7 +92,11 @@ async function handle(
             status === 409
               ? "collector_busy"
               : status === 422
-                ? "invalid_contract"
+                ? error instanceof CollectorSessionInvalidError
+                  ? "collector_session_invalid"
+                  : error instanceof CollectorPreflightError
+                    ? "collector_preflight_rejected"
+                    : "invalid_contract"
                 : "collector_unavailable",
         }),
       );

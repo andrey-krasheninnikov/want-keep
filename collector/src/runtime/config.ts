@@ -157,6 +157,12 @@ function parseRoute(value: unknown): RouteRule {
   text(object.path, 512);
   const path = object.path as string;
   if (!path.startsWith("/") || path.includes("?") || path.includes("#")) fail();
+  const resolved = new URL(path, "https://collector.invalid");
+  if (
+    resolved.origin !== "https://collector.invalid" ||
+    resolved.pathname !== path
+  )
+    fail();
   if (
     typeof object.action !== "string" ||
     !allowedActions.has(object.action as RouteAction)
