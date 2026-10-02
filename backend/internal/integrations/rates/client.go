@@ -93,7 +93,10 @@ func (c *Client) CryptoUSD(ctx context.Context, asset money.Asset, date calendar
 		return valuation.Observation{}, ErrUnavailable
 	}
 	day := fetched.UTC().Truncate(24 * time.Hour)
-	if dateTime(date).After(day) || day.Sub(dateTime(date)) > 365*24*time.Hour {
+	if dateTime(date).After(day) {
+		return valuation.Observation{}, ErrUnavailable
+	}
+	if day.Sub(dateTime(date)) > 365*24*time.Hour {
 		return valuation.Observation{}, ErrHistoryRange
 	}
 	key, err := c.coinGeckoKey()

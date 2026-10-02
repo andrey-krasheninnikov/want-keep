@@ -47,10 +47,7 @@ func (s Service) Reference(ctx context.Context, base, quote money.Asset, date ca
 	if base == quote || date.String() == "" || s.Repository == nil || s.Sources == nil || s.Now == nil {
 		return Reference{}, money.ErrInvalidRate
 	}
-	latest := s.Now().UTC().Truncate(24 * time.Hour)
-	if current {
-		latest = latest.Add(24 * time.Hour)
-	}
+	latest := s.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour)
 	if dateTime(date).After(latest) {
 		return Reference{}, calendar.ErrInvalidTime
 	}
@@ -156,6 +153,9 @@ func (s Service) leg(ctx context.Context, asset money.Asset, date calendar.Date,
 		}
 	} else {
 		fetched, err = s.Sources.CryptoUSD(ctx, asset, date, now)
+	}
+	if err == nil && fetched.ID != "" && asset != money.RUB && !current && (fetched.RequestedDate != date || fetched.Granularity != "daily") {
+		return valuation.Observation{}, false, false, valuation.ErrInvalidObservation
 	}
 	if err == nil && fetched.ID != "" && asset != money.RUB && !current {
 		fetched, err = s.Repository.SaveRateObservation(ctx, fetched)

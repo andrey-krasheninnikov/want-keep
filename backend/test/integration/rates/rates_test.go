@@ -18,6 +18,7 @@ import (
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
 	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
+	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
 	journal "github.com/pchkauu/want-keep/backend/internal/ledger/application"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/domain"
 	money "github.com/pchkauu/want-keep/backend/internal/money/domain"
@@ -173,6 +174,25 @@ func TestImmutableRatesQuotaAndHouseholdQuotes(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err = admin.Exec(ctx, `UPDATE want_keep.jobs SET state='waiting',reason='gateway_unavailable',available_at=clock_timestamp()+INTERVAL '1 hour' WHERE household_id=$1 AND kind='outbox'`, family.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.ResumeWaiting(ctx, jobs.Outbox, jobs.GatewayUnavailable); err != nil {
+		t.Fatal(err)
+	}
+	var jobState string
+	if err = admin.QueryRow(ctx, `SELECT state FROM want_keep.jobs WHERE household_id=$1 AND kind='outbox'`, family.ID).Scan(&jobState); err != nil || jobState != "waiting" {
+		t.Fatalf("early gateway resume: %s %v", jobState, err)
+	}
+	if _, err = admin.Exec(ctx, `UPDATE want_keep.jobs SET available_at=clock_timestamp()-INTERVAL '1 second' WHERE household_id=$1 AND kind='outbox'`, family.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.ResumeWaiting(ctx, jobs.Outbox, jobs.GatewayUnavailable); err != nil {
+		t.Fatal(err)
+	}
+	if err = admin.QueryRow(ctx, `SELECT state FROM want_keep.jobs WHERE household_id=$1 AND kind='outbox'`, family.ID).Scan(&jobState); err != nil || jobState != "ready" {
+		t.Fatalf("due gateway resume: %s %v", jobState, err)
 	}
 	converted, _, legs, err := valuation.Convert(spent, money.USD, []valuation.Observation{first})
 	if err != nil {

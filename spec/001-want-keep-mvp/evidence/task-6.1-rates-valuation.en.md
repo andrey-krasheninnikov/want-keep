@@ -6,6 +6,8 @@ Migration `020_rates_valuation.sql` adds immutable source observations, historic
 
 The `transaction.changed` background job prepares valuations for each new revision. Existing operations without such a job appear as `valuation_pending`; report reads do not create hidden records. Provider adapters do not yet submit executable platform quotes. Product screens and production were not changed.
 
+Temporary rate unavailability leaves valuation pending and retries the job; transaction review is queued independently. The current day in reports and `/rates` follows the household timezone. A historical price for a newly started local day remains pending until the source publishes it.
+
 ## Checks
 
 - Local unit tests cover six assets, separate stablecoins, cross-rates, precision, source legs, unavailable prices and partial refunds.

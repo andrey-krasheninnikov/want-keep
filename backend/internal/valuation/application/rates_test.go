@@ -35,9 +35,9 @@ type fixedSources struct {
 func (f fixedSources) USDToRUBCandidates(context.Context, calendar.Date, time.Time) ([]valuation.Observation, error) {
 	return f.rub, nil
 }
-func (f fixedSources) CryptoUSD(_ context.Context, asset money.Asset, _ calendar.Date, _ time.Time) (valuation.Observation, error) {
+func (f fixedSources) CryptoUSD(_ context.Context, asset money.Asset, date calendar.Date, _ time.Time) (valuation.Observation, error) {
 	for _, value := range f.coin {
-		if value.Rate.Base() == asset {
+		if value.Rate.Base() == asset && value.Granularity == "daily" && value.RequestedDate == date {
 			return value, nil
 		}
 	}
@@ -135,7 +135,8 @@ func TestCurrentReferenceAllowsNextLocalCalendarDay(t *testing.T) {
 	if err != nil || current.Reason != "" || current.Rate.Value() != "60000" {
 		t.Fatalf("local current reference: %+v %v", current, err)
 	}
-	if _, err := service.Reference(context.Background(), money.BTC, money.USD, today, false); err != calendar.ErrInvalidTime {
-		t.Fatalf("future historical reference accepted: %v", err)
+	historical, err := service.Reference(context.Background(), money.BTC, money.USD, today, false)
+	if err != nil || historical.Reason != "missing_observation" {
+		t.Fatalf("local historical rate should remain pending: %+v %v", historical, err)
 	}
 }

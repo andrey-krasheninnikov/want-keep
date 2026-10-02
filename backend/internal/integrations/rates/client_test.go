@@ -90,6 +90,10 @@ func TestCoinGeckoKeyDatesAndSeparateStablecoins(t *testing.T) {
 	if _, err := client.CryptoUSD(context.Background(), money.BTC, older, now); !errors.Is(err, ErrHistoryRange) {
 		t.Fatalf("old history allowed: %v", err)
 	}
+	localToday, _ := calendar.ParseDate("2026-09-02")
+	if _, err := client.CryptoUSD(context.Background(), money.USDC, localToday, now); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("next local day was classified as permanent: %v", err)
+	}
 	if err := os.Chmod(secretFile, 0644); err != nil {
 		t.Fatal(err)
 	}
