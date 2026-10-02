@@ -53,11 +53,11 @@ func (s *Store) recoverJobs(ctx context.Context, tx pgx.Tx, kind string, depende
 		return err
 	}
 	for _, item := range transitions {
-		if item.job.Kind == jobs.AI && (item.outcome.State == jobs.Canceled || item.outcome.State == jobs.Failed) {
+		if item.job.Kind.ProviderCall() && (item.outcome.State == jobs.Canceled || item.outcome.State == jobs.Failed) {
 			if err = s.releaseSafeAIJobAttempts(ctx, tx, item.job.HouseholdID, item.job.ID, "job_terminated_before_send", item.now); err != nil {
 				return err
 			}
-		} else if item.job.Kind == jobs.AI && !item.job.ExternalStarted && item.job.State == jobs.Running {
+		} else if item.job.Kind.ProviderCall() && !item.job.ExternalStarted && item.job.State == jobs.Running {
 			if err = s.releaseSafeAIJobAttempts(ctx, tx, item.job.HouseholdID, item.job.ID, "recovered_before_send", item.now); err != nil {
 				return err
 			}

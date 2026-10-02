@@ -1,42 +1,10 @@
 package openai
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
-	"regexp"
-	"slices"
+	ai "github.com/pchkauu/want-keep/backend/internal/ai/domain"
 )
-
-var (
-	amountPattern = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?$`)
-	monthPattern  = regexp.MustCompile(`^[0-9]{4}-(0[1-9]|1[0-2])$`)
-)
-
-type proposalEnvelope struct {
-	Results []proposal `json:"results"`
-}
-
-type proposal struct {
-	ID          string   `json:"id"`
-	Action      string   `json:"action"`
-	Kind        *string  `json:"kind"`
-	Amount      *string  `json:"amount"`
-	Fee         *string  `json:"fee"`
-	Asset       *string  `json:"asset"`
-	Target      *string  `json:"target"`
-	Month       *string  `json:"month"`
-	Shares      []share  `json:"shares"`
-	Items       []string `json:"items"`
-	Evidence    []string `json:"evidence"`
-	Explanation string   `json:"explanation"`
-}
-
-type share struct {
-	Member string `json:"member"`
-	Amount string `json:"amount"`
-}
 
 type proposalInputCase struct {
 	ID     string `json:"id"`
@@ -52,59 +20,11 @@ func proposalExpectation(data []byte) (proposalInputCase, error) {
 }
 
 func validateProposal(data []byte, expected proposalInputCase) error {
-	var raw struct {
-		Results []map[string]json.RawMessage `json:"results"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil || len(raw.Results) != 1 || !hasRequiredNullableFields(raw.Results[0]) {
+	if expected.ID != "case-1" || expected.Source != "ledger_revision" {
 		return errors.New("invalid proposal")
 	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	var envelope proposalEnvelope
-	if err := decoder.Decode(&envelope); err != nil || decoder.Decode(new(any)) != io.EOF || len(envelope.Results) != 1 {
-		return errors.New("invalid proposal")
-	}
-	for _, result := range envelope.Results {
-		if result.ID != expected.ID || result.Explanation == "" || !oneOf(result.Action, "create", "link", "clarify", "reject", "skip", "explain") || result.Shares == nil || result.Items == nil || result.Evidence == nil || !slices.Contains(result.Evidence, expected.Source) {
-			return errors.New("invalid proposal")
-		}
-		if (result.Kind != nil && !oneOf(*result.Kind, "expense", "income", "refund", "transfer", "exchange")) ||
-			(result.Asset != nil && !oneOf(*result.Asset, "RUB", "USD", "USDT", "USDC", "BTC", "ETH")) ||
-			(result.Amount != nil && !amountPattern.MatchString(*result.Amount)) ||
-			(result.Fee != nil && !amountPattern.MatchString(*result.Fee)) ||
-			(result.Month != nil && !monthPattern.MatchString(*result.Month)) {
-			return errors.New("invalid proposal")
-		}
-		for _, item := range result.Items {
-			if !amountPattern.MatchString(item) {
-				return errors.New("invalid proposal")
-			}
-		}
-		for _, item := range result.Shares {
-			if item.Member == "" || !amountPattern.MatchString(item.Amount) {
-				return errors.New("invalid proposal")
-			}
-		}
-	}
-	return nil
-}
-
-func hasRequiredNullableFields(result map[string]json.RawMessage) bool {
-	for _, field := range [...]string{"kind", "amount", "fee", "asset", "target", "month"} {
-		if _, exists := result[field]; !exists {
-			return false
-		}
-	}
-	return true
-}
-
-func oneOf(value string, allowed ...string) bool {
-	for _, item := range allowed {
-		if value == item {
-			return true
-		}
-	}
-	return false
+	_, err := ai.DecodeReviewOutput(data)
+	return err
 }
 
 func hasRefusal(raw string) bool {

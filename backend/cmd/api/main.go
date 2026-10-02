@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	accounts "github.com/pchkauu/want-keep/backend/internal/accounts/application"
+	aiapp "github.com/pchkauu/want-keep/backend/internal/ai/application"
 	allocations "github.com/pchkauu/want-keep/backend/internal/allocation/application"
 	attachments "github.com/pchkauu/want-keep/backend/internal/attachments/application"
 	"github.com/pchkauu/want-keep/backend/internal/attachments/files"
@@ -32,6 +33,7 @@ import (
 	ledgerdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/ledger"
 	reconciliationdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reconciliation"
 	reimbursementdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reimbursements"
+	reviewdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/review"
 	valuationdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/valuation"
 	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	application "github.com/pchkauu/want-keep/backend/internal/identity/application"
@@ -155,7 +157,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	reviewService := aiapp.NewReviewService(database, ledger.NewServiceWithAllocations(database, matchingService, allocationService, now, uuid.NewString), allocationService, matchingService, uuid.NewString)
+	reviewHandler, err := reviewdelivery.New(reviewService, executor, queries, service, database, config, now)
+	if err != nil {
+		return err
+	}
 	mux := http.NewServeMux()
+	mux.Handle("/api/v1/clarifications", reviewHandler)
+	mux.Handle("/api/v1/clarifications/", reviewHandler)
+	mux.Handle("/api/v1/proposals/", reviewHandler)
 	mux.Handle("/api/v1/transactions", ledgerHandler)
 	mux.Handle("/api/v1/transactions/", ledgerHandler)
 	mux.Handle("/api/v1/transfers", ledgerHandler)

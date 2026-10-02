@@ -245,3 +245,20 @@ flowchart LR
 ```
 
 Missing legs retain the native amount and an incomplete-data reason. A new rate creates an observation revision without rewriting a historical snapshot. Executable provider quotes have a separate path and are never inferred from a reference cross-rate.
+
+## Validating a persisted response (task-5.2)
+
+```mermaid
+flowchart LR
+  R[Material revision] --> O[Outbox and unique root review job]
+  O --> C[Frozen projection and reference map]
+  C --> P[Provider IO outside transactions]
+  P --> S[Atomic outcome and ai_validation job]
+  S --> V[Recheck revisions, authority, evidence and protections]
+  V --> D[Atomic decision, effect and validation receipt]
+  V --> Q[Proposal and clarification]
+  Q --> T[Typed answer]
+  T --> D
+  Q --> F[Free text and distinct answer revision]
+  F --> C
+```

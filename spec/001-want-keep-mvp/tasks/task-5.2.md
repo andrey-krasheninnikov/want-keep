@@ -13,12 +13,64 @@
 
 ### Изменение и контракты
 
-Запускать проверку каждой содержательной версии операции. AI возвращает структурированные предложения через allowlist команд; application проверяет сумму/счёт/валюту, expectedVersion, ownership, evidence и разрешения. Применять допустимые классификации/связи идемпотентно, сомнительные оставлять в очереди; личные бюджет/цели требуют решения владельца, общие — любого уполномоченного участника. Никакого SQL, произвольного HTTP или доступа к секретам у модели. Модельный score task-0.8 не заменяет серверный валидатор: добавить regression-сценарии из openai_cases.py для неверной суммы, неизвестной комиссии, повторного расхода, чужой личной цели и устаревшей revision. Смена alias/prompt/schema требует повторного допуска. Исследование task-0.8 завершено: использовать gpt-5.6-terra xhigh и финальную strict-схему из evidence/openai.prompts.json; Luna/Sol/MiniMax/DeepSeek автоматически не подключать. Финальный xhigh eval 206/206 не заменяет runtime/locale проверки. reasoning.effort=xhigh; никаких автоматических downgrade при лимите $50. Статус записи формирует приложение, не объяснение модели.
+Проверять каждую содержательную revision через сохраняемый runtime-контракт transaction_review_v1. Сохранять frozen projection и pseudonymous reference map до provider IO; завершённый ответ и отдельное задание ai_validation фиксировать атомарно. Повторная валидация не повторяет оплачиваемый вызов. Принимать только классификацию по активному каталогу, распределение по сохранённым правилам, предложения связи, уточнение, no_change или отказ. Суммы, даты, комиссии, банковские статусы, actor, household и произвольные инструменты не назначаются моделью. Проверять текущие revisions, права и защиту ручных полей; эффект, решения, аудит и receipt атомарны. Неподтверждённые доли/связи требуют решения участника. Ответ свободным текстом создаёт отдельную job по clarification ID и answer revision; terminal job исходной версии не запускается повторно. Бюджеты/цели требуют явного подтверждения; до подключения владельцев их применение возвращает feature_unavailable. Сохраняются gpt-5.6-terra xhigh, общий $50 и retry/fencing task-5.1. Новый prompt/schema проверяются offline, production_admitted=false до отдельной live-квалификации; исходный eval 206/206 не подтверждает новый контракт.
 
 ### Границы изменений
 
 - `backend/internal/ai/`
-- `backend/internal/clarifications/`
+- `backend/internal/delivery/review/`
+- `backend/internal/storage/`
+- `backend/migrations/023_transaction_review_commands.sql`
+- `api/schemas/chat.yaml`
+- `backend/test/integration/ai-commands/`
+- `backend/test/ai/transactions/`
+
+### Экранный контракт
+
+### SCR-025 — Уточнения
+
+`/chat/clarifications`
+
+**Вопрос:** Что нужно уточнить для правильного учёта?
+
+**Главный ответ:** Конкретный вопрос с безопасными вариантами и контекстом.
+
+**Структура сверху вниз:** Ожидают ответа → причина/покупка → варианты и свободный ответ → preview → статус.
+
+**Следующее действие:** Ответить FORM-12, открыть оригинал SCR-010/011; уже отвеченное показать с автором.
+
+**Объяснение и детализация:** Ответ привязан к revision вопроса и операции. Вариант применяется транзакционно; свободный текст сохраняется с автором и отдельной answer revision и ожидает новую проверку. Конфликт сохраняет ввод; личные бюджет/цели изменяет только владелец.
+
+**Права:** Оба видят; личное изменяет только владелец, совместное — любой участник.
+
+Forms: FORM-12.
+
+States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, UISTATE-08, UISTATE-12, UISTATE-13, UISTATE-09, UISTATE-10, UISTATE-11, UISTATE-16, UISTATE-04, UISTATE-14.
+
+#### FORM-12 — Ответ и предложение AI
+
+**Поля:** expectedRevision вопроса/предложения, subjectExpectedRevision операции и ровно choiceId либо свободный answer; для предложения явное apply/reject.
+
+**Проверки и права:** Оба для операций, только владелец для личного плана/цели; actor не меняется текстом. Одновременный ответ проверяет версию; preview перед финансовым изменением.
+
+**Результат:** Команда подтверждена, отказана, устарела или ожидает; ответ/основание и автор сохранены.
+
+- **UISTATE-01 — Загрузка:** Скелетон структуры и подпись загрузки; суммы не подменяются нулями.
+- **UISTATE-02 — Обновление:** Сохранить предыдущие данные и контекст, показать время последнего успеха; блокировать только конфликтующие действия.
+- **UISTATE-03 — Пусто:** Объяснить полезный результат и предложить первое действие: счёт, чек, план или цель.
+- **UISTATE-04 — Нет совпадений:** Сохранить фильтры, объяснить отсутствие результатов, предложить очистить условия.
+- **UISTATE-05 — Частичные данные:** Назвать отсутствующий источник/период и последствия для суммы; доступные блоки работают; неизвестное обозначить отдельно.
+- **UISTATE-06 — Устаревшие данные:** Показать дату последнего успеха и влияние на решение; дать обновить или перейти к подключению.
+- **UISTATE-07 — Ошибка:** Понятная причина и следующий шаг у проблемного блока; ввод и исправные данные сохранить, диагностику раскрывать отдельно.
+- **UISTATE-08 — Offline:** Показать отсутствие связи; не обещать сохранение. Чувствительные черновики только в памяти текущей вкладки, без новой offline-очереди.
+- **UISTATE-09 — Сохранение:** Немедленно показать прогресс текущего действия и не допускать дублирующую отправку команды.
+- **UISTATE-10 — Исход неизвестен:** Сохранить ID команды/ввод, запросить её результат; не создавать новую финансовую команду вслепую. После перезагрузки сверять серверный список недавних команд.
+- **UISTATE-11 — Конфликт версии:** Показать авторов и различия, сохранить мой ввод; загрузить актуальную версию и дать повторно применить выбранные изменения после проверки.
+- **UISTATE-12 — Недостаточно прав:** Финансовые данные доступны семье; запрещённое изменение объясняет владельца. Сервер отклоняет команду независимо от видимости кнопки.
+- **UISTATE-13 — Сессия истекла:** Закрыть защищённое содержимое; вход для того же участника, безопасный возврат по внутреннему маршруту. Чужой вход не получает прежний черновик.
+- **UISTATE-14 — Ожидание AI:** Отличать очередь, обработку, уточнение и паузу из-за лимита/API; обычный учёт доступен, результат не выдумывать.
+- **UISTATE-16 — Подтверждено:** После подтверждённого сервером результата показать что изменилось, ссылку на объект и доступное исправление; не полагаться на исчезающий toast.
+
 
 Пути планируемые. Общие контракты — `spec/001-want-keep-mvp/contracts.md`, архитектура/команды — `constraints.md`. Менять владельца поведения и его тесты; незакрытый контракт останавливает зависимую работу.
 
@@ -138,12 +190,12 @@
 ### Проверка результата
 
 ```sh
-make test-integration AREA=ai-commands && make eval-ai SUITE=transactions
+make test-integration AREA=ai-commands && make test-ai-commands-race && make eval-ai SUITE=transactions
 ```
 
 Каждая версия отслеживается; invalid/refusal/stale/injection отклоняются; автоматические эффекты сохраняют инварианты и аудит.
 
-Основа task-1.1 уже предоставляет make. make docs-check проверяет документацию и исследовательский инструмент; production AI integration/E2E suites ещё не реализованы. Модельный eval и приёмка приложения фиксируются раздельно.
+Backend/API task-5.2 и offline regression реализованы; доказательства и ограничения: evidence/task-5.2-transaction-review.md. Реальный OpenAI, чат, извлечение чеков, экраны, бюджет/цели и production остаются соответствующим задачам. SDD Ready for development не означает эксплуатационную готовность.
 
 ### Передача следующему агенту
 
@@ -163,12 +215,64 @@ Automate classification and substantiated links while protecting financial invar
 
 ### Change and contracts
 
-Review every material transaction version. AI returns structured proposals through an allowlist of commands; the application validates amount/account/currency, expectedVersion, ownership, evidence and permissions. Apply allowed classifications/links idempotently, queue uncertainty and require the personal owner’s decision for personal budgets/goals and any authorized member’s decision for shared ones. Models have no SQL, arbitrary HTTP or secret access. task-0.8 model scores do not replace server validation: add regressions derived from openai_cases.py for wrong amounts, unknown fees, duplicate expenses, foreign personal goals and stale revisions. Alias/prompt/schema changes require requalification. task-0.8 research is complete: use gpt-5.6-terra xhigh and the final strict schema in evidence/openai.prompts.json; do not automatically enable Luna/Sol/MiniMax/DeepSeek. The final xhigh evaluation 206/206 does not replace runtime/locale checks. reasoning.effort=xhigh; no automatic downgrade at the USD 50 cap. The application supplies persistence status, not the model explanation.
+Review each material revision using the persisted transaction_review_v1 runtime contract. Freeze the projection and pseudonymous reference map before provider IO; commit the completed outcome and a separate ai_validation job atomically. Validation retries never repeat a paid call. Accept active-catalog classification, saved-rule distribution, link proposals, clarification, no_change or rejection only. Models cannot assign amounts, dates, fees, bank statuses, actor, household or arbitrary tools. Recheck current revisions, authority and human field protections; effects, decisions, audit and receipts are atomic. Unconfirmed shares/links require a member decision. A free-text answer creates a separate job bound to clarification ID and answer revision; the original terminal job is not restarted. Budgets/goals require explicit approval; applying them returns feature_unavailable until their owning handlers are connected. Preserve gpt-5.6-terra xhigh, the shared USD 50 cap and task-5.1 retry/fencing. Verify the new prompt/schema offline; production_admitted=false pending separate live qualification. The original 206/206 evaluation does not qualify the new contract.
 
 ### Change boundaries
 
 - `backend/internal/ai/`
-- `backend/internal/clarifications/`
+- `backend/internal/delivery/review/`
+- `backend/internal/storage/`
+- `backend/migrations/023_transaction_review_commands.sql`
+- `api/schemas/chat.yaml`
+- `backend/test/integration/ai-commands/`
+- `backend/test/ai/transactions/`
+
+### Screen contract
+
+### SCR-025 — Clarifications
+
+`/chat/clarifications`
+
+**Question:** What needs clarification for correct accounting?
+
+**Primary answer:** A specific question with safe options and context.
+
+**Top-down structure:** Awaiting answer → reason/purchase → choices and free text → preview → status.
+
+**Next action:** Answer FORM-12, open original SCR-010/011; show answered items with author.
+
+**Explanation and details:** Answers bind to question and transaction revisions. A choice applies transactionally; free text preserves its author and distinct answer revision and awaits a new check. Conflicts preserve input; only the owner changes personal budgets/goals.
+
+**Permissions:** Both read; only the owner edits personal resources, either member edits shared resources.
+
+Forms: FORM-12.
+
+States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, UISTATE-08, UISTATE-12, UISTATE-13, UISTATE-09, UISTATE-10, UISTATE-11, UISTATE-16, UISTATE-04, UISTATE-14.
+
+#### FORM-12 — AI response and proposal
+
+**Fields:** Question/proposal expectedRevision, transaction subjectExpectedRevision and exactly choiceId or free-text answer; explicit apply/reject for a proposal.
+
+**Validation and permissions:** Either member for transactions, owner only for personal plan/goal; text cannot change actor. Concurrent response checks revision; preview before financial change.
+
+**Outcome:** Command confirmed, rejected, stale or pending; response/reason and author retained.
+
+- **UISTATE-01 — Loading:** Structural skeleton and loading label; amounts are never replaced by zero.
+- **UISTATE-02 — Refreshing:** Keep previous data/context and last-success time; block only conflicting actions.
+- **UISTATE-03 — Empty:** Explain the useful outcome and offer a first account, receipt, plan or goal action.
+- **UISTATE-04 — No matches:** Keep filters, explain no results and offer to clear conditions.
+- **UISTATE-05 — Partial data:** Name the missing source/period and its effect on the amount; available sections work and unknowns stay explicit.
+- **UISTATE-06 — Stale data:** Show last-success date and impact on the decision; offer refresh or connection details.
+- **UISTATE-07 — Error:** Plain cause and next step beside the affected section; preserve input/healthy data and expand diagnostics separately.
+- **UISTATE-08 — Offline:** Show missing connectivity and do not promise saved data. Sensitive drafts remain only in current-tab memory, without a new offline queue.
+- **UISTATE-09 — Saving:** Immediately show current-action progress and prevent duplicate command submission.
+- **UISTATE-10 — Unknown outcome:** Keep command ID/input and query its result; never blindly create another financial command. After reload reconcile the server list of recent commands.
+- **UISTATE-11 — Version conflict:** Show authors/differences and keep my input; load current version and allow chosen changes to be reapplied after validation.
+- **UISTATE-12 — Insufficient permission:** Household can read financial data; forbidden edits explain ownership. Server rejects the command regardless of button visibility.
+- **UISTATE-13 — Session expired:** Hide protected contents; require the same member to sign in and return through a safe internal route. Another identity never receives the prior draft.
+- **UISTATE-14 — AI waiting:** Distinguish queued, processing, clarification and budget/API pause; ordinary accounting remains available and results are not invented.
+- **UISTATE-16 — Confirmed:** After server-confirmed outcome show what changed, an object link and available correction; do not rely on a disappearing toast.
+
 
 Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.md`; architecture/commands are in `constraints.en.md`. Change the behavior owner and its tests; an unresolved contract stops dependent work.
 
@@ -288,12 +392,12 @@ A link establishes coverage but does not prove the whole criterion; verification
 ### Verification
 
 ```sh
-make test-integration AREA=ai-commands && make eval-ai SUITE=transactions
+make test-integration AREA=ai-commands && make test-ai-commands-race && make eval-ai SUITE=transactions
 ```
 
 Every version is tracked; invalid/refusal/stale/injection outputs are rejected; automatic effects preserve invariants and audit.
 
-The task-1.1 foundation already provides make. make docs-check validates documentation and research tooling; production AI integration/E2E suites are not implemented. Model evaluation and application acceptance are recorded separately.
+Backend/API task-5.2 and offline regressions are implemented; evidence and limitations: evidence/task-5.2-transaction-review.en.md. Live OpenAI, chat, receipt extraction, screens, budget/goal handlers and production remain with their owning tasks. SDD Ready for development is not operational readiness.
 
 ### Handoff to the next agent
 

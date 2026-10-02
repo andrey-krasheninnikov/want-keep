@@ -145,9 +145,6 @@ func (s *Service) applyChanges(ctx context.Context, p household.Principal, chang
 			}
 		}
 		if kind == "automated" {
-			if in.Correction.CategoryID != nil || in.Correction.MerchantID != nil || in.Correction.ReceiptItems != nil {
-				return command.Result{}, commands.Rejection{Code: "clarification_required"}
-			}
 			if r.HumanOverride && len(r.Protections) == 0 {
 				return command.Result{}, commands.Rejection{Code: "protected_field"}
 			}

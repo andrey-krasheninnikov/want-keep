@@ -36,12 +36,18 @@ type SourceReference struct {
 	ConnectionID string
 }
 type View struct {
-	Revision    ledger.Revision
-	Sources     []SourceReference
-	Coverage    reporting.Coverage
-	SourceFacts []SourceFact
-	Review      *ReviewResult
-	Refunds     []expenses.Refund
+	Revision         ledger.Revision
+	Sources          []SourceReference
+	Coverage         reporting.Coverage
+	SourceFacts      []SourceFact
+	Review           *ReviewResult
+	Refunds          []expenses.Refund
+	ReviewReferences []ReviewReference
+}
+type ReviewReference struct {
+	Kind, ID string
+	Revision uint64
+	State    string
 }
 type SourceFact struct {
 	SourceID string
@@ -52,6 +58,7 @@ type SourceFact struct {
 type QueryRepository interface {
 	HistoryRepository
 	ReviewRepository
+	TransactionReviewStatus(context.Context, household.Principal, string, uint64) (string, []ReviewReference, error)
 	TransactionCoverage(context.Context, household.Principal) (reporting.Coverage, error)
 	CurrentLedgerRevision(context.Context, household.Principal, string) (ledger.Revision, bool, error)
 	TransactionReferences(context.Context, household.Principal, Filter, Cursor, int) ([]ledger.Revision, *Cursor, error)
@@ -130,6 +137,13 @@ func (q *Queries) viewWithRefunds(ctx context.Context, p household.Principal, r 
 	if err != nil {
 		return View{}, err
 	}
+	status, refs, err := q.repository.TransactionReviewStatus(ctx, p, r.OperationID, r.Revision)
+	if err != nil {
+		return View{}, err
+	}
+	if status != "" {
+		r.ReviewState = status
+	}
 	facts, err := q.repository.TransactionSourceFacts(ctx, p, r.OperationID, r.Revision)
 	if err != nil {
 		return View{}, err
@@ -172,7 +186,7 @@ func (q *Queries) viewWithRefunds(ctx context.Context, p household.Principal, r 
 		state = reporting.Partial
 	}
 	coverage, err := reporting.NewCoverage(state, reasons)
-	v := View{Revision: r, Sources: sources, Coverage: coverage, SourceFacts: facts, Refunds: refunds}
+	v := View{Revision: r, Sources: sources, Coverage: coverage, SourceFacts: facts, Refunds: refunds, ReviewReferences: refs}
 	if reviewed {
 		v.Review = &review
 	}

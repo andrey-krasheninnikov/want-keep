@@ -30,7 +30,7 @@ func (s *Store) cancelJobs(ctx context.Context, tx pgx.Tx, rows pgx.Rows) error 
 	}
 	now := time.Now().UTC()
 	for _, item := range transitions {
-		if item.job.Kind == jobs.AI && (item.outcome.State == jobs.Canceled || item.outcome.State == jobs.Failed) {
+		if item.job.Kind.ProviderCall() && (item.outcome.State == jobs.Canceled || item.outcome.State == jobs.Failed) {
 			if err = s.releaseSafeAIJobAttempts(ctx, tx, item.job.HouseholdID, item.job.ID, "job_terminated_before_send", now); err != nil {
 				return err
 			}

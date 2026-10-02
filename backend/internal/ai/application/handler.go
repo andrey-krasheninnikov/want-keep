@@ -31,7 +31,7 @@ func NewHandler(repository Repository, gateway Gateway, now func() time.Time, ne
 
 func (h *Handler) Prepare(ctx context.Context, execution jobapp.Execution) (jobapp.Result, error) {
 	job := execution.Job
-	if h.repository == nil || h.gateway == nil || h.newID == nil || job.Kind != jobs.AI || job.ResourceID == "" || job.ResourceRevision < 1 {
+	if h.repository == nil || h.gateway == nil || h.newID == nil || !job.Kind.ProviderCall() || job.ResourceID == "" || job.ResourceRevision < 1 {
 		return jobapp.Result{}, jobs.ErrInvalidJob
 	}
 	input, err := h.repository.ReviewInput(ctx, execution.Principal, job)
@@ -45,6 +45,10 @@ func (h *Handler) Prepare(ctx context.Context, execution jobapp.Execution) (joba
 		Purpose: ai.TransactionReview, Model: contract.Model, Qualification: contract.Qualification,
 		PromptFingerprint: contract.PromptFingerprint, SchemaFingerprint: contract.SchemaFingerprint,
 		ConfigFingerprint: contract.ConfigFingerprint, Input: input, MaximumOutputTokens: 2048,
+	}
+	if job.Kind == jobs.AIAnswer {
+		request.Purpose = ai.ComplexClarification
+		request.MaximumOutputTokens = 8192
 	}
 	if err = request.Validate(); err != nil {
 		return jobapp.Result{}, err
@@ -151,6 +155,7 @@ func (h *Handler) recordKnownFailure(ctx context.Context, execution jobapp.Execu
 		result.State, result.Reason = jobs.Ready, jobs.TemporaryFailure
 		result.MinimumDelay = retryAfter
 	}
+	settlement.Terminal = result.State == jobs.Failed
 	result.Apply = func(ctx context.Context, _ household.Principal) error {
 		return h.repository.SaveAIOutcome(ctx, execution.Principal, execution.Job, attemptID, settlement, h.now().UTC())
 	}

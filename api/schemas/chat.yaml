@@ -238,40 +238,62 @@ Clarification:
       "$ref": "./money.yaml#/ID"
     revision:
       "$ref": "./money.yaml#/Revision"
+    operationId:
+      "$ref": "./money.yaml#/ID"
+    operationRevision:
+      "$ref": "./money.yaml#/Revision"
     question:
       type: string
       minLength: 1
       maxLength: 2000
-    subject:
-      "$ref": "./reports.yaml#/ResourceReference"
     state:
       type: string
-      enum:
-      - pending
-      - answered
-      - superseded
-  required:
-  - id
-  - revision
-  - question
-  - subject
-  - state
+      enum: [open, checking, answered, superseded]
+    proposalId:
+      "$ref": "./money.yaml#/ID"
+    choices:
+      type: array
+      maxItems: 103
+      items:
+        "$ref": "./chat.yaml#/ClarificationChoice"
+  required: [id, revision, operationId, operationRevision, question, state, choices]
+ClarificationChoice:
+  type: object
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      minLength: 1
+      maxLength: 100
+    label:
+      type: string
+      minLength: 1
+      maxLength: 2000
+  required: [id, label]
 ClarificationAnswer:
   type: object
   additionalProperties: false
   properties:
     expectedRevision:
       "$ref": "./money.yaml#/Revision"
+    subjectExpectedRevision:
+      "$ref": "./money.yaml#/Revision"
     answer:
       type: string
       minLength: 1
       maxLength: 2000
-    subjectExpectedRevision:
-      "$ref": "./money.yaml#/Revision"
-  required:
-  - expectedRevision
-  - answer
-  - subjectExpectedRevision
+    choiceId:
+      type: string
+      minLength: 1
+      maxLength: 100
+  required: [expectedRevision, subjectExpectedRevision]
+  oneOf:
+  - required: [answer]
+    not:
+      required: [choiceId]
+  - required: [choiceId]
+    not:
+      required: [answer]
 Proposal:
   type: object
   additionalProperties: false
@@ -280,30 +302,44 @@ Proposal:
       "$ref": "./money.yaml#/ID"
     revision:
       "$ref": "./money.yaml#/Revision"
-    subject:
-      "$ref": "./reports.yaml#/ResourceReference"
+    operationId:
+      "$ref": "./money.yaml#/ID"
+    operationRevision:
+      "$ref": "./money.yaml#/Revision"
     summary:
       type: string
       minLength: 1
       maxLength: 2000
-    evidence:
+    changes:
       type: array
+      maxItems: 8
       items:
-        "$ref": "./reports.yaml#/ResourceReference"
+        "$ref": "./chat.yaml#/ReviewChange"
     state:
       type: string
-      enum:
-      - pending
-      - applied
-      - rejected
-      - superseded
-  required:
-  - id
-  - revision
-  - subject
-  - summary
-  - evidence
-  - state
+      enum: [pending, applied, rejected, superseded]
+  required: [id, revision, operationId, operationRevision, summary, changes, state]
+ReviewChange:
+  type: object
+  additionalProperties: false
+  properties:
+    kind:
+      type: string
+      enum: [classification, distribution, link, clarify, no_change, reject, budget, goal]
+    reason:
+      type: string
+      minLength: 1
+      maxLength: 2000
+    category:
+      type: string
+      maxLength: 200
+    merchant:
+      type: string
+      maxLength: 200
+    distribution:
+      type: string
+      enum: [rule, personal, joint]
+  required: [kind, reason]
 ProposalDecision:
   type: object
   additionalProperties: false
@@ -314,13 +350,8 @@ ProposalDecision:
       "$ref": "./money.yaml#/Revision"
     decision:
       type: string
-      enum:
-      - apply
-      - reject
-  required:
-  - expectedRevision
-  - subjectExpectedRevision
-  - decision
+      enum: [apply, reject]
+  required: [expectedRevision, subjectExpectedRevision, decision]
 MessagePage:
   type: object
   additionalProperties: false
@@ -355,3 +386,19 @@ ClarificationPage:
   required:
   - items
   - quality
+
+ReviewReference:
+  type: object
+  additionalProperties: false
+  properties:
+    kind:
+      type: string
+      enum: [proposal, clarification]
+    id:
+      "$ref": "./money.yaml#/ID"
+    revision:
+      "$ref": "./money.yaml#/Revision"
+    state:
+      type: string
+      enum: [pending, applied, rejected, superseded, open, checking, answered]
+  required: [kind, id, revision, state]

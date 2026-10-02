@@ -666,7 +666,7 @@ Task: [task-7.3](tasks/task-7.3.md).
 
 **Next action:** Answer FORM-12, open original SCR-010/011; show answered items with author.
 
-**Explanation and details:** Answer conflict preserves input; only owner may answer for a personal goal.
+**Explanation and details:** Answers bind to question and transaction revisions. A choice applies transactionally; free text preserves its author and distinct answer revision and awaits a new check. Conflicts preserve input; only the owner changes personal budgets/goals.
 
 **Permissions:** Both read; only the owner edits personal resources, either member edits shared resources.
 
@@ -676,7 +676,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 REQ: REQ-017, REQ-019, REQ-071, REQ-072. AC: AC-017, AC-019, AC-085, AC-086.
 
-Task: [task-7.3](tasks/task-7.3.md).
+Task: [task-7.3](tasks/task-7.3.md), [task-5.2](tasks/task-5.2.md).
 
 ### SCR-026 — Insights
 
@@ -1010,7 +1010,7 @@ Task: [task-7.14](tasks/task-7.14.md).
 
 #### FORM-12 — AI response and proposal
 
-**Fields:** Answer to a specific clarification or explicit decision on proposed changes; object/question revision.
+**Fields:** Question/proposal expectedRevision, transaction subjectExpectedRevision and exactly choiceId or free-text answer; explicit apply/reject for a proposal.
 
 **Validation and permissions:** Either member for transactions, owner only for personal plan/goal; text cannot change actor. Concurrent response checks revision; preview before financial change.
 

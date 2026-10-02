@@ -73,7 +73,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 **Следующее действие:** Ответить FORM-12, открыть оригинал SCR-010/011; уже отвеченное показать с автором.
 
-**Объяснение и детализация:** Конфликт ответа сохраняет ввод; вопрос о чужой личной цели доступен для ответа только владельцу.
+**Объяснение и детализация:** Ответ привязан к revision вопроса и операции. Вариант применяется транзакционно; свободный текст сохраняется с автором и отдельной answer revision и ожидает новую проверку. Конфликт сохраняет ввод; личные бюджет/цели изменяет только владелец.
 
 **Права:** Оба видят; личное изменяет только владелец, совместное — любой участник.
 
@@ -91,7 +91,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 #### FORM-12 — Ответ и предложение AI
 
-**Поля:** Ответ на конкретное уточнение или явное решение по предложенным изменениям; версия объекта и вопроса.
+**Поля:** expectedRevision вопроса/предложения, subjectExpectedRevision операции и ровно choiceId либо свободный answer; для предложения явное apply/reject.
 
 **Проверки и права:** Оба для операций, только владелец для личного плана/цели; actor не меняется текстом. Одновременный ответ проверяет версию; preview перед финансовым изменением.
 
@@ -347,7 +347,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 **Next action:** Answer FORM-12, open original SCR-010/011; show answered items with author.
 
-**Explanation and details:** Answer conflict preserves input; only owner may answer for a personal goal.
+**Explanation and details:** Answers bind to question and transaction revisions. A choice applies transactionally; free text preserves its author and distinct answer revision and awaits a new check. Conflicts preserve input; only the owner changes personal budgets/goals.
 
 **Permissions:** Both read; only the owner edits personal resources, either member edits shared resources.
 
@@ -365,7 +365,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 #### FORM-12 — AI response and proposal
 
-**Fields:** Answer to a specific clarification or explicit decision on proposed changes; object/question revision.
+**Fields:** Question/proposal expectedRevision, transaction subjectExpectedRevision and exactly choiceId or free-text answer; explicit apply/reject for a proposal.
 
 **Validation and permissions:** Either member for transactions, owner only for personal plan/goal; text cannot change actor. Concurrent response checks revision; preview before financial change.
 

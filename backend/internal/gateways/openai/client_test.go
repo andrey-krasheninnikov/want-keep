@@ -33,7 +33,7 @@ func TestClientUsesQualifiedRequestShapeAndNoSDKRetry(t *testing.T) {
 		case "/v1/responses":
 			generationCalls++
 			decodeRequest(t, r, &generationBody)
-			proposal := `{"results":[{"id":"case-1","action":"clarify","kind":null,"amount":null,"fee":null,"asset":null,"target":null,"month":null,"shares":[],"items":[],"evidence":["ledger_revision"],"explanation":"Needs confirmation"}]}`
+			proposal := `{"version":"transaction_review_v1","caseId":"case-1","commands":[{"kind":"no_change","category":null,"merchant":null,"distribution":null,"member":null,"candidate":null,"question":null,"evidence":["ledger_revision"],"reason":"Confirmed existing transaction"}]}`
 			return jsonResponse(t, http.StatusOK, map[string]any{
 				"id": "resp_synthetic", "model": "gpt-5.6-terra", "status": "completed",
 				"output": []any{map[string]any{"type": "message", "content": []any{map[string]any{"type": "output_text", "text": proposal}}}},
@@ -110,7 +110,7 @@ func TestCountRejectsMissingOrZeroInputTokens(t *testing.T) {
 }
 
 func TestGenerationKeepsUnauditableResponseBehindReconciliation(t *testing.T) {
-	proposal := `{"results":[{"id":"case-1","action":"clarify","kind":null,"amount":null,"fee":null,"asset":null,"target":null,"month":null,"shares":[],"items":[],"evidence":["ledger_revision"],"explanation":"Needs confirmation"}]}`
+	proposal := `{"version":"transaction_review_v1","caseId":"case-1","commands":[{"kind":"no_change","category":null,"merchant":null,"distribution":null,"member":null,"candidate":null,"question":null,"evidence":["ledger_revision"],"reason":"Confirmed existing transaction"}]}`
 	response := func() map[string]any {
 		return map[string]any{
 			"id": "resp_synthetic", "model": "gpt-5.6-terra", "status": "completed",
@@ -264,7 +264,7 @@ func TestGenerationPreservesRefusalIncompleteAndSchemaError(t *testing.T) {
 }
 
 func TestProposalValidationRejectsUnknownOrTrailingData(t *testing.T) {
-	valid := []byte(`{"results":[{"id":"case-1","action":"skip","kind":null,"amount":null,"fee":null,"asset":null,"target":null,"month":null,"shares":[],"items":[],"evidence":["ledger_revision"],"explanation":"ok"}]}`)
+	valid := []byte(`{"version":"transaction_review_v1","caseId":"case-1","commands":[{"kind":"no_change","category":null,"merchant":null,"distribution":null,"member":null,"candidate":null,"question":null,"evidence":["ledger_revision"],"reason":"Confirmed existing transaction"}]}`)
 	expected := proposalInputCase{ID: "case-1", Source: "ledger_revision"}
 	if err := validateProposal(valid, expected); err != nil {
 		t.Fatal(err)
@@ -278,12 +278,14 @@ func TestProposalValidationRejectsUnknownOrTrailingData(t *testing.T) {
 			t.Fatalf("invalid proposal accepted: %s", data)
 		}
 	}
-	for _, field := range []string{"kind", "amount", "fee", "asset", "target", "month"} {
-		var envelope map[string][]map[string]any
+	for _, field := range []string{"kind", "category", "merchant", "distribution", "member", "candidate", "question"} {
+		var envelope struct {
+			Commands []map[string]any `json:"commands"`
+		}
 		if err := json.Unmarshal(valid, &envelope); err != nil {
 			t.Fatal(err)
 		}
-		delete(envelope["results"][0], field)
+		delete(envelope.Commands[0], field)
 		data, err := json.Marshal(envelope)
 		if err != nil {
 			t.Fatal(err)
@@ -294,9 +296,9 @@ func TestProposalValidationRejectsUnknownOrTrailingData(t *testing.T) {
 	}
 }
 
-func TestProposalValidationSupportsUSDCAndBindsSource(t *testing.T) {
+func TestProposalValidationBindsEvidenceAndRejectsMoney(t *testing.T) {
 	expected := proposalInputCase{ID: "case-1", Source: "ledger_revision"}
-	valid := []byte(`{"results":[{"id":"case-1","action":"create","kind":"income","amount":"0.01","fee":null,"asset":"USDC","target":null,"month":"2026-09","shares":[],"items":[],"evidence":["ledger_revision"],"explanation":"Confirmed"}]}`)
+	valid := []byte(`{"version":"transaction_review_v1","caseId":"case-1","commands":[{"kind":"no_change","category":null,"merchant":null,"distribution":null,"member":null,"candidate":null,"question":null,"evidence":["ledger_revision"],"reason":"Confirmed existing transaction"}]}`)
 	if err := validateProposal(valid, expected); err != nil {
 		t.Fatal(err)
 	}

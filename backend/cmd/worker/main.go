@@ -30,6 +30,7 @@ import (
 	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/application"
 	domain "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/application"
+	matching "github.com/pchkauu/want-keep/backend/internal/matching/application"
 	"github.com/pchkauu/want-keep/backend/internal/privacy/cryptobox"
 	reconciliation "github.com/pchkauu/want-keep/backend/internal/reconciliation/application"
 	"github.com/pchkauu/want-keep/backend/internal/storage"
@@ -156,14 +157,20 @@ func run() error {
 			}
 		}()
 	}
-	for _, kind := range []domain.Kind{domain.Sync, domain.Outbox, domain.AI} {
+	reviewWriter := ledger.NewWriterWithRefundsAndReimbursements(db, db, reconciliationService, expenses.NewProjector(db), ledger.NewReimbursementService(db, now, uuid.NewString))
+	matchingService := matching.NewService(db, reviewWriter, now, uuid.NewString)
+	allocationService := allocation.NewService(db, now, uuid.NewString)
+	reviewService := ai.NewReviewService(db, ledger.NewServiceWithAllocations(db, matchingService, allocationService, now, uuid.NewString), allocationService, matchingService, uuid.NewString)
+	for _, kind := range []domain.Kind{domain.Sync, domain.Outbox, domain.AI, domain.AIAnswer, domain.AIValidation} {
 		var handler jobs.Handler
 		if kind == domain.Sync {
 			handler = syncHandler
 		} else if kind == domain.Outbox {
 			handler = jobs.OutboxHandler{Repository: db, Reconciliation: reconciliationService, Valuation: valuationService}
-		} else if kind == domain.AI {
+		} else if kind.ProviderCall() {
 			handler = aiHandler
+		} else if kind == domain.AIValidation {
+			handler = reviewService
 		}
 		worker := jobs.Worker{Admission: admissionService, Repository: db, Handler: handler, Config: jobs.DefaultWorkerConfig(kind), Report: report}
 		group.Add(1)

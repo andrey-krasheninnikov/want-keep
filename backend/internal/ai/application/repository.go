@@ -27,6 +27,7 @@ type Settlement struct {
 	Actual              *ai.Cost
 	Conservative        bool
 	NeedsReconciliation bool
+	Terminal            bool
 }
 
 func (s Settlement) Validate() error {
