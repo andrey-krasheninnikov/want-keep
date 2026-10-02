@@ -169,15 +169,19 @@ func TestBusyRejectionClearsExternalMarkerUnderCurrentLease(t *testing.T) {
 }
 
 func TestCollectorBusyHandlerKeepsJobRetryable(t *testing.T) {
-	testCollectorRejectedBeforeIO(t, http.StatusConflict, `{"code":"collector_busy"}`, string(jobs.Waiting), string(jobs.HandlerUnavailable))
+	testCollectorRejectedBeforeIO(t, http.StatusConflict, `{"code":"collector_busy"}`, string(jobs.Waiting), string(jobs.HandlerUnavailable), true)
 }
 
 func TestCollectorPreflightRejectionUsesSafeJobState(t *testing.T) {
-	testCollectorRejectedBeforeIO(t, http.StatusUnprocessableEntity, `{"code":"collector_session_invalid"}`, string(jobs.Waiting), string(jobs.ReauthRequired))
-	testCollectorRejectedBeforeIO(t, http.StatusUnprocessableEntity, `{"code":"collector_preflight_rejected"}`, string(jobs.Failed), string(jobs.PermanentFailure))
+	testCollectorRejectedBeforeIO(t, http.StatusUnprocessableEntity, `{"code":"collector_session_invalid"}`, string(jobs.Waiting), string(jobs.ReauthRequired), true)
+	testCollectorRejectedBeforeIO(t, http.StatusUnprocessableEntity, `{"code":"collector_preflight_rejected"}`, string(jobs.Failed), string(jobs.PermanentFailure), true)
 }
 
-func testCollectorRejectedBeforeIO(t *testing.T, status int, body, wantState, wantReason string) {
+func TestMissingBrowserSessionRequiresReauth(t *testing.T) {
+	testCollectorRejectedBeforeIO(t, http.StatusOK, "", string(jobs.Waiting), string(jobs.ReauthRequired), false)
+}
+
+func testCollectorRejectedBeforeIO(t *testing.T, status int, body, wantState, wantReason string, saveSession bool) {
 	t.Helper()
 	store, admin, principal, job, keys, _ := fixture(t, false)
 	ref := connections.SecretReference{HouseholdID: principal.HouseholdID(), ConnectionID: job.ConnectionID, Purpose: connections.BrowserSession, Generation: job.ConnectionGeneration, Revision: 1}
@@ -190,10 +194,12 @@ func testCollectorRejectedBeforeIO(t *testing.T, status int, body, wantState, wa
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = store.WithinHousehold(testContext, principal, func(ctx context.Context) error {
-		return store.SaveEncryptedSecret(ctx, ref, secret)
-	}); err != nil {
-		t.Fatal(err)
+	if saveSession {
+		if err = store.WithinHousehold(testContext, principal, func(ctx context.Context) error {
+			return store.SaveEncryptedSecret(ctx, ref, secret)
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	manifest, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "collector", "contracts", "v10", "fixtures", "manifest.json"))
 	if err != nil {

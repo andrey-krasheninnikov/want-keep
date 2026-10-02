@@ -60,6 +60,9 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		if errors.Is(err, ErrUnavailable) && (client == nil || !client.ExternalStarted()) {
 			return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.HandlerUnavailable}, nil
 		}
+		if errors.Is(err, connections.ErrSecretAccess) && client == nil {
+			return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.ReauthRequired}, nil
+		}
 		return jobs.Result{}, err
 	}
 	page, complete, failure := client.Outcome()
