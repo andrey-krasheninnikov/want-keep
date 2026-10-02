@@ -103,7 +103,7 @@ type rateRequest struct {
 	direction   valuation.Direction
 }
 
-func (s *Server) parseRateRequest(r *http.Request) (rateRequest, error) {
+func (s *Server) parseRateRequest(r *http.Request, today calendar.Date) (rateRequest, error) {
 	values := r.URL.Query()
 	for key, entries := range values {
 		if len(entries) != 1 {
@@ -125,11 +125,11 @@ func (s *Server) parseRateRequest(r *http.Request) (rateRequest, error) {
 	}
 	out := rateRequest{base: base, quote: quote, provider: values.Get("provider"), direction: valuation.Direction(values.Get("direction")), current: values.Get("date") == ""}
 	if out.current {
-		out.date, err = calendar.ParseDate(s.now().UTC().Format(time.DateOnly))
+		out.date = today
 	} else {
 		out.date, err = calendar.ParseDate(values.Get("date"))
 	}
-	if err != nil || out.date.String() > s.now().UTC().Format(time.DateOnly) {
+	if err != nil || out.date.String() > today.String() {
 		return rateRequest{}, contract.ErrInvalidRequest
 	}
 	if out.provider != "" {
@@ -157,7 +157,22 @@ func (s *Server) listRates(w http.ResponseWriter, r *http.Request) {
 		s.problem(w, err)
 		return
 	}
-	request, err := s.parseRateRequest(r)
+	var zone calendar.Timezone
+	err = s.reads.WithinFinancialRead(r.Context(), access.Principal, func(ctx context.Context) error {
+		var readErr error
+		zone, readErr = s.reads.AccountTimezone(ctx, access.Principal)
+		return readErr
+	})
+	if err != nil {
+		s.problem(w, err)
+		return
+	}
+	today, err := householdToday(s.now(), zone)
+	if err != nil {
+		s.problem(w, err)
+		return
+	}
+	request, err := s.parseRateRequest(r, today)
 	if err != nil {
 		s.problem(w, err)
 		return

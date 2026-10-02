@@ -47,7 +47,11 @@ func (s Service) Reference(ctx context.Context, base, quote money.Asset, date ca
 	if base == quote || date.String() == "" || s.Repository == nil || s.Sources == nil || s.Now == nil {
 		return Reference{}, money.ErrInvalidRate
 	}
-	if dateTime(date).After(s.Now().UTC().Truncate(24 * time.Hour)) {
+	latest := s.Now().UTC().Truncate(24 * time.Hour)
+	if current {
+		latest = latest.Add(24 * time.Hour)
+	}
+	if dateTime(date).After(latest) {
 		return Reference{}, calendar.ErrInvalidTime
 	}
 	observations := make([]valuation.Observation, 0, 2)

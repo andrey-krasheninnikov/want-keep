@@ -76,17 +76,19 @@ func (s *Server) report(w http.ResponseWriter, r *http.Request) {
 	var totals []account.AssetTotal
 	var components []component
 	var timezone calendar.Timezone
+	var currentDate calendar.Date
 	err = s.reads.WithinFinancialRead(r.Context(), access.Principal, func(ctx context.Context) error {
 		var readErr error
 		timezone, readErr = s.reads.AccountTimezone(ctx, access.Principal)
 		if readErr != nil {
 			return readErr
 		}
-		future, dateErr := reportEndIsFuture(now, timezone, to)
+		var dateErr error
+		currentDate, dateErr = householdToday(now, timezone)
 		if dateErr != nil {
 			return dateErr
 		}
-		if future {
+		if to.String() > currentDate.String() {
 			return contract.ErrInvalidRequest
 		}
 		totals, readErr = s.accounts.NativeTotals(ctx, access.Principal)
@@ -133,7 +135,6 @@ func (s *Server) report(w http.ResponseWriter, r *http.Request) {
 	out := generated.Report{Context: contextDTO, Amounts: []generated.ExplainableAmount{}}
 	reasons := []string{}
 	stale := false
-	currentDate, _ := calendar.ParseDate(now.Format(time.DateOnly))
 	currentTotals := map[string]*currentTotal{}
 	for _, total := range totals {
 		for _, entry := range []struct {
@@ -225,16 +226,12 @@ func (s *Server) report(w http.ResponseWriter, r *http.Request) {
 	s.write(w, http.StatusOK, out)
 }
 
-func reportEndIsFuture(now time.Time, zone calendar.Timezone, end calendar.Date) (bool, error) {
+func householdToday(now time.Time, zone calendar.Timezone) (calendar.Date, error) {
 	instant, err := calendar.ParseInstant(now.UTC().Format(time.RFC3339Nano))
 	if err != nil {
-		return false, err
+		return calendar.Date{}, err
 	}
-	today, err := instant.DateIn(zone)
-	if err != nil {
-		return false, err
-	}
-	return end.String() > today.String(), nil
+	return instant.DateIn(zone)
 }
 
 func (s *Server) currentTotalAmount(name string, total currentTotal) (generated.ExplainableAmount, error) {

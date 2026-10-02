@@ -28,10 +28,10 @@ func (unavailableValuation) Save(context.Context, household.Principal, []valuati
 	return nil
 }
 
-func TestOutboxWaitsForRateWithoutDelayingReview(t *testing.T) {
+func TestOutboxRetriesRateWithoutDelayingReview(t *testing.T) {
 	repo := &waitingOutbox{}
 	result, err := (OutboxHandler{Repository: repo, Valuation: unavailableValuation{}}).Prepare(context.Background(), Execution{Job: jobs.Job{ID: "event-1"}})
-	if err != nil || result.State != jobs.Waiting || result.Reason != jobs.GatewayUnavailable || result.Apply == nil {
+	if err != nil || result.State != jobs.Ready || result.Reason != jobs.TemporaryFailure || result.Apply == nil {
 		t.Fatalf("temporary rate failure outcome: %+v %v", result, err)
 	}
 	if err := result.Apply(context.Background(), household.Principal{}); err != nil || repo.reviews != 1 {

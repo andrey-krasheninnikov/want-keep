@@ -60,15 +60,15 @@ func TestCurrentTotalDistinguishesKnownPartialFromUnknown(t *testing.T) {
 func TestReportEndUsesHouseholdDate(t *testing.T) {
 	zone, _ := calendar.ParseTimezone("Europe/Moscow")
 	now := time.Date(2026, 10, 1, 22, 0, 0, 0, time.UTC)
-	today, _ := calendar.ParseDate("2026-10-02")
-	future, err := reportEndIsFuture(now, zone, today)
-	if err != nil || future {
-		t.Fatalf("local current date rejected: %v %v", future, err)
+	today, err := householdToday(now, zone)
+	if err != nil || today.String() != "2026-10-02" {
+		t.Fatalf("wrong local current date: %s %v", today, err)
 	}
-	tomorrow, _ := calendar.ParseDate("2026-10-03")
-	future, err = reportEndIsFuture(now, zone, tomorrow)
-	if err != nil || !future {
-		t.Fatalf("future local date accepted: %v %v", future, err)
+	server := &Server{now: func() time.Time { return now }}
+	request := httptest.NewRequest(http.MethodGet, "http://localhost:8080/api/v1/rates?base=BTC&quote=USD", nil)
+	parsed, err := server.parseRateRequest(request, today)
+	if err != nil || parsed.date != today || !parsed.current {
+		t.Fatalf("current rate date: %+v %v", parsed, err)
 	}
 }
 
@@ -124,7 +124,7 @@ func (quoteRead) WithinFinancialRead(ctx context.Context, _ household.Principal,
 	return run(ctx)
 }
 func (quoteRead) AccountTimezone(context.Context, household.Principal) (calendar.Timezone, error) {
-	panic("unused")
+	return calendar.ParseTimezone("UTC")
 }
 func (quoteRead) ValuationSnapshot(context.Context, household.Principal, string, uint64, int, money.Asset) (valuation.Snapshot, bool, error) {
 	panic("unused")

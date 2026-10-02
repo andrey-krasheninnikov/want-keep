@@ -126,3 +126,16 @@ func TestCrosscheckIgnoresDecimalScale(t *testing.T) {
 		t.Fatal("equal prices with different scales marked inconsistent")
 	}
 }
+
+func TestCurrentReferenceAllowsNextLocalCalendarDay(t *testing.T) {
+	today, _ := calendar.ParseDate("2026-10-02")
+	utcDay := rateObservation(t, money.BTC, "60000", "2026-10-01", "demo_simple_price")
+	service := Service{Repository: &memoryRates{}, Sources: fixedSources{coin: []valuation.Observation{utcDay}}, Now: func() time.Time { return time.Date(2026, 10, 1, 22, 0, 0, 0, time.UTC) }}
+	current, err := service.Reference(context.Background(), money.BTC, money.USD, today, true)
+	if err != nil || current.Reason != "" || current.Rate.Value() != "60000" {
+		t.Fatalf("local current reference: %+v %v", current, err)
+	}
+	if _, err := service.Reference(context.Background(), money.BTC, money.USD, today, false); err != calendar.ErrInvalidTime {
+		t.Fatalf("future historical reference accepted: %v", err)
+	}
+}
