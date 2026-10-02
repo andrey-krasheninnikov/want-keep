@@ -133,9 +133,13 @@ test-storage-race:
 
 test-contract:
 	@if [ -z "$(PROVIDER)" ]; then echo "PROVIDER=<name> is required." >&2; exit 2; fi
+ifeq ($(PROVIDER),rates)
+	cd backend && $(GO) test -count=1 ./internal/integrations/rates/... ./internal/valuation/...
+else
 	@if [ ! -d "collector/contracts/$(PROVIDER)" ]; then echo "Provider contract suite '$(PROVIDER)' is not implemented." >&2; exit 2; fi
 	@if ! find "collector/contracts/$(PROVIDER)" -type f -name '*.test.ts' -print -quit | grep -q .; then echo "Provider contract suite '$(PROVIDER)' has no tests." >&2; exit 2; fi
 	$(NPM) --prefix collector run test -- "contracts/$(PROVIDER)"
+endif
 
 e2e:
 ifeq ($(SCENARIO),all)

@@ -10,7 +10,7 @@ Build-owned runtime-конфигурация задаёт полный D-43 bind
 
 Go Unix-socket client реализует существующий `contract.RawGateway`. Worker строит его только из сохранённого sync job и действующего admission, временно получает `browser_session` через `credentials.Vault` и очищает копию после job. Маркер `external_started` устанавливается непосредственно перед `/v1/read`; capability check его не устанавливает. Подтверждённые `collector_busy`, `collector_session_invalid` и `collector_preflight_rejected` означают отказ до provider IO: маркер снимается под действующим lease; job соответственно ожидает collector, повторного входа владельца или завершается ошибкой запроса. HTTP 429 создаёт типизированный `rate_limited` с ограниченным сроком повтора. Некорректные байты тела 401/403 не маскируют запрос входа. Потеря связи после начала IO даёт `unresolved` без автоматического provider replay. Page и failure проходят существующие admission, connection generation, lease и cursor fences. Устаревший результат сохраняется только в quarantine.
 
-Raw evidence шифруется существующим connection keyring до PostgreSQL. AAD связывает ciphertext с household, job, page и evidence reference. Миграция 020 хранит batch metadata и неизменяемые evidence items; provider evidence ID остаётся зашифрованным. Batch может перейти только из `staged` в один terminal disposition; приложение имеет минимальные права и не читает plaintext. Staged recovery после рестарта использует существующую terminal receipt и не повторяет browser IO или финансовый эффект.
+Raw evidence шифруется существующим connection keyring до PostgreSQL. AAD связывает ciphertext с household, job, page и evidence reference. Миграция 021 хранит batch metadata и неизменяемые evidence items; provider evidence ID остаётся зашифрованным. Batch может перейти только из `staged` в один terminal disposition; приложение имеет минимальные права и не читает plaintext. Staged recovery после рестарта использует существующую terminal receipt и не повторяет browser IO или финансовый эффект.
 
 ## Матрица проверок
 
@@ -28,3 +28,5 @@ Raw evidence шифруется существующим connection keyring до
 | AC-060/068 | Общая безопасная collector-инфраструктура и ограниченный synthetic egress | Полные live-source и эксплуатационные сценарии |
 
 SDD остаётся **Ready for development**. Для реального кабинета с JavaScript страницы нужен отдельно проверенный сценарий. Личные Chrome/Arc-профили, production egress и provider deployment этой задачей не подтверждены.
+
+После слияния task-6.1 её миграция `020_rates_valuation.sql` сохранена; неприменённая collector-миграция перенумерована в `021_collector_evidence.sql` без изменения SQL. Production-схема не изменялась.

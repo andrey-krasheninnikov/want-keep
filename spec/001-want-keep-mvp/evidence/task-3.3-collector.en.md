@@ -10,7 +10,7 @@ Build-owned runtime configuration defines the complete D-43 binding, `admissionR
 
 The Go Unix-socket client implements the existing `contract.RawGateway`. The worker constructs it only from a stored sync job and current admission, temporarily borrows `browser_session` through `credentials.Vault` and clears its copy after the job. The `external_started` marker is set immediately before `/v1/read`; a capability check does not set it. Confirmed `collector_busy`, `collector_session_invalid` and `collector_preflight_rejected` responses prove rejection before provider IO: the marker is cleared under the current lease, leaving the job waiting for the collector, owner sign-in or a failed request, respectively. HTTP 429 becomes a typed `rate_limited` outcome with bounded retry. Invalid 401/403 body bytes do not mask a sign-in request. A lost connection after provider IO starts produces `unresolved` without automatic provider replay. Pages and failures pass the existing admission, connection-generation, lease and cursor fences. A stale result is retained only in quarantine.
 
-Raw evidence is encrypted through the existing connection keyring before PostgreSQL storage. AAD binds ciphertext to household, job, page and evidence reference. Migration 020 stores batch metadata and immutable evidence items; provider evidence IDs stay encrypted. A batch can move only from `staged` to one terminal disposition; the application has minimal grants and cannot read plaintext. Staged recovery after restart uses the existing terminal receipt without repeating browser IO or a financial effect.
+Raw evidence is encrypted through the existing connection keyring before PostgreSQL storage. AAD binds ciphertext to household, job, page and evidence reference. Migration 021 stores batch metadata and immutable evidence items; provider evidence IDs stay encrypted. A batch can move only from `staged` to one terminal disposition; the application has minimal grants and cannot read plaintext. Staged recovery after restart uses the existing terminal receipt without repeating browser IO or a financial effect.
 
 ## Verification matrix
 
@@ -28,3 +28,5 @@ Tests cover safe GET and statement POST, separate session cookies, MFA/CAPTCHA, 
 | AC-060/068 | Shared safe collector infrastructure and bounded synthetic egress | Complete live-source and operational scenarios |
 
 The SDD remains **Ready for development**. Live portals needing page JavaScript require a separate vetted workflow. Personal Chrome/Arc profiles, production egress and provider deployment are not proven by this task.
+
+After merging task-6.1, its `020_rates_valuation.sql` is retained; the unapplied collector migration is renamed to `021_collector_evidence.sql` without SQL changes. No production schema was changed.

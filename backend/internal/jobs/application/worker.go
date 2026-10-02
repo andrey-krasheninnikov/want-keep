@@ -76,6 +76,9 @@ func (w Worker) Step(ctx context.Context) (err error) {
 	if err := w.Repository.ResumeWaiting(ctx, w.Config.Kind, jobs.HandlerUnavailable); err != nil {
 		return err
 	}
+	if err := w.Repository.ResumeWaiting(ctx, w.Config.Kind, jobs.GatewayUnavailable); err != nil {
+		return err
+	}
 	claimed, err := w.Repository.ClaimJobs(ctx, string(w.Config.Kind), 1, w.Config.Lease)
 	if err != nil || len(claimed) == 0 {
 		return err

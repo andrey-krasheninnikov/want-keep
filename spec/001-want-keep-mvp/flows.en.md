@@ -207,3 +207,20 @@ sequenceDiagram
 ```
 
 The collector receives no actor, household permission, arbitrary route or browser script. Task-4.x adds user portal sign-in and provider-specific workflows. Task-8.x proves production egress and runtime admission.
+
+## Task-6.1: rates and valuation
+
+```mermaid
+flowchart LR
+  A[CBR XML] --> R[Immutable observations]
+  B[Frankfurter filtered to CBR] --> R
+  C[CoinGecko Demo] --> R
+  R --> X[Exact USD cross-rate]
+  X --> H[Transaction-date component snapshot]
+  X --> T[Current holding equivalent]
+  H --> V[Report: actual]
+  T --> V
+  T --> F[Separate reference revaluation]
+```
+
+Missing legs retain the native amount and an incomplete-data reason. A new rate creates an observation revision without rewriting a historical snapshot. Executable provider quotes have a separate path and are never inferred from a reference cross-rate.

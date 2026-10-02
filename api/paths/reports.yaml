@@ -125,6 +125,7 @@
     tags:
     - reports
     summary: reports valuation
+    description: Household valuation includes per-asset current owned, available and debt equivalents, household totals, pinned transaction-date components and separate reference revaluation. An unknown input makes its total unknown; source disagreement is reported in coverage even when a numeric value is known.
     parameters:
     - name: view
       in: query
@@ -133,12 +134,6 @@
         type: string
         enum:
         - household
-        - member
-    - name: memberId
-      in: query
-      required: false
-      schema:
-        "$ref": "../schemas/money.yaml#/ID"
     - name: asset
       in: query
       required: true
@@ -487,16 +482,14 @@
     summary: rates list
     description: Reference observations preserve all source legs. Platform quotes require provider and applicable base amount with known fees/spread; otherwise quote_unavailable. Crypto history older than 365 days is valuation_unavailable; cached observations remain explicitly stale.
     parameters:
-    - "$ref": "../components.yaml#/parameters/Cursor"
-    - "$ref": "../components.yaml#/parameters/Limit"
     - name: base
       in: query
-      required: false
+      required: true
       schema:
         "$ref": "../schemas/money.yaml#/Asset"
     - name: quote
       in: query
-      required: false
+      required: true
       schema:
         "$ref": "../schemas/money.yaml#/Asset"
     - name: date
@@ -512,6 +505,14 @@
       in: query
       schema:
         "$ref": "../schemas/money.yaml#/PositiveDecimal"
+    - name: direction
+      in: query
+      description: Required with provider and amount. sell_base means selling base for quote; buy_base means buying base with quote.
+      schema:
+        type: string
+        enum:
+        - sell_base
+        - buy_base
     responses:
       '200':
         description: Success

@@ -13,7 +13,7 @@
 
 ### Изменение и контракты
 
-Playwright runtime работает отдельным Node.js-процессом и слушает только Unix socket с правами 0600. Вход ограничен ready/capabilities/read, одним job, лимитами размера/времени и server-issued SyncRequest. Build-owned конфигурация задаёт exact D-43 binding, admissionRevision, manifest, origin и allowlist entry/read/request_statement; job не может передать URL, selector, JavaScript или route rule. Каждый job использует новый непостоянный BrowserContext с отключённым JavaScript; разрешённое чтение выполняется вне страницы с cookies для точного адреса. Popup, download, WebSocket, service worker, redirect, неизвестные routes/payload и мутации блокируются. MFA/CAPTCHA/reauth возвращаются типизированно. Worker временно получает browser_session через encrypted vault, фиксирует external_started непосредственно перед browser IO и не повторяет неизвестный outcome. Result проходит прежние admission/generation/lease/cursor fences; stale result попадает только в quarantine. Raw evidence, включая provider evidence ID, шифруется connection keyring с household/job/page/item AAD и хранится миграцией 020 как неизменяемые items с однонаправленным disposition. Реальные provider workflows и production admission остаются task-4.x/task-8.x.
+Playwright runtime работает отдельным Node.js-процессом и слушает только Unix socket с правами 0600. Вход ограничен ready/capabilities/read, одним job, лимитами размера/времени и server-issued SyncRequest. Build-owned конфигурация задаёт exact D-43 binding, admissionRevision, manifest, origin и allowlist entry/read/request_statement; job не может передать URL, selector, JavaScript или route rule. Каждый job использует новый непостоянный BrowserContext с отключённым JavaScript; разрешённое чтение выполняется вне страницы с cookies для точного адреса. Popup, download, WebSocket, service worker, redirect, неизвестные routes/payload и мутации блокируются. MFA/CAPTCHA/reauth возвращаются типизированно. Worker временно получает browser_session через encrypted vault, фиксирует external_started непосредственно перед browser IO и не повторяет неизвестный outcome. Result проходит прежние admission/generation/lease/cursor fences; stale result попадает только в quarantine. Raw evidence, включая provider evidence ID, шифруется connection keyring с household/job/page/item AAD и хранится миграцией 021 как неизменяемые items с однонаправленным disposition. Реальные provider workflows и production admission остаются task-4.x/task-8.x.
 
 ### Границы изменений
 
@@ -24,7 +24,7 @@ Playwright runtime работает отдельным Node.js-процессо�
 - `backend/internal/jobs/`
 - `backend/internal/storage/collector_evidence.go`
 - `backend/cmd/worker/`
-- `backend/migrations/020_collector_evidence.sql`
+- `backend/migrations/021_collector_evidence.sql`
 - `backend/test/integration/collector/`
 - `.github/workflows/ci.yml`
 
@@ -155,7 +155,7 @@ Read portals through authorized workflows and return normalizable data to Go.
 
 ### Change and contracts
 
-The Playwright runtime is a separate Node.js process listening only on a mode-0600 Unix socket. Input is limited to ready/capabilities/read, one job, size/time limits and a server-issued SyncRequest. Build-owned configuration defines the exact D-43 binding, admissionRevision, manifest, origin and entry/read/request_statement allowlist; a job cannot supply a URL, selector, JavaScript or route rule. Every job uses a new non-persistent BrowserContext with JavaScript disabled; the approved read runs outside the page with cookies for the exact target. Popups, downloads, WebSockets, service workers, redirects, unknown routes/payloads and mutations are blocked. MFA/CAPTCHA/reauthentication return typed outcomes. The worker temporarily borrows browser_session through the encrypted vault, records external_started immediately before browser IO and never replays an unknown outcome. Results retain the existing admission/generation/lease/cursor fences and stale results enter quarantine only. Raw evidence, including provider evidence IDs, is encrypted through the connection keyring with household/job/page/item AAD and migration 020 stores immutable items with one-way disposition. Live provider workflows and production admission remain task-4.x/task-8.x.
+The Playwright runtime is a separate Node.js process listening only on a mode-0600 Unix socket. Input is limited to ready/capabilities/read, one job, size/time limits and a server-issued SyncRequest. Build-owned configuration defines the exact D-43 binding, admissionRevision, manifest, origin and entry/read/request_statement allowlist; a job cannot supply a URL, selector, JavaScript or route rule. Every job uses a new non-persistent BrowserContext with JavaScript disabled; the approved read runs outside the page with cookies for the exact target. Popups, downloads, WebSockets, service workers, redirects, unknown routes/payloads and mutations are blocked. MFA/CAPTCHA/reauthentication return typed outcomes. The worker temporarily borrows browser_session through the encrypted vault, records external_started immediately before browser IO and never replays an unknown outcome. Results retain the existing admission/generation/lease/cursor fences and stale results enter quarantine only. Raw evidence, including provider evidence IDs, is encrypted through the connection keyring with household/job/page/item AAD and migration 021 stores immutable items with one-way disposition. Live provider workflows and production admission remain task-4.x/task-8.x.
 
 ### Change boundaries
 
@@ -166,7 +166,7 @@ The Playwright runtime is a separate Node.js process listening only on a mode-06
 - `backend/internal/jobs/`
 - `backend/internal/storage/collector_evidence.go`
 - `backend/cmd/worker/`
-- `backend/migrations/020_collector_evidence.sql`
+- `backend/migrations/021_collector_evidence.sql`
 - `backend/test/integration/collector/`
 - `.github/workflows/ci.yml`
 

@@ -434,6 +434,9 @@ ValuationLeg:
       type: string
       minLength: 1
       maxLength: 2000
+    attributionUrl:
+      type: string
+      format: uri
     transport:
       type: string
       minLength: 1
@@ -456,6 +459,7 @@ ValuationLeg:
   required:
     - providerAssetId
     - source
+    - attributionUrl
     - transport
     - requestedDate
     - effectiveAt
@@ -476,6 +480,11 @@ PlatformQuote:
         - platform_quote
     provider:
       $ref: ./money.yaml#/Provider
+    direction:
+      type: string
+      enum:
+        - sell_base
+        - buy_base
     base:
       $ref: ./money.yaml#/Asset
     quote:
@@ -499,12 +508,12 @@ PlatformQuote:
       type: string
       enum:
         - included
-        - excluded
     quality:
       $ref: ./quality.yaml#/DataQuality
   required:
     - method
     - provider
+    - direction
     - base
     - quote
     - applicableAmount
