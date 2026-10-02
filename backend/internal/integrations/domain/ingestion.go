@@ -19,12 +19,13 @@ import (
 )
 
 const (
-	ContractVersion      = "10"
-	MaxRecordsPerPage    = 1000
-	MaxEvidencePerPage   = 16
-	MaxEvidenceBytes     = 10 * 1024 * 1024
-	MaxTextLength        = 2000
-	MaxAdmissionRevision = int64(9007199254740991)
+	ContractVersion           = "10"
+	MaxRecordsPerPage         = 1000
+	MaxEvidencePerPage        = 16
+	MaxEvidenceBytes          = 10 * 1024 * 1024
+	MaxEncryptedEvidenceBytes = 20 * 1024 * 1024
+	MaxTextLength             = 2000
+	MaxAdmissionRevision      = int64(9007199254740991)
 )
 
 var (
@@ -211,6 +212,37 @@ func (e Evidence) Validate() error {
 type StoredEvidence struct {
 	Reference string
 	Raw       Evidence
+}
+
+type EncryptedEvidenceItem struct {
+	Reference  string
+	Ciphertext []byte
+}
+
+type EncryptedEvidenceBatch struct {
+	HouseholdID, JobID string
+	PageReference      string
+	FetchedAt          calendar.Instant
+	Items              []EncryptedEvidenceItem
+}
+
+func (b EncryptedEvidenceBatch) Validate() error {
+	if !validText(b.HouseholdID) || !validText(b.JobID) || !validText(b.PageReference) || b.FetchedAt.String() == "" || len(b.Items) < 1 || len(b.Items) > MaxEvidencePerPage {
+		return ErrEvidence
+	}
+	seenReferences := map[string]bool{}
+	total := 0
+	for _, item := range b.Items {
+		if !validText(item.Reference) || len(item.Ciphertext) < 1 || seenReferences[item.Reference] {
+			return ErrEvidence
+		}
+		total += len(item.Ciphertext)
+		if total > MaxEncryptedEvidenceBytes {
+			return ErrEvidence
+		}
+		seenReferences[item.Reference] = true
+	}
+	return nil
 }
 
 type EvidenceDispositionState string

@@ -7,6 +7,7 @@ export {
   capabilitySupports,
   ContractError,
   parseCapabilityManifest,
+  parseDeploymentBinding,
   parseSyncRequest,
   parseSyncResult,
   parseSyncResultJSON,

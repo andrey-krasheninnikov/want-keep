@@ -1,5 +1,5 @@
 <!-- want-keep-task: task-9.2 -->
-# task-9.2 — Провести итоговый Avida review и передать MVP / Run final Avida review and hand off the MVP
+# task-9.2 — Провести итоговую независимую проверку и передать MVP / Run final independent review and hand off the MVP
 
 ## RU
 
@@ -13,7 +13,7 @@
 
 ### Изменение и контракты
 
-Вызвать $code-review-avida read-only на полном зафиксированном кандидате с независимыми ролями и fact-check. В рамках SDD исправить подтверждённые in-scope findings, повторить затронутые проверки и финальный review по ограниченному бюджету раундов skill. Сопоставить REQ/AC/task/evidence и фактическую готовность; коммиты, push и deployment выполнять только при отдельной действующей авторизации.
+Провести независимую read-only проверку полного зафиксированного кандидата по нескольким ролям с перепроверкой фактов. В рамках SDD исправить подтверждённые замечания, повторить затронутые проверки и финальную проверку по ограниченному бюджету раундов. Сопоставить REQ/AC/task/evidence и фактическую готовность; коммиты, push и deployment выполнять только при отдельной действующей авторизации.
 
 ### Границы изменений
 
@@ -215,7 +215,7 @@ Resolve confirmed defects and hand off a verifiable result.
 
 ### Change and contracts
 
-Invoke $code-review-avida read-only on the complete frozen candidate with independent roles and fact-checking. Under SDD ownership fix confirmed in-scope findings, rerun affected checks and final review within the skill's bounded round policy. Reconcile REQ/AC/task/evidence and actual readiness; commits, push and deployment require separate current authorization.
+Run an independent read-only review of the complete frozen candidate across multiple roles with fact-checking. Under SDD ownership fix confirmed findings, rerun affected checks and the final review within the bounded round policy. Reconcile REQ/AC/task/evidence and actual readiness; commits, push and deployment require separate current authorization.
 
 ### Change boundaries
 

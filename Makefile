@@ -100,7 +100,9 @@ test-web:
 	fi
 
 test-collector:
-	@if [ "$(FILTER)" = "all" ]; then \
+	@if [ "$(FILTER)" = "security" ]; then \
+		$(NPM) --prefix collector run test:security; \
+	elif [ "$(FILTER)" = "all" ]; then \
 		$(NPM) --prefix collector run test; \
 	else \
 		$(NPM) --prefix collector run test -- "$(FILTER)"; \

@@ -18,6 +18,7 @@ type ExecutionRepository interface {
 	JobReceipt(context.Context, household.Principal, jobs.Job) (bool, error)
 	RecordJobReceipt(context.Context, household.Principal, jobs.Job) error
 	BeginExternal(context.Context, household.Principal, jobs.Job) error
+	AcknowledgeExternalResult(context.Context, household.Principal, jobs.Job) error
 	SetJobOutcome(context.Context, household.Principal, jobs.Job, jobs.State, jobs.Reason, time.Duration) error
 	PauseReady(context.Context, jobs.Kind, jobs.Reason) error
 	ResumeWaiting(context.Context, jobs.Kind, jobs.Reason) error
@@ -35,11 +36,32 @@ func (e Execution) BeginExternal(ctx context.Context) error {
 	return e.repository.BeginExternal(ctx, e.Principal, e.Job)
 }
 
+// Refresh reads committed progress without taking a new lease or attempt.
+func (e Execution) Refresh(ctx context.Context) (Execution, error) {
+	err := e.repository.WithinHousehold(ctx, e.Principal, func(ctx context.Context) error {
+		current, err := e.repository.FenceJob(ctx, e.Principal, e.Job)
+		if err == nil {
+			e.Job = current
+		}
+		return err
+	})
+	return e, err
+}
+
+func (e Execution) RejectBeforeProviderIO(ctx context.Context) error {
+	return e.repository.WithinHousehold(ctx, e.Principal, func(ctx context.Context) error {
+		return e.repository.AcknowledgeExternalResult(ctx, e.Principal, e.Job)
+	})
+}
+
 type Result struct {
 	State        jobs.State
 	Reason       jobs.Reason
 	MinimumDelay time.Duration
 	Apply        Effect
+	// Committed is reserved for sync handlers whose admission gate atomically
+	// persists the provider result and job transition.
+	Committed bool
 }
 type Handler interface {
 	Prepare(context.Context, Execution) (Result, error)

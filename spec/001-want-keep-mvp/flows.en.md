@@ -194,6 +194,41 @@ sequenceDiagram
 
 A page is self-contained: every supported account used by a balance or posting has an account descriptor on that page. A later page repeats the descriptor and prior cursor; replay creates no account/opening/financial effect. `nextCursor` is either absent or non-empty. A provider failure also echoes the issued cursor; the sync-result boundary rejects a delayed outcome from an earlier page, while the shared lease identity keeps heartbeat valid after checkpoint advancement. Failure on page two never advances its cursor, while the confirmed first page stays committed with partial coverage. The cumulative gap set after merging the checkpoint is capped at 100 values; overflow rolls the page back. An ambiguous account or source cannot turn the page into a complete success and does not discard independent supported records. A confirmed `RUR → RUB` provider mapping preserves the raw code in evidence/metadata and uses RUB in the financial domain. A replay with a new evidence ID/locator, equivalent empty optional fields and the same normalized payload/raw digest creates no source revision. Evidence uses canonical base64 without CR/LF. Only the atomic receipt proves an unknown commit outcome; without it evidence remains staged. The restart reconciler finalizes disposition only from a stored terminal receipt and never replays the financial effect.
 
+## Task-3.3: browser job
+
+```mermaid
+sequenceDiagram
+  participant W as Go worker
+  participant V as Credentials vault
+  participant C as Collector over Unix socket
+  participant P as Synthetic/provider portal
+  participant E as Encrypted evidence
+  participant G as Admission commit fence
+  W->>W: Validate stored job binding/revision/generation/lease
+  W->>V: Borrow browser_session
+  V-->>W: Plaintext only in job memory
+  W->>C: Capabilities(exact binding/revision)
+  W->>W: Persist external_started
+  W->>C: Read(server-issued request, ephemeral storageState)
+  C->>C: New BrowserContext + build-owned allowlist
+  C->>P: Exact read or statement POST only
+  P-->>C: Typed page or reauth/MFA/CAPTCHA
+  C-->>W: Exact SyncResult without session
+  W->>E: Encrypt raw evidence with household/job/page/item AAD
+  W->>G: CommitPage or CommitFailure
+  alt binding/revision/generation/lease is current
+    G-->>W: Receipt and terminal disposition
+  else result is stale
+    G-->>W: Quarantine without checkpoint or financial effect
+  else connection is lost after external_started
+    W-->>W: unresolved without automatic provider replay
+  end
+  W->>V: Clear borrowed session
+  C->>C: Close BrowserContext
+```
+
+The collector receives no actor, household permission, arbitrary route or browser script. Task-4.x adds user portal sign-in and provider-specific workflows. Task-8.x proves production egress and runtime admission.
+
 ## Task-6.1: rates and valuation
 
 ```mermaid

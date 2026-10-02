@@ -194,6 +194,41 @@ sequenceDiagram
 
 Страница самостоятельна: каждый поддерживаемый счёт, используемый balance или posting, имеет account descriptor в той же странице. Следующая страница повторяет descriptor и исходный cursor; повтор не создаёт account/opening/financial effect. `nextCursor` либо отсутствует, либо непустой. Provider failure также повторяет issued cursor; sync-result boundary отклоняет запоздалый outcome прежней страницы, а общая lease identity продолжает heartbeat после продвижения checkpoint. Ошибка второй страницы не продвигает её cursor, а уже подтверждённая первая страница остаётся зафиксированной с partial coverage. Совокупный набор gaps после объединения с checkpoint ограничен 100 значениями; переполнение откатывает страницу. Неоднозначный счёт или source не превращает страницу в полный успех и не отменяет независимые поддержанные записи. Подтверждённый provider mapping `RUR → RUB` сохраняет raw code в evidence/metadata и использует RUB в финансовом домене. Повтор с новым evidence ID/locator, эквивалентными пустыми optional-полями и тем же нормализованным payload/raw digest не создаёт source revision. Evidence использует канонический base64 без CR/LF. Неизвестный результат commit подтверждается только атомарной receipt; без неё evidence остаётся staged. Restart reconciler завершает disposition только по сохранённой terminal receipt и не повторяет финансовый эффект.
 
+## Task-3.3: browser job
+
+```mermaid
+sequenceDiagram
+  participant W as Go worker
+  participant V as Credentials vault
+  participant C as Collector via Unix socket
+  participant P as Synthetic/provider portal
+  participant E as Encrypted evidence
+  participant G as Admission commit fence
+  W->>W: Проверить stored job binding/revision/generation/lease
+  W->>V: Borrow browser_session
+  V-->>W: Plaintext только в памяти job
+  W->>C: Capabilities(exact binding/revision)
+  W->>W: Сохранить external_started
+  W->>C: Read(server-issued request, ephemeral storageState)
+  C->>C: Новый BrowserContext + build-owned allowlist
+  C->>P: Только exact read или statement POST
+  P-->>C: Typed page либо reauth/MFA/CAPTCHA
+  C-->>W: Exact SyncResult без session
+  W->>E: Зашифровать raw evidence с household/job/page/item AAD
+  W->>G: CommitPage или CommitFailure
+  alt binding/revision/generation/lease актуальны
+    G-->>W: Receipt и terminal disposition
+  else результат устарел
+    G-->>W: Quarantine без checkpoint и финансового эффекта
+  else связь потеряна после external_started
+    W-->>W: unresolved без автоматического provider replay
+  end
+  W->>V: Clear borrowed session
+  C->>C: Закрыть BrowserContext
+```
+
+Collector не получает actor, household permission, произвольный маршрут или browser script. Вход пользователя в кабинет и provider-specific workflow добавляются task-4.x. Production egress и runtime admission подтверждает task-8.x.
+
 ## Task-6.1: курс и оценка
 
 ```mermaid

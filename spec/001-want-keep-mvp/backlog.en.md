@@ -72,4 +72,4 @@ The specification passed task-0.10 and is ready for development. The decision-co
 | [task-8.2](tasks/task-8.2.md) | Pull encrypted backups to the MacBook | task-8.1, task-1.5 | [#64](https://github.com/pchkauu/want-keep/issues/64) |
 | [task-8.3](tasks/task-8.3.md) | Verify recovery from a local backup | task-8.2 | [#65](https://github.com/pchkauu/want-keep/issues/65) |
 | [task-9.1](tasks/task-9.1.md) | Run end-to-end acceptance of the full MVP | task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6, task-7.3, task-7.6, task-7.7, task-7.8, task-8.3, task-7.12 | [#66](https://github.com/pchkauu/want-keep/issues/66) |
-| [task-9.2](tasks/task-9.2.md) | Run final Avida review and hand off the MVP | task-9.1 | [#67](https://github.com/pchkauu/want-keep/issues/67) |
+| [task-9.2](tasks/task-9.2.md) | Run final independent review and hand off the MVP | task-9.1 | [#67](https://github.com/pchkauu/want-keep/issues/67) |

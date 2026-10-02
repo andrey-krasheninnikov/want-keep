@@ -5,7 +5,7 @@
 
 Читать кабинеты по разрешённым сценариям и передавать нормализуемые данные Go-приложению.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Реализованы изолированный Unix-socket collector, build-owned read allowlist, отдельный BrowserContext для job, typed provider challenges, worker/vault integration и зашифрованное durable evidence. Реальные кабинеты, пользовательские Chrome/Arc-профили, production egress и provider admission не проверены.
 
 **Зависимости:** `task-3.2`, `task-1.5`.
 
@@ -13,12 +13,20 @@
 
 ### Изменение и контракты
 
-Использовать Playwright TypeScript в отдельном процессе/контейнере с ограниченным egress и отдельными профилями источников. Реализовать контролируемый вход владельца, шифрование сохранённых сессий, разрешённые read-сценарии и подтверждённые маршруты. POST заказа выписки допустим только как проверенная операция получения данных. MFA/CAPTCHA требуют пользователя; платёжные/торговые действия отсутствуют, raw browser control не доступен AI. Collector принимает только server-issued job с immutable admission binding/revision и собственным route/action allowlist; stale/missing binding отклоняется до provider IO. Result возвращает ту же revision для обязательной application commit-time revalidation; revoke после начала read вызывает best-effort cancel, но безопасность обеспечивает quarantine stale result без source record/проводки. Pre-admission conformance также работает в quarantine.
+Playwright runtime работает отдельным Node.js-процессом и слушает только Unix socket с правами 0600. Вход ограничен ready/capabilities/read, одним job, лимитами размера/времени и server-issued SyncRequest. Build-owned конфигурация задаёт exact D-43 binding, admissionRevision, manifest, origin и allowlist entry/read/request_statement; job не может передать URL, selector, JavaScript или route rule. Каждый job использует новый непостоянный BrowserContext с отключённым JavaScript; разрешённое чтение выполняется вне страницы с cookies для точного адреса. Popup, download, WebSocket, service worker, redirect, неизвестные routes/payload и мутации блокируются. MFA/CAPTCHA/reauth возвращаются типизированно. Worker временно получает browser_session через encrypted vault, фиксирует external_started непосредственно перед browser IO и не повторяет неизвестный outcome. Result проходит прежние admission/generation/lease/cursor fences; stale result попадает только в quarantine. Raw evidence, включая provider evidence ID, шифруется connection keyring с household/job/page/item AAD и хранится миграцией 022 как неизменяемые items с однонаправленным disposition. Реальные provider workflows и production admission остаются task-4.x/task-8.x.
 
 ### Границы изменений
 
-- `collector/src/`
-- `backend/internal/connections/`
+- `collector/src/runtime/`
+- `collector/tests/security.browser.test.ts`
+- `backend/internal/connections/collector/`
+- `backend/internal/integrations/`
+- `backend/internal/jobs/`
+- `backend/internal/storage/collector_evidence.go`
+- `backend/cmd/worker/`
+- `backend/migrations/022_collector_evidence.sql`
+- `backend/test/integration/collector/`
+- `.github/workflows/ci.yml`
 
 Пути планируемые. Общие контракты — `spec/001-want-keep-mvp/contracts.md`, архитектура/команды — `constraints.md`. Менять владельца поведения и его тесты; незакрытый контракт останавливает зависимую работу.
 
@@ -125,9 +133,9 @@
 make test-collector FILTER=security && make test-integration AREA=collector
 ```
 
-Неавторизованные маршруты, платежи, доступ к чужому профилю и потеря сессии обработаны; безопасный read-fixture проходит. Revoke после начала read может завершить IO, но stale result не создаёт source record/проводку.
+Synthetic browser suite подтверждает безопасное чтение и statement POST, изоляцию сессий, typed MFA/CAPTCHA и блокировку payment/redirect/popup/download/WebSocket/service worker. PostgreSQL suite подтверждает ciphertext-only evidence, AAD, семейную изоляцию, рестарт, staged recovery и terminal disposition. Admission/generation/lease fences не допускают устаревший финансовый результат.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Доказательства и границы: evidence/task-3.3-collector.md. Обязательны make check, collector security/integration, полная integration matrix и затронутые ingestion/jobs/storage/privacy race suites. Browser-тесты используют только локальный синтетический портал.
 
 ### Передача следующему агенту
 
@@ -139,7 +147,7 @@ make test-collector FILTER=security && make test-integration AREA=collector
 
 Read portals through authorized workflows and return normalizable data to Go.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** The isolated Unix-socket collector, build-owned read allowlist, per-job BrowserContext, typed provider challenges, worker/vault integration and encrypted durable evidence are implemented. Live portals, user Chrome/Arc profiles, production egress and provider admission are not verified.
 
 **Dependencies:** `task-3.2`, `task-1.5`.
 
@@ -147,12 +155,20 @@ Read portals through authorized workflows and return normalizable data to Go.
 
 ### Change and contracts
 
-Use Playwright TypeScript in a separate process/container with restricted egress and per-source profiles. Implement controlled owner sign-in, encrypted persisted sessions, authorized read workflows and verified routes. Statement-request POST is allowed only as a verified data retrieval action. MFA/CAPTCHA requires the owner; payment/trading actions are absent and AI has no raw browser control. The collector accepts only a server-issued job with immutable admission binding/revision and its own route/action allowlist; a stale or missing binding is rejected before provider IO. The result returns the same revision for mandatory application commit-time revalidation; revocation after a read starts requests best-effort cancellation, while stale-result quarantine without a source record/posting provides the safety guarantee. Pre-admission conformance also runs in quarantine.
+The Playwright runtime is a separate Node.js process listening only on a mode-0600 Unix socket. Input is limited to ready/capabilities/read, one job, size/time limits and a server-issued SyncRequest. Build-owned configuration defines the exact D-43 binding, admissionRevision, manifest, origin and entry/read/request_statement allowlist; a job cannot supply a URL, selector, JavaScript or route rule. Every job uses a new non-persistent BrowserContext with JavaScript disabled; the approved read runs outside the page with cookies for the exact target. Popups, downloads, WebSockets, service workers, redirects, unknown routes/payloads and mutations are blocked. MFA/CAPTCHA/reauthentication return typed outcomes. The worker temporarily borrows browser_session through the encrypted vault, records external_started immediately before browser IO and never replays an unknown outcome. Results retain the existing admission/generation/lease/cursor fences and stale results enter quarantine only. Raw evidence, including provider evidence IDs, is encrypted through the connection keyring with household/job/page/item AAD and migration 022 stores immutable items with one-way disposition. Live provider workflows and production admission remain task-4.x/task-8.x.
 
 ### Change boundaries
 
-- `collector/src/`
-- `backend/internal/connections/`
+- `collector/src/runtime/`
+- `collector/tests/security.browser.test.ts`
+- `backend/internal/connections/collector/`
+- `backend/internal/integrations/`
+- `backend/internal/jobs/`
+- `backend/internal/storage/collector_evidence.go`
+- `backend/cmd/worker/`
+- `backend/migrations/022_collector_evidence.sql`
+- `backend/test/integration/collector/`
+- `.github/workflows/ci.yml`
 
 Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.md`; architecture/commands are in `constraints.en.md`. Change the behavior owner and its tests; an unresolved contract stops dependent work.
 
@@ -259,9 +275,9 @@ A link establishes coverage but does not prove the whole criterion; verification
 make test-collector FILTER=security && make test-integration AREA=collector
 ```
 
-Unauthorized routes, payments, cross-profile access and session loss are handled; a safe read fixture passes. Revocation after a read starts may complete IO, but a stale result creates no source record/posting.
+The synthetic browser suite proves safe reads and statement POSTs, session isolation, typed MFA/CAPTCHA and payment/redirect/popup/download/WebSocket/service-worker blocking. The PostgreSQL suite proves ciphertext-only evidence, AAD, household isolation, restart, staged recovery and terminal disposition. Admission/generation/lease fences prevent stale financial results.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Evidence and boundaries: evidence/task-3.3-collector.en.md. Require make check, collector security/integration, the full integration matrix and affected ingestion/jobs/storage/privacy race suites. Browser tests use only the local synthetic portal.
 
 ### Handoff to the next agent
 

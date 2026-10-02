@@ -67,7 +67,7 @@ export function parseSyncRequest(value: unknown): SyncRequest {
   text(object.leaseToken);
   uuid(object.connectionId);
   safeRevision(object.connectionGeneration);
-  binding(object.binding);
+  parseDeploymentBinding(object.binding);
   safeRevision(object.admissionRevision);
   optionalText(object.cursor);
   if (object.replayRange !== undefined) replayRange(object.replayRange);
@@ -285,7 +285,7 @@ function echoedToken(
   integer(object.attempt, 1, 100);
   text(object.leaseToken);
   safeRevision(object.connectionGeneration);
-  binding(object.binding);
+  parseDeploymentBinding(object.binding);
   safeRevision(object.admissionRevision);
   if (
     object.jobId !== expected.jobId ||
@@ -293,8 +293,9 @@ function echoedToken(
     object.leaseToken !== expected.leaseToken ||
     object.connectionGeneration !== expected.connectionGeneration ||
     object.admissionRevision !== expected.admissionRevision ||
-    bindingKey(object.binding as components["schemas"]["DeploymentBinding"]) !==
-      bindingKey(expected.binding)
+    deploymentBindingKey(
+      object.binding as components["schemas"]["DeploymentBinding"],
+    ) !== deploymentBindingKey(expected.binding)
   )
     fail();
 }
@@ -607,7 +608,9 @@ function coverage(value: unknown): void {
   if ((object.state === "complete") !== (gaps.length === 0)) fail();
 }
 
-function binding(value: unknown): void {
+export function parseDeploymentBinding(
+  value: unknown,
+): components["schemas"]["DeploymentBinding"] {
   const object = strictObject(value, [
     "provider",
     "environment",
@@ -647,9 +650,12 @@ function binding(value: unknown): void {
     "operatorPermissionRevision",
   ] as const)
     text(object[field], 128);
+  return object as components["schemas"]["DeploymentBinding"];
 }
 
-function bindingKey(value: components["schemas"]["DeploymentBinding"]): string {
+export function deploymentBindingKey(
+  value: components["schemas"]["DeploymentBinding"],
+): string {
   return JSON.stringify([
     value.provider,
     value.environment,

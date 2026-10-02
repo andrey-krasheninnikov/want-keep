@@ -142,6 +142,12 @@ func (w Worker) Step(ctx context.Context) (err error) {
 			result = Result{State: jobs.Waiting, Reason: jobs.GatewayUnavailable, MinimumDelay: jobs.DefaultRetryPolicy().Maximum}
 		}
 	}
+	if result.Committed {
+		if runErr != nil || result.State != "" || result.Reason != "" || result.MinimumDelay != 0 || result.Apply != nil || j.Kind != jobs.Sync {
+			return jobs.ErrInvalidJob
+		}
+		return nil
+	}
 	if result.MinimumDelay < 0 || result.MinimumDelay > jobs.DefaultRetryPolicy().Maximum || result.State != jobs.Ready && result.State != jobs.Waiting && result.MinimumDelay != 0 {
 		return jobs.ErrInvalidJob
 	}

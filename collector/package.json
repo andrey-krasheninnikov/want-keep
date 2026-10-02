@@ -10,7 +10,9 @@
     "build": "tsc -p tsconfig.build.json",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run",
+    "start": "node dist/server-main.js",
+    "test": "vitest run --exclude tests/security.browser.test.ts",
+    "test:security": "vitest run tests/security.browser.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
