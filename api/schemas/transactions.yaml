@@ -360,6 +360,9 @@ Transaction:
       "$ref": "./money.yaml#/ID"
     originalTransactionId:
       "$ref": "./money.yaml#/ID"
+    refunds:
+      type: array
+      items: { $ref: './refunds.yaml#/RefundAttribution' }
     sources:
       type: array
       items:
@@ -398,6 +401,7 @@ Transaction:
   - economicComponents
   - holds
   - receiptItems
+  - refunds
 TransactionCreate:
   type: object
   additionalProperties: false
@@ -549,8 +553,9 @@ TransactionLink:
       items: { $ref: './transactions.yaml#/DecisionRevision' }
     kind: { type: string, enum: [transfer, exchange, receipt_match, refund] }
     reason: { type: string, minLength: 1, maxLength: 2000 }
+    refund: { $ref: './refunds.yaml#/RefundLinkInput' }
   required: [expectedRevisions, kind, reason]
-  description: The route target is the initial primary. A linked group keeps its primary. All participants and current revisions are required. Refund linking is feature_unavailable. Native amounts are validated without correction.
+  description: The route target is the initial primary. A linked group keeps its primary. All participants and current revisions are required. Refund links require refund details and never add a second cash effect. Native amounts are validated without correction.
 UndoInput:
   type: object
   additionalProperties: false
@@ -695,33 +700,6 @@ AllocationItemOverride:
     itemId: { $ref: './money.yaml#/ID' }
     allocation: { $ref: './transactions.yaml#/ExpenseAllocation' }
   required: [itemId, allocation]
-RefundCreate:
-  type: object
-  additionalProperties: false
-  properties:
-    purchaseId:
-      "$ref": "./money.yaml#/ID"
-    purchaseExpectedRevision:
-      "$ref": "./money.yaml#/Revision"
-    accountId:
-      "$ref": "./money.yaml#/ID"
-    occurredAt:
-      "$ref": "./money.yaml#/Instant"
-    amount:
-      "$ref": "./money.yaml#/PositiveMoney"
-    itemIds:
-      type: array
-      items:
-        "$ref": "./money.yaml#/ID"
-  required:
-  - purchaseId
-  - purchaseExpectedRevision
-  - accountId
-  - occurredAt
-  - amount
-  - itemIds
-  description: Refund is bounded by unrefunded purchase value. Original month, audited
-    allocation and historical valuation are used.
 TransactionPage:
   type: object
   additionalProperties: false

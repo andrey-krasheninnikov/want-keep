@@ -11,7 +11,7 @@ func (r Revision) Correct(c Correction) (Revision, []Field, error) {
 	next := r.Clone()
 	fields := []Field{}
 	if c.Principal != nil {
-		if !slices.Contains([]Type{Income, Expense, Transfer, Exchange}, r.Type) {
+		if !slices.Contains([]Type{Income, Expense, Transfer, Exchange, Refund}, r.Type) {
 			return r, nil, ErrFeatureUnavailable
 		}
 		old := r.rolePostings(Principal)
@@ -37,7 +37,7 @@ func (r Revision) Correct(c Correction) (Revision, []Field, error) {
 		}
 	}
 	if c.Fees != nil {
-		if !slices.Contains([]Type{Income, Expense, Transfer, Exchange}, r.Type) {
+		if !slices.Contains([]Type{Income, Expense, Transfer, Exchange, Refund}, r.Type) {
 			return r, nil, ErrFeatureUnavailable
 		}
 		old := r.rolePostings(Fee)

@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
+	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/domain"
 	reporting "github.com/pchkauu/want-keep/backend/internal/reporting/domain"
@@ -40,6 +41,7 @@ type View struct {
 	Coverage    reporting.Coverage
 	SourceFacts []SourceFact
 	Review      *ReviewResult
+	Refunds     []expenses.Refund
 }
 type SourceFact struct {
 	SourceID string
@@ -56,10 +58,18 @@ type QueryRepository interface {
 	TransactionSources(context.Context, household.Principal, string, uint64) ([]SourceReference, error)
 	TransactionSourceFacts(context.Context, household.Principal, string, uint64) ([]SourceFact, error)
 	TransactionMatchingConflict(context.Context, household.Principal, string, uint64) (bool, error)
+	RefundsForOperation(context.Context, household.Principal, string) ([]expenses.Refund, error)
+	RefundsForOperationAt(context.Context, household.Principal, string, uint64, calendar.Instant) ([]expenses.Refund, error)
+	RefundsForOperations(context.Context, household.Principal, []string) (map[string][]expenses.Refund, error)
+	RefundsForRevisions(context.Context, household.Principal, []ledger.Revision) (map[uint64][]expenses.Refund, error)
+	RefundHistory(context.Context, household.Principal, string, uint64, int) ([]expenses.Refund, uint64, error)
 }
 type Queries struct{ repository QueryRepository }
 
 func NewQueries(r QueryRepository) *Queries { return &Queries{r} }
+func (q *Queries) RefundHistory(ctx context.Context, p household.Principal, id string, before uint64, limit int) ([]expenses.Refund, uint64, error) {
+	return q.repository.RefundHistory(ctx, p, id, before, limit)
+}
 func (q *Queries) Read(ctx context.Context, p household.Principal, id string) (View, error) {
 	r, exists, err := q.repository.CurrentLedgerRevision(ctx, p, id)
 	if err != nil {
@@ -82,8 +92,16 @@ func (q *Queries) List(ctx context.Context, p household.Principal, f Filter, c C
 		return nil, nil, err
 	}
 	out := make([]View, 0, len(revisions))
+	ids := make([]string, len(revisions))
+	for i := range revisions {
+		ids[i] = revisions[i].OperationID
+	}
+	refunds, err := q.repository.RefundsForOperations(ctx, p, ids)
+	if err != nil {
+		return nil, nil, err
+	}
 	for _, r := range revisions {
-		v, err := q.view(ctx, p, r)
+		v, err := q.viewWithRefunds(ctx, p, r, refunds[r.OperationID])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -92,6 +110,22 @@ func (q *Queries) List(ctx context.Context, p household.Principal, f Filter, c C
 	return out, next, nil
 }
 func (q *Queries) view(ctx context.Context, p household.Principal, r ledger.Revision) (View, error) {
+	refunds, err := q.repository.RefundsForOperation(ctx, p, r.OperationID)
+	if err != nil {
+		return View{}, err
+	}
+	return q.viewWithRefunds(ctx, p, r, refunds)
+}
+
+func (q *Queries) viewAt(ctx context.Context, p household.Principal, r ledger.Revision) (View, error) {
+	refunds, err := q.repository.RefundsForOperationAt(ctx, p, r.OperationID, r.Revision, r.RecordedAt)
+	if err != nil {
+		return View{}, err
+	}
+	return q.viewWithRefunds(ctx, p, r, refunds)
+}
+
+func (q *Queries) viewWithRefunds(ctx context.Context, p household.Principal, r ledger.Revision, refunds []expenses.Refund) (View, error) {
 	review, reviewed, err := q.repository.ReviewResult(ctx, p, r.OperationID, r.Revision)
 	if err != nil {
 		return View{}, err
@@ -122,6 +156,11 @@ func (q *Queries) view(ctx context.Context, p household.Principal, r ledger.Revi
 	if r.FeeKnowledge != ledger.KnownFees {
 		reasons = append(reasons, "fees_unknown")
 	}
+	for _, refund := range refunds {
+		if refund.State == expenses.Clarification {
+			reasons = append(reasons, "refund_clarification")
+		}
+	}
 	for _, posting := range r.Postings {
 		if posting.Funding == ledger.UnknownFunds {
 			reasons = append(reasons, "funding_split_unknown")
@@ -133,7 +172,7 @@ func (q *Queries) view(ctx context.Context, p household.Principal, r ledger.Revi
 		state = reporting.Partial
 	}
 	coverage, err := reporting.NewCoverage(state, reasons)
-	v := View{Revision: r, Sources: sources, Coverage: coverage, SourceFacts: facts}
+	v := View{Revision: r, Sources: sources, Coverage: coverage, SourceFacts: facts, Refunds: refunds}
 	if reviewed {
 		v.Review = &review
 	}

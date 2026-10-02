@@ -1213,7 +1213,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** transactions refund */
+    /**
+     * Record a confirmed purchase refund
+     * @description Creates one posted cash receipt and applies its analytical expense reduction to the purchase month. Historical valuation is frozen; unavailable valuation stays explicit.
+     */
     post: operations["transactions_refund"];
     delete?: never;
     options?: never;
@@ -1786,6 +1789,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/transactions/{transactionId}/refund-history": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read immutable refund-link revisions independently of ledger revisions
+     * @description Returns one linked refund's attribution revisions, including links created after its last ledger revision. The cursor is bound to session, household and refund transaction. A purchase's current detail identifies its linked refund transactions.
+     */
+    get: operations["transactions_refund_history"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/transactions/{transactionId}/revisions/{revision}": {
     parameters: {
       query?: never;
@@ -2213,6 +2236,10 @@ export interface components {
       /** @enum {string} */
       state: "active" | "archived";
     };
+    CategoryAmount: {
+      amount: components["schemas"]["Money"];
+      categoryId?: components["schemas"]["ID"];
+    };
     CategoryChange: {
       expectedRevision: components["schemas"]["Revision"];
       /** @description A replacement name supplied only with nameAction set. */
@@ -2541,6 +2568,8 @@ export interface components {
       | "member_limit_reached"
       | "reconciliation_not_ready"
       | "component_not_adjustable"
+      | "invalid_refund"
+      | "refund_exceeds_purchase"
       | "internal_error";
     ExcludeInput: {
       expectedRevision: components["schemas"]["Revision"];
@@ -2741,6 +2770,18 @@ export interface components {
       memberId: components["schemas"]["ID"];
       /** @enum {string} */
       state: "known";
+    };
+    KnownRefundValuation: {
+      amount: components["schemas"]["Money"];
+      basisRef: string;
+      categories: components["schemas"]["CategoryAmount"][];
+      members: components["schemas"]["MemberAmount"][];
+      /**
+       * @description Discriminator value
+       * @enum {string}
+       */
+      state: "known";
+      unallocated: components["schemas"]["Money"][];
     };
     /** @description Dimensionless annualized D-42 XIRR ratio, rounded HALF_EVEN to 12 places. The application verifies the root lies between -1+1e-12 and 1000000; provider APR is never substituted. */
     KnownReturn: {
@@ -3234,15 +3275,58 @@ export interface components {
     RecoveryInput: {
       recoveryCode: string;
     };
-    /** @description Refund is bounded by unrefunded purchase value. Original month, audited allocation and historical valuation are used. */
+    RefundAttribution: {
+      amount: components["schemas"]["Money"];
+      cashDate: components["schemas"]["Date"];
+      categories: components["schemas"]["CategoryAmount"][];
+      expenseMonth: components["schemas"]["Month"];
+      id: components["schemas"]["ID"];
+      members: components["schemas"]["MemberAmount"][];
+      purchaseId: components["schemas"]["ID"];
+      purchaseRevision: components["schemas"]["Revision"];
+      reason: string;
+      refundRevision: components["schemas"]["Revision"];
+      remaining: components["schemas"]["Money"];
+      returnedItems: components["schemas"]["RefundItemInput"][];
+      revision: components["schemas"]["Revision"];
+      /** @enum {string} */
+      state: "applied" | "clarification" | "inactive";
+      unallocated: components["schemas"]["Money"][];
+      valuation: components["schemas"]["RefundValuation"];
+    };
+    /** @description Creates one posted cash receipt and a versioned link to the purchase. The refund is bounded by the unrefunded purchase and item values. Original month, audited allocation and historical valuation are used. */
     RefundCreate: {
-      accountId: components["schemas"]["ID"];
       amount: components["schemas"]["PositiveMoney"];
-      itemIds: components["schemas"]["ID"][];
+      fees: components["schemas"]["FeeInput"][];
       occurredAt: components["schemas"]["Instant"];
       purchaseExpectedRevision: components["schemas"]["Revision"];
       purchaseId: components["schemas"]["ID"];
+      reason: string;
+      receivingAccountId: components["schemas"]["ID"];
+      returnedItems: components["schemas"]["RefundItemInput"][];
     };
+    RefundHistoryEntry: {
+      actorId: components["schemas"]["ID"];
+      recordedAt: components["schemas"]["Instant"];
+      refund: components["schemas"]["RefundAttribution"];
+    };
+    RefundHistoryPage: {
+      items: components["schemas"]["RefundHistoryEntry"][];
+      nextCursor?: string;
+    };
+    RefundItemInput: {
+      amount: components["schemas"]["PositiveMoney"];
+      itemId: components["schemas"]["ID"];
+    };
+    RefundLinkInput: {
+      /** Format: int64 */
+      expectedRevision: number;
+      purchaseId: components["schemas"]["ID"];
+      returnedItems: components["schemas"]["RefundItemInput"][];
+    };
+    RefundValuation:
+      | components["schemas"]["KnownRefundValuation"]
+      | components["schemas"]["UnavailableRefundValuation"];
     RegistrationCredential: {
       attestationObject: string;
       clientDataJSON: string;
@@ -3573,6 +3657,7 @@ export interface components {
       quality: components["schemas"]["DataQuality"];
       receiptId?: components["schemas"]["ID"];
       receiptItems: components["schemas"]["ReceiptItem"][];
+      refunds: components["schemas"]["RefundAttribution"][];
       review?: components["schemas"]["TransactionReview"];
       revision: components["schemas"]["Revision"];
       sourceConflict: boolean;
@@ -3677,12 +3762,13 @@ export interface components {
       amount: components["schemas"]["PositiveMoney"];
       funding: components["schemas"]["PostingFunding"];
     };
-    /** @description The route target is the initial primary. A linked group keeps its primary. All participants and current revisions are required. Refund linking is feature_unavailable. Native amounts are validated without correction. */
+    /** @description The route target is the initial primary. A linked group keeps its primary. All participants and current revisions are required. Refund links require refund details and never add a second cash effect. Native amounts are validated without correction. */
     TransactionLink: {
       expectedRevisions: components["schemas"]["DecisionRevision"][];
       /** @enum {string} */
       kind: "transfer" | "exchange" | "receipt_match" | "refund";
       reason: string;
+      refund?: components["schemas"]["RefundLinkInput"];
     };
     TransactionPage: {
       items: components["schemas"]["Transaction"][];
@@ -3726,6 +3812,15 @@ export interface components {
       /** @enum {string} */
       reason: "valuation_unavailable" | "quote_unavailable";
       requestedDate: components["schemas"]["Date"];
+    };
+    UnavailableRefundValuation: {
+      /** @enum {string} */
+      reason: "historical_basis_unavailable";
+      /**
+       * @description Discriminator value
+       * @enum {string}
+       */
+      state: "unavailable";
     };
     UnavailableReturn: {
       /** @enum {string} */
@@ -8364,6 +8459,36 @@ export interface operations {
       429: components["responses"]["Problem"];
       500: components["responses"]["Problem"];
       503: components["responses"]["Problem"];
+    };
+  };
+  transactions_refund_history: {
+    parameters: {
+      query?: {
+        /** @description Opaque, bound to family, visibility and filters. */
+        cursor?: components["parameters"]["Cursor"];
+        limit?: components["parameters"]["Limit"];
+      };
+      header?: never;
+      path: {
+        transactionId: components["schemas"]["ID"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Immutable refund-link history */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RefundHistoryPage"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      401: components["responses"]["Problem"];
+      404: components["responses"]["Problem"];
+      500: components["responses"]["Problem"];
     };
   };
   transactions_revision: {

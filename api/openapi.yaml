@@ -214,6 +214,8 @@ paths:
     $ref: './paths/transactions.yaml#/~1transactions~1{transactionId}~1exclude'
   /transactions/{transactionId}/history:
     $ref: './paths/transactions.yaml#/~1transactions~1{transactionId}~1history'
+  /transactions/{transactionId}/refund-history:
+    $ref: './paths/transactions.yaml#/~1transactions~1{transactionId}~1refund-history'
   /transactions/{transactionId}/revisions/{revision}:
     $ref: './paths/transactions.yaml#/~1transactions~1{transactionId}~1revisions~1{revision}'
 components:
@@ -490,7 +492,25 @@ components:
     AllocationRulePreview:
       "$ref": "./schemas/allocations.yaml#/AllocationRulePreview"
     RefundCreate:
-      "$ref": "./schemas/transactions.yaml#/RefundCreate"
+      "$ref": "./schemas/refunds.yaml#/RefundCreate"
+    RefundItemInput:
+      "$ref": "./schemas/refunds.yaml#/RefundItemInput"
+    RefundLinkInput:
+      "$ref": "./schemas/refunds.yaml#/RefundLinkInput"
+    RefundAttribution:
+      "$ref": "./schemas/refunds.yaml#/RefundAttribution"
+    RefundHistoryEntry:
+      "$ref": "./schemas/refunds.yaml#/RefundHistoryEntry"
+    RefundHistoryPage:
+      "$ref": "./schemas/refunds.yaml#/RefundHistoryPage"
+    RefundValuation:
+      "$ref": "./schemas/refunds.yaml#/RefundValuation"
+    KnownRefundValuation:
+      "$ref": "./schemas/refunds.yaml#/KnownRefundValuation"
+    UnavailableRefundValuation:
+      "$ref": "./schemas/refunds.yaml#/UnavailableRefundValuation"
+    CategoryAmount:
+      "$ref": "./schemas/refunds.yaml#/CategoryAmount"
     Reimbursement:
       "$ref": "./schemas/reimbursements.yaml#/Reimbursement"
     ReimbursementSettlement:

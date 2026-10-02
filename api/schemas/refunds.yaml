@@ -1,0 +1,150 @@
+RefundCreate:
+  type: object
+  additionalProperties: false
+  properties:
+    purchaseId:
+      "$ref": "./money.yaml#/ID"
+    purchaseExpectedRevision:
+      "$ref": "./money.yaml#/Revision"
+    receivingAccountId:
+      "$ref": "./money.yaml#/ID"
+    occurredAt:
+      "$ref": "./money.yaml#/Instant"
+    amount:
+      "$ref": "./money.yaml#/PositiveMoney"
+    returnedItems:
+      type: array
+      maxItems: 1000
+      items:
+        "$ref": "./refunds.yaml#/RefundItemInput"
+    fees:
+      type: array
+      maxItems: 998
+      items: { $ref: './transactions.yaml#/FeeInput' }
+    reason: { type: string, minLength: 1, maxLength: 2000 }
+  required:
+  - purchaseId
+  - purchaseExpectedRevision
+  - receivingAccountId
+  - occurredAt
+  - amount
+  - returnedItems
+  - fees
+  - reason
+  description: Creates one posted cash receipt and a versioned link to the purchase. The refund is bounded by the unrefunded purchase and item values. Original month, audited allocation and historical valuation are used.
+RefundItemInput:
+  type: object
+  additionalProperties: false
+  properties:
+    itemId: { $ref: './money.yaml#/ID' }
+    amount: { $ref: './money.yaml#/PositiveMoney' }
+  required: [itemId, amount]
+RefundLinkInput:
+  type: object
+  additionalProperties: false
+  properties:
+    purchaseId: { $ref: './money.yaml#/ID' }
+    expectedRevision:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 9007199254740991
+    returnedItems:
+      type: array
+      maxItems: 1000
+      items: { $ref: './refunds.yaml#/RefundItemInput' }
+  required: [purchaseId, expectedRevision, returnedItems]
+CategoryAmount:
+  type: object
+  additionalProperties: false
+  properties:
+    categoryId: { $ref: './money.yaml#/ID' }
+    amount: { $ref: './money.yaml#/Money' }
+  required: [amount]
+KnownRefundValuation:
+  type: object
+  additionalProperties: false
+  properties:
+    state: { type: string, enum: [known] }
+    amount: { $ref: './money.yaml#/Money' }
+    basisRef: { type: string, minLength: 1, maxLength: 2000 }
+    members:
+      type: array
+      maxItems: 1000
+      items: { $ref: './transactions.yaml#/MemberAmount' }
+    categories:
+      type: array
+      maxItems: 1000
+      items: { $ref: './refunds.yaml#/CategoryAmount' }
+    unallocated:
+      type: array
+      maxItems: 6
+      items: { $ref: './money.yaml#/Money' }
+  required: [state, amount, basisRef, members, categories, unallocated]
+UnavailableRefundValuation:
+  type: object
+  additionalProperties: false
+  properties:
+    state: { type: string, enum: [unavailable] }
+    reason: { type: string, enum: [historical_basis_unavailable] }
+  required: [state, reason]
+RefundValuation:
+  oneOf:
+  - { $ref: './refunds.yaml#/KnownRefundValuation' }
+  - { $ref: './refunds.yaml#/UnavailableRefundValuation' }
+  discriminator:
+    propertyName: state
+    mapping:
+      known: ./refunds.yaml#/KnownRefundValuation
+      unavailable: ./refunds.yaml#/UnavailableRefundValuation
+RefundAttribution:
+  type: object
+  additionalProperties: false
+  properties:
+    id: { $ref: './money.yaml#/ID' }
+    revision: { $ref: './money.yaml#/Revision' }
+    purchaseId: { $ref: './money.yaml#/ID' }
+    purchaseRevision: { $ref: './money.yaml#/Revision' }
+    refundRevision: { $ref: './money.yaml#/Revision' }
+    state: { type: string, enum: [applied, clarification, inactive] }
+    expenseMonth: { $ref: './money.yaml#/Month' }
+    cashDate: { $ref: './money.yaml#/Date' }
+    amount: { $ref: './money.yaml#/Money' }
+    remaining: { $ref: './money.yaml#/Money' }
+    returnedItems:
+      type: array
+      maxItems: 1000
+      items: { $ref: './refunds.yaml#/RefundItemInput' }
+    members:
+      type: array
+      maxItems: 1000
+      items: { $ref: './transactions.yaml#/MemberAmount' }
+    categories:
+      type: array
+      maxItems: 1000
+      items: { $ref: './refunds.yaml#/CategoryAmount' }
+    unallocated:
+      type: array
+      maxItems: 6
+      items: { $ref: './money.yaml#/Money' }
+    valuation: { $ref: './refunds.yaml#/RefundValuation' }
+    reason: { type: string, minLength: 1, maxLength: 2000 }
+  required: [id, revision, purchaseId, purchaseRevision, refundRevision, state, expenseMonth, cashDate, amount, remaining, returnedItems, members, categories, unallocated, valuation, reason]
+RefundHistoryEntry:
+  type: object
+  additionalProperties: false
+  properties:
+    refund: { $ref: './refunds.yaml#/RefundAttribution' }
+    actorId: { $ref: './money.yaml#/ID' }
+    recordedAt: { $ref: './money.yaml#/Instant' }
+  required: [refund, actorId, recordedAt]
+RefundHistoryPage:
+  type: object
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      maxItems: 100
+      items: { $ref: './refunds.yaml#/RefundHistoryEntry' }
+    nextCursor: { type: string }
+  required: [items]

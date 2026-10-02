@@ -128,6 +128,27 @@ flowchart LR
 
 Отдельные исходные статусы и даты остаются в истории. Неполный поиск и ожидание дают matching_unresolved; source observations сохраняются отдельно. Устаревший import job попадает в quarantine до этой цепочки. Банковский IO и распознавание документов подключаются в профильных задачах.
 
+## Task-2.7: возврат покупки
+
+```mermaid
+sequenceDiagram
+  actor U as Участник
+  participant C as Command executor
+  participant E as Expenses
+  participant L as Ledger Writer
+  participant P as Account projection
+  U->>C: Purchase revision + cash date + exact items + fees
+  C->>C: Сессия, членство, idempotency, блокировка семьи/покупки
+  C->>E: Проверить остаток покупки и позиций
+  E->>L: Одна posted refund-операция либо link существующей
+  L->>P: Денежный эффект по фактической дате
+  L->>E: Пересчитать связь по текущим revisions
+  E->>E: Исходный месяц + allocation snapshot + frozen valuation
+  E-->>C: Атомарный link, audit, outbox, review и command result
+```
+
+Clarification сохраняет подтверждённое поступление, но не придумывает позицию или доли. Correction, exclusion, reversal и undo проходят через тот же Writer и пересчитывают связь один раз. Текущий курс не заменяет отсутствующее историческое основание.
+
 ## Task-3.2: входная страница коннектора
 
 ```mermaid

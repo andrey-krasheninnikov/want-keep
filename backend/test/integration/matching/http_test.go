@@ -74,7 +74,7 @@ func TestHTTPMatchingQueueResolutionAndIsolation(t *testing.T) {
 	otherClient := outsider.client(outsider.p)
 	otherClient.call("GET", "/matching/"+g.Id, "", nil, 404)
 	otherClient.call("GET", "/transactions/"+bankID, "", nil, 404)
-	c.call("POST", "/transactions/"+bankID+"/links", uuid.NewString(), map[string]any{"kind": "refund", "expectedRevisions": f.versions(bankID, g.PrimaryId), "reason": "Unsupported"}, 422)
+	c.call("POST", "/transactions/"+bankID+"/links", uuid.NewString(), map[string]any{"kind": "refund", "expectedRevisions": f.versions(bankID, g.PrimaryId), "reason": "Missing refund details"}, 400)
 	body["actorId"] = string(f.q.UserID())
 	c.call("POST", "/matching/"+g.Id+"/resolve", uuid.NewString(), body, 400)
 }

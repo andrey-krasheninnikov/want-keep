@@ -23,6 +23,7 @@ import (
 	collector "github.com/pchkauu/want-keep/backend/internal/connections/collector"
 	"github.com/pchkauu/want-keep/backend/internal/connections/credentials"
 	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
+	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	openaigateway "github.com/pchkauu/want-keep/backend/internal/gateways/openai"
 	integrations "github.com/pchkauu/want-keep/backend/internal/integrations/application"
 	ratesource "github.com/pchkauu/want-keep/backend/internal/integrations/rates"
@@ -97,9 +98,11 @@ func run() error {
 	if socket := os.Getenv("WANT_KEEP_COLLECTOR_SOCKET"); socket != "" {
 		connectionKeys, keyErr := cryptobox.Load(os.Getenv("WANT_KEEP_CONNECTION_KEYRING"), "connections")
 		evidence, evidenceErr := collector.NewEvidenceStore(db, connectionKeys)
-		accountService := accounts.NewService(db, db, now, uuid.NewString)
+		reimbursementService := ledger.NewReimbursementService(db, now, uuid.NewString)
+		accountService := accounts.NewServiceWithOwnershipReconciliation(db, db, reconciliationService, reimbursementService, now, uuid.NewString)
 		accountImporter, accountErr := integrations.NewAccountImporter(accountService, db)
-		sources := ledger.NewSources(db, ledger.NewWriter(db, db), allocation.NewService(db, now, uuid.NewString))
+		writer := ledger.NewWriterWithRefundsAndReimbursements(db, db, reconciliationService, expenses.NewProjector(db), reimbursementService)
+		sources := ledger.NewSources(db, writer, allocation.NewService(db, now, uuid.NewString))
 		sourceWriter, sourceErr := integrations.NewSourceWriter(sources, db)
 		ingestionService, ingestionErr := integrations.NewService(admissionService, evidence, accountImporter, sourceWriter, now, uuid.NewString)
 		if keyErr != nil || evidenceErr != nil || accountErr != nil || sourceErr != nil || ingestionErr != nil {

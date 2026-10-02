@@ -55,6 +55,8 @@ ErrorCode:
   - member_limit_reached
   - reconciliation_not_ready
   - component_not_adjustable
+  - invalid_refund
+  - refund_exceeds_purchase
   - internal_error
 FieldViolation:
   type: object
