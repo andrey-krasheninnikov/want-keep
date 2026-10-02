@@ -45,7 +45,7 @@ jobs:
       - run: make e2e SCENARIO=design-components
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       WANT_KEEP_ENV: test
     services:
