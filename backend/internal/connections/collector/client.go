@@ -20,7 +20,7 @@ var ErrUnavailable = errors.New("browser collector unavailable")
 var ErrBusy = errors.New("browser collector busy")
 var ErrPreflightRejected = errors.New("browser collector rejected request before provider IO")
 var ErrSessionInvalid = errors.New("browser collector session invalid")
-var ErrLaunchUnavailable = errors.New("browser collector launch unavailable before provider IO")
+var ErrBeforeIOUnavailable = errors.New("browser collector unavailable before provider IO")
 
 const maxResponseBytes = 32 * 1024 * 1024
 
@@ -186,8 +186,8 @@ func (c *Client) call(ctx context.Context, path string, value any) ([]byte, erro
 	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusUnprocessableEntity && bytes.Equal(payload, []byte(`{"code":"collector_session_invalid"}`)) {
 		return nil, ErrSessionInvalid
 	}
-	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusServiceUnavailable && bytes.Equal(payload, []byte(`{"code":"collector_launch_unavailable"}`)) {
-		return nil, ErrLaunchUnavailable
+	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusServiceUnavailable && bytes.Equal(payload, []byte(`{"code":"collector_before_io_unavailable"}`)) {
+		return nil, ErrBeforeIOUnavailable
 	}
 	if err != nil || len(payload) > maxResponseBytes || response.StatusCode != http.StatusOK {
 		return nil, ErrUnavailable

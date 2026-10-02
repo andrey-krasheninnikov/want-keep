@@ -45,7 +45,7 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		return err
 	})
 	if err != nil {
-		if (errors.Is(err, ErrBusy) || errors.Is(err, ErrPreflightRejected) || errors.Is(err, ErrSessionInvalid) || errors.Is(err, ErrLaunchUnavailable)) && client != nil && client.ExternalStarted() {
+		if (errors.Is(err, ErrBusy) || errors.Is(err, ErrPreflightRejected) || errors.Is(err, ErrSessionInvalid) || errors.Is(err, ErrBeforeIOUnavailable)) && client != nil && client.ExternalStarted() {
 			if err := execution.RejectBeforeProviderIO(ctx); err != nil {
 				return jobs.Result{}, err
 			}

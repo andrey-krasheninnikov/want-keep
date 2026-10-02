@@ -175,7 +175,7 @@ func TestCollectorBusyHandlerKeepsJobRetryable(t *testing.T) {
 func TestCollectorPreflightRejectionUsesSafeJobState(t *testing.T) {
 	testCollectorRejectedBeforeIO(t, http.StatusUnprocessableEntity, `{"code":"collector_session_invalid"}`, string(jobs.Waiting), string(jobs.ReauthRequired), true)
 	testCollectorRejectedBeforeIO(t, http.StatusUnprocessableEntity, `{"code":"collector_preflight_rejected"}`, string(jobs.Failed), string(jobs.PermanentFailure), true)
-	testCollectorRejectedBeforeIO(t, http.StatusServiceUnavailable, `{"code":"collector_launch_unavailable"}`, string(jobs.Waiting), string(jobs.HandlerUnavailable), true)
+	testCollectorRejectedBeforeIO(t, http.StatusServiceUnavailable, `{"code":"collector_before_io_unavailable"}`, string(jobs.Waiting), string(jobs.HandlerUnavailable), true)
 }
 
 func TestMissingBrowserSessionRequiresReauth(t *testing.T) {

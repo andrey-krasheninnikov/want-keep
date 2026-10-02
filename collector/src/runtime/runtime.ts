@@ -78,7 +78,7 @@ export class CollectorRuntime {
       }
       if (signal.aborted) throw new Error("request_aborted");
       const browser = await this.getBrowser().catch(() => {
-        throw new CollectorLaunchUnavailableError();
+        throw new CollectorBeforeIOUnavailableError();
       });
       return await readWithContext(
         browser,
@@ -176,7 +176,7 @@ function cookieDomainMatches(domain: string, host: string): boolean {
 }
 
 export class CollectorBusyError extends Error {}
-export class CollectorLaunchUnavailableError extends Error {}
+export class CollectorBeforeIOUnavailableError extends Error {}
 export class CollectorPreflightError extends ContractError {}
 export class CollectorSessionInvalidError extends CollectorPreflightError {}
 
@@ -236,20 +236,25 @@ async function readWithContext(
   signal: AbortSignal,
   timeout: number,
 ): Promise<SyncResult> {
-  const context = await browser.newContext({
-    acceptDownloads: false,
-    javaScriptEnabled: false,
-    serviceWorkers: "block",
-    storageState: storageState as NonNullable<
-      Parameters<Browser["newContext"]>[0]
-    >["storageState"],
-  });
+  const context = await browser
+    .newContext({
+      acceptDownloads: false,
+      javaScriptEnabled: false,
+      serviceWorkers: "block",
+      storageState: storageState as NonNullable<
+        Parameters<Browser["newContext"]>[0]
+      >["storageState"],
+    })
+    .catch(() => {
+      throw new CollectorBeforeIOUnavailableError();
+    });
   let violation: Error | undefined;
   const reject = (message: string): void => {
     violation ??= new Error(message);
   };
   const abort = (): void => void context.close();
   signal.addEventListener("abort", abort, { once: true });
+  let providerIOStarted = false;
   try {
     if (signal.aborted) throw new Error("request_aborted");
     await context.route("**/*", async (route) => {
@@ -277,6 +282,7 @@ async function readWithContext(
       void download.cancel().catch(() => undefined);
     });
     try {
+      providerIOStarted = true;
       await page.goto(binding.origin + entry.path, {
         waitUntil: "domcontentloaded",
         timeout,
@@ -356,7 +362,11 @@ async function readWithContext(
     } finally {
       signal.removeEventListener("abort", abort);
     }
+  } catch (error) {
+    if (!providerIOStarted) throw new CollectorBeforeIOUnavailableError();
+    throw error;
   } finally {
+    signal.removeEventListener("abort", abort);
     await context.close().catch(() => undefined);
   }
 }

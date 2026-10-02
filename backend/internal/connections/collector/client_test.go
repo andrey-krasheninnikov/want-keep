@@ -109,7 +109,7 @@ func TestKnownPreReadRejectionIsDistinctFromUnknownProviderOutcome(t *testing.T)
 	}{
 		{http.StatusUnprocessableEntity, `{"code":"collector_preflight_rejected"}`, ErrPreflightRejected},
 		{http.StatusUnprocessableEntity, `{"code":"collector_session_invalid"}`, ErrSessionInvalid},
-		{http.StatusServiceUnavailable, `{"code":"collector_launch_unavailable"}`, ErrLaunchUnavailable},
+		{http.StatusServiceUnavailable, `{"code":"collector_before_io_unavailable"}`, ErrBeforeIOUnavailable},
 	} {
 		t.Run(test.body, func(t *testing.T) {
 			socket := serveUnix(t, func(response http.ResponseWriter, request *http.Request) {

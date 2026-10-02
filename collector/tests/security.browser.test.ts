@@ -11,7 +11,10 @@ import {
   parseRuntimeConfig,
   type RuntimeConfig,
 } from "../src/runtime/config.js";
-import { CollectorRuntime } from "../src/runtime/runtime.js";
+import {
+  CollectorBeforeIOUnavailableError,
+  CollectorRuntime,
+} from "../src/runtime/runtime.js";
 import { startCollectorServer } from "../src/runtime/server.js";
 
 const manifest = JSON.parse(
@@ -94,12 +97,28 @@ describe("collector security boundary", () => {
       );
       expect(result).toEqual({
         status: 503,
-        body: '{"code":"collector_launch_unavailable"}',
+        body: '{"code":"collector_before_io_unavailable"}',
       });
       expect(portal.requests()).toBe(0);
     } finally {
       launch.mockRestore();
     }
+  });
+
+  it("keeps context setup failure before provider IO", async () => {
+    const portal = await startPortal("safe");
+    const runtime = new CollectorRuntime(config(portal.origin, "/portal"));
+    Reflect.set(runtime, "browser", {
+      isConnected: () => true,
+      newContext: async () => {
+        throw new Error("synthetic context failure");
+      },
+      close: async () => undefined,
+    });
+    await expect(
+      runtime.read(envelope("alpha"), new AbortController().signal),
+    ).rejects.toBeInstanceOf(CollectorBeforeIOUnavailableError);
+    expect(portal.requests()).toBe(0);
   });
 
   it("passes the issued cursor to the next read page", async () => {
