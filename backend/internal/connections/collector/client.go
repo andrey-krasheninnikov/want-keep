@@ -20,6 +20,7 @@ var ErrUnavailable = errors.New("browser collector unavailable")
 var ErrBusy = errors.New("browser collector busy")
 var ErrPreflightRejected = errors.New("browser collector rejected request before provider IO")
 var ErrSessionInvalid = errors.New("browser collector session invalid")
+var ErrLaunchUnavailable = errors.New("browser collector launch unavailable before provider IO")
 
 const maxResponseBytes = 32 * 1024 * 1024
 
@@ -50,8 +51,11 @@ type bindingWire struct {
 }
 
 func NewClient(socket string, binding connections.Binding, admissionRevision int64, session []byte, beforeRead func(context.Context) error) (*Client, error) {
-	if !filepath.IsAbs(socket) || binding.Validate() != nil || admissionRevision < 1 || admissionRevision > ingestion.MaxAdmissionRevision || len(session) < 2 || len(session) > 1024*1024 || !json.Valid(session) || beforeRead == nil {
+	if !filepath.IsAbs(socket) || binding.Validate() != nil || admissionRevision < 1 || admissionRevision > ingestion.MaxAdmissionRevision || beforeRead == nil {
 		return nil, ErrUnavailable
+	}
+	if len(session) < 2 || len(session) > 1024*1024 || !json.Valid(session) {
+		return nil, ErrSessionInvalid
 	}
 	var state struct {
 		Cookies []json.RawMessage `json:"cookies"`
@@ -60,7 +64,7 @@ func NewClient(socket string, binding connections.Binding, admissionRevision int
 	decoder := json.NewDecoder(bytes.NewReader(session))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&state) != nil || decoder.Decode(new(any)) != io.EOF || state.Cookies == nil || state.Origins == nil {
-		return nil, ErrUnavailable
+		return nil, ErrSessionInvalid
 	}
 	dialer := &net.Dialer{Timeout: time.Second}
 	transport := &http.Transport{
@@ -181,6 +185,9 @@ func (c *Client) call(ctx context.Context, path string, value any) ([]byte, erro
 	}
 	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusUnprocessableEntity && bytes.Equal(payload, []byte(`{"code":"collector_session_invalid"}`)) {
 		return nil, ErrSessionInvalid
+	}
+	if err == nil && path == "/v1/read" && response.StatusCode == http.StatusServiceUnavailable && bytes.Equal(payload, []byte(`{"code":"collector_launch_unavailable"}`)) {
+		return nil, ErrLaunchUnavailable
 	}
 	if err != nil || len(payload) > maxResponseBytes || response.StatusCode != http.StatusOK {
 		return nil, ErrUnavailable

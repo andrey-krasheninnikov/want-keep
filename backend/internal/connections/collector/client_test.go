@@ -46,9 +46,9 @@ func TestClientUsesUnixSocketAndMarksOnlyProviderRead(t *testing.T) {
 		reads.Add(1)
 		return nil
 	})
-	if err == nil {
+	if !errors.Is(err, ErrSessionInvalid) {
 		// Unknown storage-state fields must fail before any provider IO.
-		t.Fatal("unknown session field accepted")
+		t.Fatal("unknown session field did not require reauthentication", err)
 	}
 	client, err = NewClient(socket, testBinding(), 3, []byte(`{"cookies":[{"name":"session","value":"private-session"}],"origins":[]}`), func(context.Context) error {
 		reads.Add(1)
@@ -101,18 +101,20 @@ func TestBusyCollectorResponseIsKnownBeforeProviderIO(t *testing.T) {
 	}
 }
 
-func TestPreflightRejectionIsDistinctFromUnknownProviderOutcome(t *testing.T) {
+func TestKnownPreReadRejectionIsDistinctFromUnknownProviderOutcome(t *testing.T) {
 	for _, test := range []struct {
-		body string
-		want error
+		status int
+		body   string
+		want   error
 	}{
-		{`{"code":"collector_preflight_rejected"}`, ErrPreflightRejected},
-		{`{"code":"collector_session_invalid"}`, ErrSessionInvalid},
+		{http.StatusUnprocessableEntity, `{"code":"collector_preflight_rejected"}`, ErrPreflightRejected},
+		{http.StatusUnprocessableEntity, `{"code":"collector_session_invalid"}`, ErrSessionInvalid},
+		{http.StatusServiceUnavailable, `{"code":"collector_launch_unavailable"}`, ErrLaunchUnavailable},
 	} {
 		t.Run(test.body, func(t *testing.T) {
 			socket := serveUnix(t, func(response http.ResponseWriter, request *http.Request) {
 				if request.URL.Path == "/v1/read" {
-					response.WriteHeader(http.StatusUnprocessableEntity)
+					response.WriteHeader(test.status)
 					_, _ = io.WriteString(response, test.body)
 				}
 			})

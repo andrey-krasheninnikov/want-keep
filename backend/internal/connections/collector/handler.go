@@ -29,7 +29,7 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		var err error
 		client, err = NewClient(h.Socket, execution.Job.Binding, execution.Job.AdmissionRevision, session, execution.BeginExternal)
 		if err != nil {
-			return ErrUnavailable
+			return err
 		}
 		defer client.Close()
 		if !client.Ready(ctx) {
@@ -45,7 +45,7 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		return err
 	})
 	if err != nil {
-		if (errors.Is(err, ErrBusy) || errors.Is(err, ErrPreflightRejected) || errors.Is(err, ErrSessionInvalid)) && client != nil && client.ExternalStarted() {
+		if (errors.Is(err, ErrBusy) || errors.Is(err, ErrPreflightRejected) || errors.Is(err, ErrSessionInvalid) || errors.Is(err, ErrLaunchUnavailable)) && client != nil && client.ExternalStarted() {
 			if err := execution.RejectBeforeProviderIO(ctx); err != nil {
 				return jobs.Result{}, err
 			}
@@ -60,7 +60,7 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		if errors.Is(err, ErrUnavailable) && (client == nil || !client.ExternalStarted()) {
 			return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.HandlerUnavailable}, nil
 		}
-		if errors.Is(err, connections.ErrSecretAccess) && client == nil {
+		if (errors.Is(err, connections.ErrSecretAccess) || errors.Is(err, ErrSessionInvalid)) && client == nil {
 			return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.ReauthRequired}, nil
 		}
 		return jobs.Result{}, err

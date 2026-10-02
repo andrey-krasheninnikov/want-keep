@@ -77,7 +77,9 @@ export class CollectorRuntime {
         throw error;
       }
       if (signal.aborted) throw new Error("request_aborted");
-      const browser = await this.getBrowser();
+      const browser = await this.getBrowser().catch(() => {
+        throw new CollectorLaunchUnavailableError();
+      });
       return await readWithContext(
         browser,
         binding,
@@ -174,6 +176,7 @@ function cookieDomainMatches(domain: string, host: string): boolean {
 }
 
 export class CollectorBusyError extends Error {}
+export class CollectorLaunchUnavailableError extends Error {}
 export class CollectorPreflightError extends ContractError {}
 export class CollectorSessionInvalidError extends CollectorPreflightError {}
 

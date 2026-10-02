@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type Server } from "node:http";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { chromium } from "playwright";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   parseRuntimeConfig,
@@ -77,6 +78,28 @@ describe("collector security boundary", () => {
       (await runtime.read(envelope("alpha"), new AbortController().signal))
         .outcome,
     ).toBe("page");
+  });
+
+  it("reports browser launch failure before provider IO", async () => {
+    const portal = await startPortal("safe");
+    const collector = await start(portal.origin, "/portal");
+    const launch = vi
+      .spyOn(chromium, "launch")
+      .mockRejectedValueOnce(new Error("synthetic launch failure"));
+    try {
+      const result = await post(
+        collector.socket,
+        "/v1/read",
+        envelope("alpha"),
+      );
+      expect(result).toEqual({
+        status: 503,
+        body: '{"code":"collector_launch_unavailable"}',
+      });
+      expect(portal.requests()).toBe(0);
+    } finally {
+      launch.mockRestore();
+    }
   });
 
   it("passes the issued cursor to the next read page", async () => {

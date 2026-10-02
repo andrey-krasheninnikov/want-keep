@@ -10,6 +10,7 @@ import { ContractError } from "../contracts/ingestion.js";
 import type { RuntimeConfig } from "./config.js";
 import {
   CollectorBusyError,
+  CollectorLaunchUnavailableError,
   CollectorPreflightError,
   CollectorSessionInvalidError,
   CollectorRuntime,
@@ -97,7 +98,9 @@ async function handle(
                   : error instanceof CollectorPreflightError
                     ? "collector_preflight_rejected"
                     : "invalid_contract"
-                : "collector_unavailable",
+                : error instanceof CollectorLaunchUnavailableError
+                  ? "collector_launch_unavailable"
+                  : "collector_unavailable",
         }),
       );
   } finally {
