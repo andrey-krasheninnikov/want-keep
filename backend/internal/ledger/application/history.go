@@ -24,7 +24,7 @@ func (q *Queries) Revision(ctx context.Context, p household.Principal, id string
 	if err != nil {
 		return View{}, err
 	}
-	return q.view(ctx, p, r)
+	return q.viewAt(ctx, p, r)
 }
 func (q *Queries) History(ctx context.Context, p household.Principal, id string, before uint64, limit int) ([]HistoryEntry, uint64, error) {
 	if limit < 1 || limit > 100 {
@@ -37,15 +37,34 @@ func (q *Queries) History(ctx context.Context, p household.Principal, id string,
 	if err != nil {
 		return nil, 0, err
 	}
+	points := make([]ledger.Revision, 0, len(revs)*2)
+	priors := make(map[uint64]ledger.Revision, len(revs))
+	points = append(points, revs...)
+	for _, r := range revs {
+		if r.Revision <= 1 {
+			continue
+		}
+		prior, loadErr := q.repository.LedgerRevision(ctx, p, id, r.Revision-1)
+		if loadErr != nil {
+			return nil, 0, loadErr
+		}
+		priors[r.Revision] = prior
+		points = append(points, prior)
+	}
+	refunds, err := q.repository.RefundsForRevisions(ctx, p, points)
+	if err != nil {
+		return nil, 0, err
+	}
 	out := []HistoryEntry{}
 	for _, r := range revs {
-		view, err := q.view(ctx, p, r)
+		view, err := q.viewWithRefunds(ctx, p, r, refunds[r.Revision])
 		if err != nil {
 			return nil, 0, err
 		}
 		entry := HistoryEntry{Current: view, UndoReason: "legacy"}
 		if r.Revision > 1 {
-			prior, err := q.Revision(ctx, p, id, r.Revision-1)
+			priorRevision := priors[r.Revision]
+			prior, err := q.viewWithRefunds(ctx, p, priorRevision, refunds[priorRevision.Revision])
 			if err != nil {
 				return nil, 0, err
 			}

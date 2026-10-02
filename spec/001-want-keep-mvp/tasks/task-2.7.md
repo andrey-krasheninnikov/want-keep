@@ -5,7 +5,7 @@
 
 Корректно пересчитывать исходные расходы без искажения движения денег.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Реализованы backend/API возвратов, версия связи с покупкой и позициями, исторический аналитический эффект и защита от повторного денежного движения. UI, получение курсов, отчёты и production остаются профильным задачам.
 
 **Зависимости:** `task-2.2`, `task-2.6`, `task-2.8`.
 
@@ -13,12 +13,17 @@
 
 ### Изменение и контракты
 
-Сохранять реальные даты поступления возврата, связь с покупкой/позициями и исходную дату бюджетного факта. Частичные возвраты ограничить невозвращённой суммой; валютный возврат уменьшает историческую стоимость возвращённой части, отдельные FX/fees не скрываются. Распределять скидки с точным остатком округления; неизвестную позицию возврата уточнять.
+Ручной возврат создаёт одну posted refund-операцию: деньги поступают в фактическую дату без дохода, а аналитика уменьшает расход исходного месяца. Версионная связь сохраняет revisions покупки и возврата, точные позиции, исходное распределение, зафиксированную историческую оценку и отдельный review request. Совокупный возврат ограничен невозвращённой суммой покупки и каждой позиции под блокировкой покупки; лимит 1000 учитывает только активные связи. Двухэтапное largest-remainder распределение сохраняет frozen reporting total всех частичных возвратов в пределах 1000 весов. Импортированный возврат связывается без второго денежного эффекта при любом порядке импорта и ручной записи; подтверждённый payment-компонент имеет одну аналитическую связь. Совместимый snapshot task-6.1 фиксируется в валюте отображения инициатора без текущего курса. Correction, exclusion, reversal и undo пакетно пересчитывают и сохраняют связи через тот же ledger Writer; история ledger выбирает связи на момент его revision, а отдельная постраничная история refund-связи показывает последующие изменения. Неоднозначная позиция остаётся clarification без вымышленного распределения.
 
 ### Границы изменений
 
 - `backend/internal/ledger/`
 - `backend/internal/expenses/`
+- `backend/internal/storage/`
+- `backend/internal/delivery/ledger/`
+- `backend/migrations/021_refunds.sql`
+- `backend/test/integration/refunds/`
+- `api/`
 
 Пути планируемые. Общие контракты — `spec/001-want-keep-mvp/contracts.md`, архитектура/команды — `constraints.md`. Менять владельца поведения и его тесты; незакрытый контракт останавливает зависимую работу.
 
@@ -95,12 +100,12 @@
 ### Проверка результата
 
 ```sh
-make test-go PKG=./internal/expenses/... && make test-integration AREA=refunds
+make check && make test-integration AREA=refunds && make test-refunds-race
 ```
 
-Частичные/повторные/валютные возвраты, отмена возврата и скидки сохраняют сумму и правильный месяц.
+Шесть активов, частичные/повторные/конкурентные возвраты, позиции и скидки, точная совокупная историческая оценка без накопления округления, исторические revisions связей, комиссия третьего актива, correction/exclusion/undo/reversal, review requests, replay и связь импортного возврата сохраняют точную сумму, исходный месяц и единственный денежный эффект.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Зависимости task-2.2, task-2.6 и task-2.8 включены в базу. Доказательства и границы: evidence/task-2.7-refunds.md. Обязательны make check, refunds и затронутые integration/race/privacy suites. Это не подтверждает эксплуатационную готовность.
 
 ### Передача следующему агенту
 
@@ -112,7 +117,7 @@ make test-go PKG=./internal/expenses/... && make test-integration AREA=refunds
 
 Recalculate original expenses without distorting cash movements.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Refund backend/API, versioned purchase/item links, historical analytical effects and duplicate cash-effect protection are implemented. UI, rate acquisition, reports and production remain with their owning tasks.
 
 **Dependencies:** `task-2.2`, `task-2.6`, `task-2.8`.
 
@@ -120,12 +125,17 @@ Recalculate original expenses without distorting cash movements.
 
 ### Change and contracts
 
-Retain actual refund receipt dates, purchase/item links and original expense-budget date. Cap partial refunds at the unrefunded amount; foreign-currency refunds reduce the original value of the returned portion, with separate FX/fees. Allocate discounts with exact rounding remainder; clarify unknown refunded items.
+A manual refund creates one posted refund transaction: cash arrives on its actual date without income, while analytics reduces the original month's expense. The versioned link retains purchase and refund revisions, exact items, the original allocation, a frozen historical valuation and a separate review request. Cumulative refunds are capped by the remaining purchase and item amounts while the purchase is locked; the 1000 limit counts active links only. Two-stage largest-remainder allocation preserves the frozen reporting total across all partial refunds within the 1000-weight limit. An imported refund is linked without a second cash effect in either manual/import order; a confirmed payment component has one analytical link. A compatible task-6.1 snapshot is pinned in the initiating member’s reporting asset without a current rate. Correction, exclusion, reversal and undo recalculate and persist links in a batch through the same ledger Writer; ledger history selects links at its revision, while separate paginated refund-link history shows later changes. Ambiguous items remain clarification without invented allocation.
 
 ### Change boundaries
 
 - `backend/internal/ledger/`
 - `backend/internal/expenses/`
+- `backend/internal/storage/`
+- `backend/internal/delivery/ledger/`
+- `backend/migrations/021_refunds.sql`
+- `backend/test/integration/refunds/`
+- `api/`
 
 Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.md`; architecture/commands are in `constraints.en.md`. Change the behavior owner and its tests; an unresolved contract stops dependent work.
 
@@ -202,12 +212,12 @@ A link establishes coverage but does not prove the whole criterion; verification
 ### Verification
 
 ```sh
-make test-go PKG=./internal/expenses/... && make test-integration AREA=refunds
+make check && make test-integration AREA=refunds && make test-refunds-race
 ```
 
-Partial/replayed/FX refunds, refund reversal and discounts preserve totals and the correct month.
+Six assets, partial/replayed/concurrent refunds, items and discounts, exact cumulative historical valuation without rounding drift, historical link revisions, a third-asset fee, correction/exclusion/undo/reversal, review requests, replay and imported-refund linking preserve exact totals, the original month and one cash effect.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Dependencies task-2.2, task-2.6 and task-2.8 are included in the base. Evidence and boundaries: evidence/task-2.7-refunds.en.md. Require make check, refunds and affected integration/race/privacy suites. This does not confirm operational readiness.
 
 ### Handoff to the next agent
 

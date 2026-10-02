@@ -306,7 +306,7 @@ Task: [task-7.2](tasks/task-7.2.md), [task-2.6](tasks/task-2.6.md), [task-2.8](t
 
 **Next action:** Correct FORM-06/07, refund FORM-08, explicit debt FORM-09; receipt → SCR-011.
 
-**Explanation and details:** Before/after history exposes actor, decisionId, source and protected fields. Allocation shows personal/shared purpose, exact member amounts, unallocated, applied rule revisions and items. Explicit item value wins over purchase, then merchant/category rule and equal for an explicitly shared expense. A source update cannot erase the user choice; changing an amount-based allocation requires a consistent correction while share-based allocation recalculates. Matching retains one household and member effect carrier; undo checks every participant revision.
+**Explanation and details:** Before/after history exposes actor, decisionId, source and protected fields. Allocation shows personal/shared purpose, exact member amounts, unallocated, applied rule revisions and items. Explicit item value wins over purchase, then merchant/category rule and equal for an explicitly shared expense. A source update cannot erase the user choice; changing an amount-based allocation requires a consistent correction while share-based allocation recalculates. Matching retains one household and member effect carrier; undo checks every participant revision. A refund shows its purchase link and both revisions, actual cash date, original expense month, returned items, purchase remainder, historical allocation/valuation and clarification for an unknown item. An imported refund transaction is linked without a second cash movement.
 
 **Permissions:** Both members read/correct facts for any household account; actor from session.
 
@@ -978,11 +978,11 @@ Task: [task-7.14](tasks/task-7.14.md).
 
 #### FORM-08 — Purchase refund
 
-**Fields:** Original purchase, returned items/shares/amount, receiving account and actual date.
+**Fields:** Original purchase and its revision, exact itemId+amount portions or a purchase-level amount, receiving account, actual date, separate fees and required reason.
 
-**Validation and permissions:** Either member; cumulative refund cannot exceed purchase; original historical FX and refunded-part allocation are retained.
+**Validation and permissions:** Either member; the refund asset matches the purchase; cumulative refunds cannot exceed the remaining purchase or item amounts. Receipt item portions equal principal. Ambiguous items remain clarification. The original allocation snapshot and historical valuation are retained; a different asset requires an exchange.
 
-**Outcome:** Original purchase month recalculated; cash arrives on actual date; FX separate.
+**Outcome:** One posted refund transaction is created, or an existing imported transaction is linked without a second movement. The original month is reduced; cash arrives on its actual date without income; FX and fees remain separate.
 
 #### FORM-09 — Explicit debt and reimbursement
 

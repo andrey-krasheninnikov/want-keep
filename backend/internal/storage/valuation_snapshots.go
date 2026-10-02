@@ -53,11 +53,15 @@ func (s *Store) SaveValuationSnapshot(ctx context.Context, p household.Principal
 	} else {
 		status = "unavailable"
 	}
+	reasons := value.CoverageReasons
+	if reasons == nil {
+		reasons = []string{}
+	}
 	at, ns := splitInstant(value.RecordedAt)
 	_, err = scope.tx.Exec(ctx, `INSERT INTO want_keep.valuation_snapshots
  (household_id,operation_id,operation_revision,component_index,component_kind,reporting_asset,valuation_revision,native_asset,native_amount,reporting_amount,requested_date,status,reason,coverage_reasons,freshness,recorded_at,recorded_ns)
  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::numeric,$10::numeric,$11,$12,$13,$14,$15,$16,$17)`,
-		p.HouseholdID(), value.OperationID, value.OperationRevision, value.ComponentIndex, value.ComponentKind, value.Target, value.ValuationRevision, value.Native.Asset(), value.Native.Amount(), converted, value.RequestedDate.String(), status, value.Reason, value.CoverageReasons, value.Freshness, at, ns)
+		p.HouseholdID(), value.OperationID, value.OperationRevision, value.ComponentIndex, value.ComponentKind, value.Target, value.ValuationRevision, value.Native.Asset(), value.Native.Amount(), converted, value.RequestedDate.String(), status, value.Reason, reasons, value.Freshness, at, ns)
 	if err != nil {
 		return err
 	}

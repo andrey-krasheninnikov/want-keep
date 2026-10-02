@@ -128,6 +128,27 @@ flowchart LR
 
 Original statuses and dates remain in history. Incomplete search and waiting produce matching_unresolved; source observations stay separate. Stale import jobs enter quarantine before this flow. Bank IO and document recognition are connected by their owning tasks.
 
+## Task-2.7: purchase refund
+
+```mermaid
+sequenceDiagram
+  actor U as Member
+  participant C as Command executor
+  participant E as Expenses
+  participant L as Ledger Writer
+  participant P as Account projection
+  U->>C: Purchase revision + cash date + exact items + fees
+  C->>C: Session, membership, idempotency, household/purchase lock
+  C->>E: Check remaining purchase and item amounts
+  E->>L: One posted refund transaction or link an existing one
+  L->>P: Cash effect on the actual date
+  L->>E: Recalculate the link from current revisions
+  E->>E: Original month + allocation snapshot + frozen valuation
+  E-->>C: Atomic link, audit, outbox, review and command result
+```
+
+Clarification retains a confirmed receipt but invents no item or shares. Correction, exclusion, reversal and undo use the same Writer and recalculate the link once. A current rate never substitutes for a missing historical basis.
+
 ## Task-3.2: connector ingestion page
 
 ```mermaid

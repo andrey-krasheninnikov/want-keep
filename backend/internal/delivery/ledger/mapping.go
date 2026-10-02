@@ -16,7 +16,18 @@ func (s *Server) transactionDTO(p household.Principal, v application.View) (gene
 	if err := r.Validate(); err != nil {
 		return generated.Transaction{}, err
 	}
-	out := generated.Transaction{Id: r.OperationID, Revision: int64(r.Revision), ActorId: string(r.ActorID), HouseholdId: string(p.HouseholdID()), Type: generated.TransactionType(r.Type), State: generated.TransactionState(r.State), OccurredAt: r.OccurredAt.String(), CashDate: r.CashDate.String(), AiState: "waiting", Origin: "legacy", FeeKnowledge: "unknown", Postings: []generated.Posting{}, ReceiptItems: []generated.ReceiptItem{}, Sources: []generated.SourceReference{}, BalanceEffects: []generated.TransactionBalanceEffect{}, EconomicComponents: []generated.EconomicComponent{}, Holds: []generated.TransactionHold{}}
+	out := generated.Transaction{Id: r.OperationID, Revision: int64(r.Revision), ActorId: string(r.ActorID), HouseholdId: string(p.HouseholdID()), Type: generated.TransactionType(r.Type), State: generated.TransactionState(r.State), OccurredAt: r.OccurredAt.String(), CashDate: r.CashDate.String(), AiState: "waiting", Origin: "legacy", FeeKnowledge: "unknown", Postings: []generated.Posting{}, ReceiptItems: []generated.ReceiptItem{}, Refunds: []generated.RefundAttribution{}, Sources: []generated.SourceReference{}, BalanceEffects: []generated.TransactionBalanceEffect{}, EconomicComponents: []generated.EconomicComponent{}, Holds: []generated.TransactionHold{}}
+	for _, refund := range v.Refunds {
+		dto, refundErr := s.refundDTO(refund)
+		if refundErr != nil {
+			return out, refundErr
+		}
+		out.Refunds = append(out.Refunds, dto)
+		if r.Type == ledger.Refund && refund.OperationID == r.OperationID {
+			purchaseID := refund.PurchaseID
+			out.OriginalTransactionId = &purchaseID
+		}
+	}
 	if r.Participation.GroupID != "" {
 		v := r.Participation
 		dto := generated.EffectParticipation{GroupId: v.GroupID, Kind: generated.MatchingKind(v.Kind), State: generated.EffectParticipationState(v.State), Components: []generated.EffectContribution{}}

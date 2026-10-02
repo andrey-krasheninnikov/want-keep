@@ -183,7 +183,8 @@
     operationId: transactions_refund
     tags:
     - transactions
-    summary: transactions refund
+    summary: Record a confirmed purchase refund
+    description: Creates one posted cash receipt and applies its analytical expense reduction to the purchase month. Historical valuation is frozen; unavailable valuation stays explicit.
     parameters:
     - "$ref": "../components.yaml#/parameters/IdempotencyKey"
     - "$ref": "../components.yaml#/parameters/CSRF"
@@ -225,7 +226,7 @@
       content:
         application/json:
           schema:
-            "$ref": "../schemas/transactions.yaml#/RefundCreate"
+            "$ref": "../schemas/refunds.yaml#/RefundCreate"
 "/transactions/{transactionId}":
   get:
     operationId: transactions_read
@@ -874,6 +875,30 @@
         content:
           application/json:
             schema: { $ref: '../schemas/transactions.yaml#/TransactionHistoryPage' }
+      '400': { $ref: '../components.yaml#/responses/Problem' }
+      '401': { $ref: '../components.yaml#/responses/Problem' }
+      '404': { $ref: '../components.yaml#/responses/Problem' }
+      '500': { $ref: '../components.yaml#/responses/Problem' }
+
+"/transactions/{transactionId}/refund-history":
+  get:
+    operationId: transactions_refund_history
+    tags: [transactions]
+    summary: Read immutable refund-link revisions independently of ledger revisions
+    description: Returns one linked refund's attribution revisions, including links created after its last ledger revision. The cursor is bound to session, household and refund transaction. A purchase's current detail identifies its linked refund transactions.
+    parameters:
+    - name: transactionId
+      in: path
+      required: true
+      schema: { $ref: '../schemas/money.yaml#/ID' }
+    - $ref: '../components.yaml#/parameters/Cursor'
+    - $ref: '../components.yaml#/parameters/Limit'
+    responses:
+      '200':
+        description: Immutable refund-link history
+        content:
+          application/json:
+            schema: { $ref: '../schemas/refunds.yaml#/RefundHistoryPage' }
       '400': { $ref: '../components.yaml#/responses/Problem' }
       '401': { $ref: '../components.yaml#/responses/Problem' }
       '404': { $ref: '../components.yaml#/responses/Problem' }

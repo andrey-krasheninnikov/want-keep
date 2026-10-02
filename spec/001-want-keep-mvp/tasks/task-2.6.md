@@ -60,7 +60,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 **Следующее действие:** Исправить FORM-06/07, вернуть FORM-08, явный долг FORM-09; чек → SCR-011.
 
-**Объяснение и детализация:** История до/после показывает автора, decisionId, источник и защищённые поля. Распределение показывает personal/shared, точные суммы каждого участника, unallocated, применённые rule revisions и позиции. Явное значение позиции важнее покупки, затем merchant/category rule и equal для явно совместной траты. Source update не стирает пользовательский выбор; изменение amount-based распределения требует согласованной правки, share-based пересчитывается. Matching сохраняет один носитель семейного и персонального эффекта; undo проверяет revisions всех участников.
+**Объяснение и детализация:** История до/после показывает автора, decisionId, источник и защищённые поля. Распределение показывает personal/shared, точные суммы каждого участника, unallocated, применённые rule revisions и позиции. Явное значение позиции важнее покупки, затем merchant/category rule и equal для явно совместной траты. Source update не стирает пользовательский выбор; изменение amount-based распределения требует согласованной правки, share-based пересчитывается. Matching сохраняет один носитель семейного и персонального эффекта; undo проверяет revisions всех участников. Возврат показывает связь с покупкой и обе revisions, фактическую cash date, исходный expense month, returned items, остаток покупки, историческое распределение/оценку и clarification при неизвестной позиции. Импортированная refund-операция связывается без второго денежного движения.
 
 **Права:** Оба участника видят и исправляют факты любого счёта семьи; actor из сессии.
 
@@ -142,11 +142,11 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 #### FORM-08 — Возврат покупки
 
-**Поля:** Исходная покупка, возвращаемые позиции/доли/сумма, счёт поступления и фактическая дата.
+**Поля:** Исходная покупка и её revision, точные позиции itemId+amount либо сумма покупки, счёт поступления, фактическая дата, отдельные комиссии и обязательная причина.
 
-**Проверки и права:** Оба member; совокупный возврат не больше покупки; исходные исторические FX и распределение по возвращённой части сохраняются.
+**Проверки и права:** Оба участника; актив возврата совпадает с покупкой; совокупный возврат не больше остатка покупки и каждой позиции. Для чека сумма позиций равна principal. Неоднозначная позиция остаётся clarification. Исходные allocation snapshot и историческая оценка сохраняются; другой актив оформляется обменом.
 
-**Результат:** Исходный месяц покупки пересчитан; деньги поступили текущей датой; FX отдельно.
+**Результат:** Создана одна posted refund-операция или существующая импортная операция связана без второго движения. Исходный месяц уменьшен; деньги поступили фактической датой без дохода; FX и комиссии показаны отдельно.
 
 #### FORM-09 — Явный долг и возмещение
 
@@ -297,7 +297,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 **Next action:** Correct FORM-06/07, refund FORM-08, explicit debt FORM-09; receipt → SCR-011.
 
-**Explanation and details:** Before/after history exposes actor, decisionId, source and protected fields. Allocation shows personal/shared purpose, exact member amounts, unallocated, applied rule revisions and items. Explicit item value wins over purchase, then merchant/category rule and equal for an explicitly shared expense. A source update cannot erase the user choice; changing an amount-based allocation requires a consistent correction while share-based allocation recalculates. Matching retains one household and member effect carrier; undo checks every participant revision.
+**Explanation and details:** Before/after history exposes actor, decisionId, source and protected fields. Allocation shows personal/shared purpose, exact member amounts, unallocated, applied rule revisions and items. Explicit item value wins over purchase, then merchant/category rule and equal for an explicitly shared expense. A source update cannot erase the user choice; changing an amount-based allocation requires a consistent correction while share-based allocation recalculates. Matching retains one household and member effect carrier; undo checks every participant revision. A refund shows its purchase link and both revisions, actual cash date, original expense month, returned items, purchase remainder, historical allocation/valuation and clarification for an unknown item. An imported refund transaction is linked without a second cash movement.
 
 **Permissions:** Both members read/correct facts for any household account; actor from session.
 
@@ -379,11 +379,11 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 #### FORM-08 — Purchase refund
 
-**Fields:** Original purchase, returned items/shares/amount, receiving account and actual date.
+**Fields:** Original purchase and its revision, exact itemId+amount portions or a purchase-level amount, receiving account, actual date, separate fees and required reason.
 
-**Validation and permissions:** Either member; cumulative refund cannot exceed purchase; original historical FX and refunded-part allocation are retained.
+**Validation and permissions:** Either member; the refund asset matches the purchase; cumulative refunds cannot exceed the remaining purchase or item amounts. Receipt item portions equal principal. Ambiguous items remain clarification. The original allocation snapshot and historical valuation are retained; a different asset requires an exchange.
 
-**Outcome:** Original purchase month recalculated; cash arrives on actual date; FX separate.
+**Outcome:** One posted refund transaction is created, or an existing imported transaction is linked without a second movement. The original month is reduced; cash arrives on its actual date without income; FX and fees remain separate.
 
 #### FORM-09 — Explicit debt and reimbursement
 

@@ -13,6 +13,7 @@ import (
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
 	"github.com/pchkauu/want-keep/backend/internal/delivery/http/contract"
 	"github.com/pchkauu/want-keep/backend/internal/delivery/http/security"
+	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 	identity "github.com/pchkauu/want-keep/backend/internal/identity/domain"
 	application "github.com/pchkauu/want-keep/backend/internal/ledger/application"
@@ -29,6 +30,7 @@ type ReadTransactions interface {
 }
 type Server struct {
 	matching  *matching.Service
+	refunds   *expenses.Service
 	service   *application.Service
 	queries   *application.Queries
 	mutations *commands.Authenticated
@@ -58,16 +60,30 @@ func New(s *application.Service, m *matching.Service, q *application.Queries, e 
 	h.mux.HandleFunc("POST /api/v1/transactions", h.create)
 	h.mux.HandleFunc("GET /api/v1/transactions/{transactionId}", h.read)
 	h.mux.HandleFunc("POST /api/v1/transfers", h.transfer)
+	h.mux.HandleFunc("POST /api/v1/refunds", h.refund)
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/corrections", h.correct)
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/undo", h.undo)
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/exclude", h.exclude)
 	h.mux.HandleFunc("GET /api/v1/transactions/{transactionId}/history", h.history)
+	h.mux.HandleFunc("GET /api/v1/transactions/{transactionId}/refund-history", h.refundHistory)
 	h.mux.HandleFunc("GET /api/v1/transactions/{transactionId}/revisions/{revision}", h.revision)
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/links", h.link)
 	h.mux.HandleFunc("POST /api/v1/transactions/{transactionId}/allocations", h.allocate)
 	h.mux.HandleFunc("GET /api/v1/matching", h.matchingList)
 	h.mux.HandleFunc("GET /api/v1/matching/{matchingId}", h.matchingRead)
 	h.mux.HandleFunc("POST /api/v1/matching/{matchingId}/resolve", h.matchingResolve)
+	return h, nil
+}
+
+func NewWithRefunds(s *application.Service, m *matching.Service, refunds *expenses.Service, q *application.Queries, e *commands.Executor, cq *commands.Queries, sessions Sessions, reads ReadTransactions, c security.Config, now func() calendar.Instant) (*Server, error) {
+	if refunds == nil {
+		return nil, ledger.ErrInvalidRevision
+	}
+	h, err := New(s, m, q, e, cq, sessions, reads, c, now)
+	if err != nil {
+		return nil, err
+	}
+	h.refunds = refunds
 	return h, nil
 }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

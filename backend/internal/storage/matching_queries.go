@@ -48,10 +48,11 @@ func (s *Store) MatchingReferences(ctx context.Context, p household.Principal, r
 		if err != nil {
 			return nil, false, err
 		}
-		args = append(args, encoded, r.CashDate.String())
+		args = append(args, encoded, r.CashDate.String(), r.Type, r.Origin)
 		query = `SELECT o.id,o.revision FROM want_keep.operations o
  JOIN want_keep.operation_revisions v ON(v.household_id,v.operation_id,v.revision)=(o.household_id,o.id,o.revision)
- WHERE o.household_id=$1 AND o.id<>$2 AND v.economic_type IN ('income','expense','transfer','exchange') AND v.cash_date BETWEEN $5::date-7 AND $5::date+7
+ LEFT JOIN want_keep.transaction_details d ON(d.household_id,d.operation_id,d.revision)=(v.household_id,v.operation_id,v.revision)
+ WHERE o.household_id=$1 AND o.id<>$2 AND v.economic_type IN ('income','expense','transfer','exchange','refund') AND (v.economic_type='refund')=($6='refund') AND (v.economic_type<>'refund' OR d.origin<>$7) AND v.cash_date BETWEEN $5::date-7 AND $5::date+7
  AND EXISTS(SELECT 1 FROM want_keep.postings p JOIN jsonb_to_recordset($4::jsonb) AS wanted(account text,amount text,asset text,role text) ON(p.account_id,p.amount,p.asset,p.role)=(wanted.account::uuid,wanted.amount::numeric,wanted.asset,wanted.role)
  WHERE (p.household_id,p.operation_id,p.revision)=(o.household_id,o.id,o.revision))
  AND NOT EXISTS(SELECT 1 FROM want_keep.ledger_participations p WHERE (p.household_id,p.operation_id,p.revision)=(o.household_id,o.id,o.revision) AND p.state='waiting')

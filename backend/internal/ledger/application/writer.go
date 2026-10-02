@@ -26,6 +26,9 @@ type Journal interface {
 type ReconciliationTrigger interface {
 	ReconcileAccount(context.Context, household.Principal, string) error
 }
+type RefundProjector interface {
+	ProjectRefunds(context.Context, household.Principal, ledger.Revision, *ledger.Revision) error
+}
 type ReimbursementTrigger interface {
 	ReconcileLedgerRevision(context.Context, household.Principal, ledger.Revision, *ledger.Revision) error
 }
@@ -33,6 +36,7 @@ type Writer struct {
 	journal        Journal
 	accounts       accounts.Repository
 	reconciler     ReconciliationTrigger
+	refunds        RefundProjector
 	reimbursements ReimbursementTrigger
 }
 
@@ -103,8 +107,14 @@ func NewWriter(j Journal, a accounts.Repository) *Writer { return &Writer{journa
 func NewWriterWithReconciliation(j Journal, a accounts.Repository, reconciler ReconciliationTrigger) *Writer {
 	return &Writer{journal: j, accounts: a, reconciler: reconciler}
 }
+func NewWriterWithProjections(j Journal, a accounts.Repository, reconciler ReconciliationTrigger, refunds RefundProjector) *Writer {
+	return &Writer{journal: j, accounts: a, reconciler: reconciler, refunds: refunds}
+}
 func NewWriterWithReconciliationAndReimbursements(j Journal, a accounts.Repository, reconciler ReconciliationTrigger, reimbursements ReimbursementTrigger) *Writer {
 	return &Writer{journal: j, accounts: a, reconciler: reconciler, reimbursements: reimbursements}
+}
+func NewWriterWithRefundsAndReimbursements(j Journal, a accounts.Repository, reconciler ReconciliationTrigger, refunds RefundProjector, reimbursements ReimbursementTrigger) *Writer {
+	return &Writer{journal: j, accounts: a, reconciler: reconciler, refunds: refunds, reimbursements: reimbursements}
 }
 
 // Append must be called inside the household transaction, including the command or import fence.
@@ -115,6 +125,11 @@ func (w *Writer) Append(ctx context.Context, p household.Principal, r ledger.Rev
 	}
 	if err = accounts.NewProjector(w.accounts).Apply(ctx, p, r, previous); err != nil {
 		return err
+	}
+	if w.refunds != nil {
+		if err = w.refunds.ProjectRefunds(ctx, p, r, previous); err != nil {
+			return err
+		}
 	}
 	if err = w.reconcile(ctx, p, affected); err != nil {
 		return err
@@ -149,6 +164,13 @@ func (w *Writer) AppendBatch(ctx context.Context, p household.Principal, revisio
 	}
 	if err := accounts.NewProjector(w.accounts).ApplyBatch(ctx, p, changes); err != nil {
 		return err
+	}
+	if w.refunds != nil {
+		for _, change := range changes {
+			if err := w.refunds.ProjectRefunds(ctx, p, change.Revision, change.Previous); err != nil {
+				return err
+			}
+		}
 	}
 	ids := make([]string, 0, len(affected))
 	for id := range affected {

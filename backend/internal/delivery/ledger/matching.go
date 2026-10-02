@@ -8,7 +8,7 @@ import (
 	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
 	"github.com/pchkauu/want-keep/backend/internal/delivery/http/contract"
 	"github.com/pchkauu/want-keep/backend/internal/delivery/http/generated"
-	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/domain"
+	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	application "github.com/pchkauu/want-keep/backend/internal/matching/application"
 	matching "github.com/pchkauu/want-keep/backend/internal/matching/domain"
 )
@@ -44,7 +44,39 @@ func (s *Server) link(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if in.Kind == "refund" {
-		s.problem(w, ledger.ErrFeatureUnavailable)
+		if s.refunds == nil || in.Refund == nil || in.Refund.ExpectedRevision < 0 || len(in.ExpectedRevisions) != 2 || in.Refund.PurchaseId == id {
+			s.problem(w, contract.ErrInvalidRequest)
+			return
+		}
+		revisions := map[string]uint64{}
+		for _, value := range in.ExpectedRevisions {
+			if _, found := revisions[value.TransactionId]; found {
+				s.problem(w, contract.ErrInvalidRequest)
+				return
+			}
+			revisions[value.TransactionId] = uint64(value.ExpectedRevision)
+		}
+		refundRevision, refundFound := revisions[id]
+		purchaseRevision, purchaseFound := revisions[in.Refund.PurchaseId]
+		if !refundFound || !purchaseFound {
+			s.problem(w, contract.ErrInvalidRequest)
+			return
+		}
+		items, itemErr := s.refundItems(in.Refund.ReturnedItems)
+		if itemErr != nil {
+			s.problem(w, itemErr)
+			return
+		}
+		input := expenses.LinkInput{RefundID: id, PurchaseID: in.Refund.PurchaseId, RefundExpectedRevision: refundRevision, PurchaseExpectedRevision: purchaseRevision, ExpectedRevision: uint64(in.Refund.ExpectedRevision), Items: items, Reason: in.Reason}
+		payload := struct {
+			TransactionID string
+			Input         generated.TransactionLink
+		}{id, in}
+		s.execute(w, r, a, "transactions.links", payload, func(ctx context.Context) (command.Result, error) { return s.refunds.Link(ctx, a.Principal, input) })
+		return
+	}
+	if in.Refund != nil {
+		s.problem(w, contract.ErrInvalidRequest)
 		return
 	}
 	kind := matching.Kind(in.Kind)

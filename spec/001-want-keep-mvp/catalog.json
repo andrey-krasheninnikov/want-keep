@@ -3793,20 +3793,33 @@
       ],
       "targets": [
         "backend/internal/ledger/",
-        "backend/internal/expenses/"
+        "backend/internal/expenses/",
+        "backend/internal/storage/",
+        "backend/internal/delivery/ledger/",
+        "backend/migrations/021_refunds.sql",
+        "backend/test/integration/refunds/",
+        "api/"
       ],
       "behavior": {
-        "ru": "Сохранять реальные даты поступления возврата, связь с покупкой/позициями и исходную дату бюджетного факта. Частичные возвраты ограничить невозвращённой суммой; валютный возврат уменьшает историческую стоимость возвращённой части, отдельные FX/fees не скрываются. Распределять скидки с точным остатком округления; неизвестную позицию возврата уточнять.",
-        "en": "Retain actual refund receipt dates, purchase/item links and original expense-budget date. Cap partial refunds at the unrefunded amount; foreign-currency refunds reduce the original value of the returned portion, with separate FX/fees. Allocate discounts with exact rounding remainder; clarify unknown refunded items."
+        "ru": "Ручной возврат создаёт одну posted refund-операцию: деньги поступают в фактическую дату без дохода, а аналитика уменьшает расход исходного месяца. Версионная связь сохраняет revisions покупки и возврата, точные позиции, исходное распределение, зафиксированную историческую оценку и отдельный review request. Совокупный возврат ограничен невозвращённой суммой покупки и каждой позиции под блокировкой покупки; лимит 1000 учитывает только активные связи. Двухэтапное largest-remainder распределение сохраняет frozen reporting total всех частичных возвратов в пределах 1000 весов. Импортированный возврат связывается без второго денежного эффекта при любом порядке импорта и ручной записи; подтверждённый payment-компонент имеет одну аналитическую связь. Совместимый snapshot task-6.1 фиксируется в валюте отображения инициатора без текущего курса. Correction, exclusion, reversal и undo пакетно пересчитывают и сохраняют связи через тот же ledger Writer; история ledger выбирает связи на момент его revision, а отдельная постраничная история refund-связи показывает последующие изменения. Неоднозначная позиция остаётся clarification без вымышленного распределения.",
+        "en": "A manual refund creates one posted refund transaction: cash arrives on its actual date without income, while analytics reduces the original month's expense. The versioned link retains purchase and refund revisions, exact items, the original allocation, a frozen historical valuation and a separate review request. Cumulative refunds are capped by the remaining purchase and item amounts while the purchase is locked; the 1000 limit counts active links only. Two-stage largest-remainder allocation preserves the frozen reporting total across all partial refunds within the 1000-weight limit. An imported refund is linked without a second cash effect in either manual/import order; a confirmed payment component has one analytical link. A compatible task-6.1 snapshot is pinned in the initiating member’s reporting asset without a current rate. Correction, exclusion, reversal and undo recalculate and persist links in a batch through the same ledger Writer; ledger history selects links at its revision, while separate paginated refund-link history shows later changes. Ambiguous items remain clarification without invented allocation."
       },
       "verification": {
-        "command": "make test-go PKG=./internal/expenses/... && make test-integration AREA=refunds",
+        "command": "make check && make test-integration AREA=refunds && make test-refunds-race",
         "expected": {
-          "ru": "Частичные/повторные/валютные возвраты, отмена возврата и скидки сохраняют сумму и правильный месяц.",
-          "en": "Partial/replayed/FX refunds, refund reversal and discounts preserve totals and the correct month."
+          "ru": "Шесть активов, частичные/повторные/конкурентные возвраты, позиции и скидки, точная совокупная историческая оценка без накопления округления, исторические revisions связей, комиссия третьего актива, correction/exclusion/undo/reversal, review requests, replay и связь импортного возврата сохраняют точную сумму, исходный месяц и единственный денежный эффект.",
+          "en": "Six assets, partial/replayed/concurrent refunds, items and discounts, exact cumulative historical valuation without rounding drift, historical link revisions, a third-asset fee, correction/exclusion/undo/reversal, review requests, replay and imported-refund linking preserve exact totals, the original month and one cash effect."
         }
       },
-      "github_url": "https://github.com/pchkauu/want-keep/issues/23"
+      "github_url": "https://github.com/pchkauu/want-keep/issues/23",
+      "status": {
+        "ru": "Реализованы backend/API возвратов, версия связи с покупкой и позициями, исторический аналитический эффект и защита от повторного денежного движения. UI, получение курсов, отчёты и production остаются профильным задачам.",
+        "en": "Refund backend/API, versioned purchase/item links, historical analytical effects and duplicate cash-effect protection are implemented. UI, rate acquisition, reports and production remain with their owning tasks."
+      },
+      "verification_note": {
+        "ru": "Зависимости task-2.2, task-2.6 и task-2.8 включены в базу. Доказательства и границы: evidence/task-2.7-refunds.md. Обязательны make check, refunds и затронутые integration/race/privacy suites. Это не подтверждает эксплуатационную готовность.",
+        "en": "Dependencies task-2.2, task-2.6 and task-2.8 are included in the base. Evidence and boundaries: evidence/task-2.7-refunds.en.md. Require make check, refunds and affected integration/race/privacy suites. This does not confirm operational readiness."
+      }
     },
     {
       "id": "task-2.8",
@@ -6363,16 +6376,16 @@
         "en": "Purchase refund"
       },
       "fields": {
-        "ru": "Исходная покупка, возвращаемые позиции/доли/сумма, счёт поступления и фактическая дата.",
-        "en": "Original purchase, returned items/shares/amount, receiving account and actual date."
+        "ru": "Исходная покупка и её revision, точные позиции itemId+amount либо сумма покупки, счёт поступления, фактическая дата, отдельные комиссии и обязательная причина.",
+        "en": "Original purchase and its revision, exact itemId+amount portions or a purchase-level amount, receiving account, actual date, separate fees and required reason."
       },
       "rules": {
-        "ru": "Оба member; совокупный возврат не больше покупки; исходные исторические FX и распределение по возвращённой части сохраняются.",
-        "en": "Either member; cumulative refund cannot exceed purchase; original historical FX and refunded-part allocation are retained."
+        "ru": "Оба участника; актив возврата совпадает с покупкой; совокупный возврат не больше остатка покупки и каждой позиции. Для чека сумма позиций равна principal. Неоднозначная позиция остаётся clarification. Исходные allocation snapshot и историческая оценка сохраняются; другой актив оформляется обменом.",
+        "en": "Either member; the refund asset matches the purchase; cumulative refunds cannot exceed the remaining purchase or item amounts. Receipt item portions equal principal. Ambiguous items remain clarification. The original allocation snapshot and historical valuation are retained; a different asset requires an exchange."
       },
       "result": {
-        "ru": "Исходный месяц покупки пересчитан; деньги поступили текущей датой; FX отдельно.",
-        "en": "Original purchase month recalculated; cash arrives on actual date; FX separate."
+        "ru": "Создана одна posted refund-операция или существующая импортная операция связана без второго движения. Исходный месяц уменьшен; деньги поступили фактической датой без дохода; FX и комиссии показаны отдельно.",
+        "en": "One posted refund transaction is created, or an existing imported transaction is linked without a second movement. The original month is reduced; cash arrives on its actual date without income; FX and fees remain separate."
       }
     },
     {
@@ -7105,8 +7118,8 @@
         "en": "Correct FORM-06/07, refund FORM-08, explicit debt FORM-09; receipt → SCR-011."
       },
       "detail": {
-        "ru": "История до/после показывает автора, decisionId, источник и защищённые поля. Распределение показывает personal/shared, точные суммы каждого участника, unallocated, применённые rule revisions и позиции. Явное значение позиции важнее покупки, затем merchant/category rule и equal для явно совместной траты. Source update не стирает пользовательский выбор; изменение amount-based распределения требует согласованной правки, share-based пересчитывается. Matching сохраняет один носитель семейного и персонального эффекта; undo проверяет revisions всех участников.",
-        "en": "Before/after history exposes actor, decisionId, source and protected fields. Allocation shows personal/shared purpose, exact member amounts, unallocated, applied rule revisions and items. Explicit item value wins over purchase, then merchant/category rule and equal for an explicitly shared expense. A source update cannot erase the user choice; changing an amount-based allocation requires a consistent correction while share-based allocation recalculates. Matching retains one household and member effect carrier; undo checks every participant revision."
+        "ru": "История до/после показывает автора, decisionId, источник и защищённые поля. Распределение показывает personal/shared, точные суммы каждого участника, unallocated, применённые rule revisions и позиции. Явное значение позиции важнее покупки, затем merchant/category rule и equal для явно совместной траты. Source update не стирает пользовательский выбор; изменение amount-based распределения требует согласованной правки, share-based пересчитывается. Matching сохраняет один носитель семейного и персонального эффекта; undo проверяет revisions всех участников. Возврат показывает связь с покупкой и обе revisions, фактическую cash date, исходный expense month, returned items, остаток покупки, историческое распределение/оценку и clarification при неизвестной позиции. Импортированная refund-операция связывается без второго денежного движения.",
+        "en": "Before/after history exposes actor, decisionId, source and protected fields. Allocation shows personal/shared purpose, exact member amounts, unallocated, applied rule revisions and items. Explicit item value wins over purchase, then merchant/category rule and equal for an explicitly shared expense. A source update cannot erase the user choice; changing an amount-based allocation requires a consistent correction while share-based allocation recalculates. Matching retains one household and member effect carrier; undo checks every participant revision. A refund shows its purchase link and both revisions, actual cash date, original expense month, returned items, purchase remainder, historical allocation/valuation and clarification for an unknown item. An imported refund transaction is linked without a second cash movement."
       },
       "rights": {
         "ru": "Оба участника видят и исправляют факты любого счёта семьи; actor из сессии.",

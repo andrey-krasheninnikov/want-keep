@@ -18,13 +18,44 @@ import (
 type historyPage struct {
 	access        identity.Access
 	transactionID string
+	purpose       string
 }
 
 func (p historyPage) cursor(revision uint64) string {
 	payload := strconv.FormatUint(revision, 10)
+	purpose := p.purpose
+	if purpose == "" {
+		purpose = "ledger-history"
+	}
 	h := hmac.New(sha256.New, []byte(p.access.Token))
-	_, _ = h.Write([]byte("ledger-history/" + string(p.access.Principal.HouseholdID()) + "/" + string(p.access.Principal.UserID()) + "/" + p.transactionID + "/" + payload))
+	_, _ = h.Write([]byte(purpose + "/" + string(p.access.Principal.HouseholdID()) + "/" + string(p.access.Principal.UserID()) + "/" + p.transactionID + "/" + payload))
 	return payload + "." + base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+func (p historyPage) input(r *http.Request) (int, uint64, error) {
+	limit := 50
+	var before uint64
+	for key, values := range r.URL.Query() {
+		if len(values) != 1 || key != "limit" && key != "cursor" {
+			return 0, 0, contract.ErrInvalidRequest
+		}
+	}
+	if value := r.URL.Query().Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 || parsed > 100 {
+			return 0, 0, contract.ErrInvalidRequest
+		}
+		limit = parsed
+	}
+	if value := r.URL.Query().Get("cursor"); value != "" {
+		raw, _, ok := strings.Cut(value, ".")
+		parsed, err := strconv.ParseUint(raw, 10, 64)
+		if !ok || err != nil || parsed < 1 || parsed > 9007199254740991 || !hmac.Equal([]byte(value), []byte(p.cursor(parsed))) {
+			return 0, 0, contract.ErrInvalidRequest
+		}
+		before = parsed
+	}
+	return limit, before, nil
 }
 func (s *Server) history(w http.ResponseWriter, r *http.Request) {
 	a, err := s.guard.Authorize(r, s.sessions, false)
@@ -37,29 +68,11 @@ func (s *Server) history(w http.ResponseWriter, r *http.Request) {
 		s.problem(w, err)
 		return
 	}
-	p := historyPage{a, id}
-	limit := 50
-	var before uint64
-	for key, values := range r.URL.Query() {
-		if len(values) != 1 || key != "limit" && key != "cursor" {
-			s.problem(w, contract.ErrInvalidRequest)
-			return
-		}
-	}
-	if value := r.URL.Query().Get("limit"); value != "" {
-		limit, err = strconv.Atoi(value)
-		if err != nil || limit < 1 || limit > 100 {
-			s.problem(w, contract.ErrInvalidRequest)
-			return
-		}
-	}
-	if value := r.URL.Query().Get("cursor"); value != "" {
-		raw, _, ok := strings.Cut(value, ".")
-		before, err = strconv.ParseUint(raw, 10, 64)
-		if !ok || err != nil || before < 1 || before > 9007199254740991 || !hmac.Equal([]byte(value), []byte(p.cursor(before))) {
-			s.problem(w, contract.ErrInvalidRequest)
-			return
-		}
+	p := historyPage{access: a, transactionID: id}
+	limit, before, err := p.input(r)
+	if err != nil {
+		s.problem(w, err)
+		return
 	}
 	out := generated.TransactionHistoryPage{Items: []generated.TransactionHistoryEntry{}}
 	err = s.reads.WithinFinancialRead(r.Context(), a.Principal, func(ctx context.Context) error {
@@ -73,6 +86,49 @@ func (s *Server) history(w http.ResponseWriter, r *http.Request) {
 				return e
 			}
 			out.Items = append(out.Items, v)
+		}
+		if next > 0 {
+			cursor := p.cursor(next)
+			out.NextCursor = &cursor
+		}
+		return nil
+	})
+	if err != nil {
+		s.problem(w, err)
+		return
+	}
+	s.write(w, 200, out)
+}
+
+func (s *Server) refundHistory(w http.ResponseWriter, r *http.Request) {
+	a, err := s.guard.Authorize(r, s.sessions, false)
+	if err != nil {
+		s.problem(w, err)
+		return
+	}
+	id, err := s.transactionID(r)
+	if err != nil {
+		s.problem(w, err)
+		return
+	}
+	p := historyPage{access: a, transactionID: id, purpose: "refund-history"}
+	limit, before, err := p.input(r)
+	if err != nil {
+		s.problem(w, err)
+		return
+	}
+	out := generated.RefundHistoryPage{Items: []generated.RefundHistoryEntry{}}
+	err = s.reads.WithinFinancialRead(r.Context(), a.Principal, func(ctx context.Context) error {
+		values, next, readErr := s.queries.RefundHistory(ctx, a.Principal, id, before, limit)
+		if readErr != nil {
+			return readErr
+		}
+		for _, value := range values {
+			refund, conversionErr := s.refundDTO(value)
+			if conversionErr != nil {
+				return conversionErr
+			}
+			out.Items = append(out.Items, generated.RefundHistoryEntry{Refund: refund, ActorId: string(value.ActorID), RecordedAt: value.RecordedAt.String()})
 		}
 		if next > 0 {
 			cursor := p.cursor(next)
