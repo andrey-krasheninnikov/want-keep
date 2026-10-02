@@ -3,8 +3,9 @@ import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type Server } from "node:http";
+import { gzipSync } from "node:zlib";
 
-import { chromium } from "playwright";
+import { chromium, type BrowserContext } from "playwright";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -135,6 +136,91 @@ describe("collector security boundary", () => {
     expect(second.status).toBe(200);
     expect(JSON.parse(second.body).page.cursor).toBe("page-2");
     expect(JSON.parse(second.body).page.complete).toBe(true);
+  });
+
+  it("cancels stalled context setup and closes a late context", async () => {
+    const portal = await startPortal("safe");
+    const runtime = new CollectorRuntime(config(portal.origin, "/portal"));
+    cleanup.push(() => runtime.close());
+    let finish!: (context: BrowserContext) => void;
+    const newContext = vi.fn(
+      () =>
+        new Promise<BrowserContext>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const closeBrowser = vi.fn(async () => undefined);
+    Reflect.set(runtime, "browser", {
+      isConnected: () => true,
+      newContext,
+      close: closeBrowser,
+    });
+    const controller = new AbortController();
+    const rejected = expect(
+      runtime.read(envelope("alpha"), controller.signal),
+    ).rejects.toBeInstanceOf(CollectorBeforeIOUnavailableError);
+    await vi.waitFor(() => expect(newContext).toHaveBeenCalledOnce());
+    controller.abort();
+    await rejected;
+    expect(closeBrowser).toHaveBeenCalled();
+    expect(Reflect.get(runtime, "busy")).toBe(false);
+    expect(Reflect.get(runtime, "browser")).toBeUndefined();
+    const closeContext = vi.fn(async () => undefined);
+    finish({ close: closeContext } as unknown as BrowserContext);
+    await vi.waitFor(() => expect(closeContext).toHaveBeenCalledOnce());
+    expect(portal.requests()).toBe(0);
+    expect(
+      (await runtime.read(envelope("alpha"), new AbortController().signal))
+        .outcome,
+    ).toBe("page");
+  });
+
+  it("cancels browser launch at the job deadline", async () => {
+    const portal = await startPortal("safe");
+    const runtime = new CollectorRuntime(config(portal.origin, "/portal"));
+    const launch = vi.spyOn(chromium, "launch").mockImplementationOnce(
+      (options) =>
+        new Promise((_, reject) => {
+          (Reflect.get(options!, "signal") as AbortSignal).addEventListener(
+            "abort",
+            () => reject(new Error("cancelled")),
+            { once: true },
+          );
+        }),
+    );
+    try {
+      await expect(
+        runtime.read(envelope("alpha"), AbortSignal.timeout(10)),
+      ).rejects.toBeInstanceOf(CollectorBeforeIOUnavailableError);
+      expect(launch.mock.calls[0]![0]!.timeout).toBe(10_000);
+      expect(Reflect.get(runtime, "busy")).toBe(false);
+      expect(portal.requests()).toBe(0);
+    } finally {
+      launch.mockRestore();
+    }
+  });
+
+  it.each(["oversized-entry", "compressed-oversized-entry"])(
+    "bounds the decoded %s before the financial read",
+    async (scenario) => {
+      const portal = await startPortal(scenario);
+      const collector = await start(portal.origin, "/portal");
+      const result = await post(
+        collector.socket,
+        "/v1/read",
+        envelope("alpha"),
+      );
+      expect(result.status).toBe(503);
+      expect(portal.requests()).toBe(1);
+    },
+  );
+
+  it("decodes an entry and preserves its session cookies", async () => {
+    const portal = await startPortal("compressed-entry");
+    const collector = await start(portal.origin, "/portal");
+    const result = await post(collector.socket, "/v1/read", envelope("alpha"));
+    expect(result.status).toBe(200);
+    expect(JSON.parse(result.body).page.records).toHaveLength(17);
   });
 
   it("ignores a provider page that replaces fetch", async () => {
@@ -420,6 +506,32 @@ async function startPortal(scenario: string, redirectTarget = "/unknown") {
         response.writeHead(302, { location: redirectTarget }).end();
         return;
       }
+      if (scenario === "oversized-entry") {
+        response.writeHead(200, { "content-type": "text/html" });
+        response.write(Buffer.alloc(32 * 1024 * 1024, "x"));
+        response.end("x");
+        return;
+      }
+      if (
+        scenario === "compressed-oversized-entry" ||
+        scenario === "compressed-entry"
+      ) {
+        const body =
+          scenario === "compressed-entry"
+            ? Buffer.from("<html><body>ready</body></html>")
+            : Buffer.alloc(32 * 1024 * 1024 + 1, "x");
+        response
+          .writeHead(200, {
+            "content-type": "text/html",
+            "content-encoding": "gzip",
+            "set-cookie": [
+              "session=rotated; Path=/; HttpOnly",
+              "second=present; Path=/; HttpOnly",
+            ],
+          })
+          .end(gzipSync(body));
+        return;
+      }
       const behavior =
         scenario === "payment"
           ? "fetch('/api/payment',{method:'POST',body:'{}'}).catch(()=>{})"
@@ -483,6 +595,14 @@ async function startPortal(scenario: string, redirectTarget = "/unknown") {
         else result.page.nextCursor = "page-2";
       }
       const cookie = request.headers.cookie ?? "";
+      if (
+        scenario === "compressed-entry" &&
+        (!cookie.includes("session=rotated") ||
+          !cookie.includes("second=present"))
+      ) {
+        response.writeHead(401).end();
+        return;
+      }
       if (scenario === "session")
         (
           result.page.records as Array<{

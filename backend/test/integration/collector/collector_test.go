@@ -186,6 +186,86 @@ func TestMalformedBrowserSessionRequiresReauth(t *testing.T) {
 	testCollectorRejectedBeforeIO(t, http.StatusOK, "", string(jobs.Waiting), string(jobs.ReauthRequired), true, []byte("{bad"))
 }
 
+func TestCollectorCompletesSixPagesInOneAttempt(t *testing.T) {
+	store, admin, principal, job, keys, _ := fixture(t, false)
+	ref := connections.SecretReference{HouseholdID: principal.HouseholdID(), ConnectionID: job.ConnectionID, Purpose: connections.BrowserSession, Generation: job.ConnectionGeneration, Revision: 1}
+	aad, _ := json.Marshal(struct {
+		Version   int
+		Purpose   string
+		Reference connections.SecretReference
+	}{1, "connection-secret", ref})
+	secret, err := keys.Seal([]byte(`{"cookies":[],"origins":[]}`), aad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.WithinHousehold(testContext, principal, func(ctx context.Context) error {
+		return store.SaveEncryptedSecret(ctx, ref, secret)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join("..", "..", "..", "..", "collector", "contracts", "v10", "fixtures")
+	manifest, err := os.ReadFile(filepath.Join(root, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden, err := os.ReadFile(filepath.Join(root, "golden-page.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	socket := filepath.Join("/tmp", "wk-"+uuid.NewString()[:8]+".sock")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &http.Server{Handler: http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/ready":
+			_, _ = io.WriteString(response, "want-keep-browser-collector/1\n")
+		case "/v1/capabilities":
+			_, _ = response.Write(manifest)
+		case "/v1/read":
+			var envelope struct {
+				SyncRequest map[string]any `json:"syncRequest"`
+			}
+			if json.NewDecoder(request.Body).Decode(&envelope) != nil {
+				response.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			var result map[string]any
+			_ = json.Unmarshal(golden, &result)
+			page := result["page"].(map[string]any)
+			for _, field := range []string{"jobId", "attempt", "leaseToken", "connectionGeneration", "binding", "admissionRevision"} {
+				page[field] = envelope.SyncRequest[field]
+			}
+			cursor, _ := envelope.SyncRequest["cursor"].(string)
+			index := 0
+			if cursor != "" {
+				_, _ = fmt.Sscanf(cursor, "page-%d", &index)
+			}
+			page["cursor"], page["nextCursor"] = cursor, fmt.Sprintf("page-%d", index+1)
+			page["complete"], page["records"] = index == 5, []any{}
+			if index == 5 {
+				delete(page, "nextCursor")
+			}
+			_ = json.NewEncoder(response).Encode(result)
+		}
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close(); _ = os.Remove(socket) })
+	worker := collectorWorker(t, store, keys, socket)
+	if err = worker.Step(testContext); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.Job(testContext, principal, job.ID)
+	if err != nil || current.State != jobs.Succeeded || current.Attempt != 1 || current.ExternalStarted {
+		t.Fatal("pagination consumed retry attempts or lost progress", current, err)
+	}
+	var pages int
+	if err = admin.QueryRow(testContext, `SELECT count(*) FROM want_keep.ingestion_result_receipts WHERE household_id=$1 AND job_id=$2`, principal.HouseholdID(), job.ID).Scan(&pages); err != nil || pages != 6 {
+		t.Fatal("page commits lost or duplicated", pages, err)
+	}
+}
+
 func testCollectorRejectedBeforeIO(t *testing.T, status int, body, wantState, wantReason string, saveSession bool, sessionOverride ...[]byte) {
 	t.Helper()
 	store, admin, principal, job, keys, _ := fixture(t, false)
@@ -232,6 +312,20 @@ func testCollectorRejectedBeforeIO(t *testing.T, status int, body, wantState, wa
 	})}
 	go func() { _ = server.Serve(listener) }()
 	t.Cleanup(func() { _ = server.Close(); _ = os.Remove(socket) })
+	worker := collectorWorker(t, store, keys, socket)
+	if err = worker.Step(testContext); err != nil {
+		t.Fatal(err)
+	}
+	var state string
+	var reason string
+	var externalStarted bool
+	if err = admin.QueryRow(testContext, `SELECT state,reason,external_started FROM want_keep.jobs WHERE household_id=$1 AND id=$2`, principal.HouseholdID(), job.ID).Scan(&state, &reason, &externalStarted); err != nil || state != wantState || reason != wantReason || externalStarted {
+		t.Fatal("collector rejection left an incorrect job state", state, reason, externalStarted, err)
+	}
+}
+
+func collectorWorker(t *testing.T, store *storage.Store, keys *cryptobox.Keyring, socket string) jobsapp.Worker {
+	t.Helper()
 	gate := admission.NewService(store, store)
 	nowValue, _ := calendar.ParseInstant("2026-09-14T10:00:00Z")
 	now := func() calendar.Instant { return nowValue }
@@ -254,16 +348,7 @@ func testCollectorRejectedBeforeIO(t *testing.T, status int, body, wantState, wa
 		t.Fatal(err)
 	}
 	handler := collector.Handler{Socket: socket, Vault: credentials.New(connectionaccess.NewService(nil, store, gate), store, keys), Service: service}
-	worker := jobsapp.Worker{Admission: gate, Repository: store, Handler: handler, Config: jobsapp.DefaultWorkerConfig(jobs.Sync)}
-	if err = worker.Step(testContext); err != nil {
-		t.Fatal(err)
-	}
-	var state string
-	var reason string
-	var externalStarted bool
-	if err = admin.QueryRow(testContext, `SELECT state,reason,external_started FROM want_keep.jobs WHERE household_id=$1 AND id=$2`, principal.HouseholdID(), job.ID).Scan(&state, &reason, &externalStarted); err != nil || state != wantState || reason != wantReason || externalStarted {
-		t.Fatal("collector rejection left an incorrect job state", state, reason, externalStarted, err)
-	}
+	return jobsapp.Worker{Admission: gate, Repository: store, Handler: handler, Config: jobsapp.DefaultWorkerConfig(jobs.Sync)}
 }
 
 func TestStagedReconciliationUsesTerminalReceiptAfterRestart(t *testing.T) {

@@ -43,6 +43,10 @@ export class CollectorRuntime {
 
   async read(value: unknown, signal: AbortSignal): Promise<SyncResult> {
     if (this.busy) throw new CollectorBusyError();
+    signal = AbortSignal.any([
+      signal,
+      AbortSignal.timeout(this.config.requestTimeoutMs),
+    ]);
     this.busy = true;
     try {
       let envelope: ReadEnvelope;
@@ -77,19 +81,26 @@ export class CollectorRuntime {
         throw error;
       }
       if (signal.aborted) throw new Error("request_aborted");
-      const browser = await this.getBrowser().catch(() => {
+      const browser = await this.getBrowser(signal).catch(() => {
         throw new CollectorBeforeIOUnavailableError();
       });
-      return await readWithContext(
-        browser,
-        binding,
-        entry,
-        target,
-        envelope.syncRequest,
-        envelope.storageState,
-        signal,
-        this.config.requestTimeoutMs,
-      );
+      try {
+        return await readWithContext(
+          browser,
+          binding,
+          entry,
+          target,
+          envelope.syncRequest,
+          envelope.storageState,
+          signal,
+          this.config.requestTimeoutMs,
+        );
+      } finally {
+        if (signal.aborted && this.browser === browser) {
+          this.browser = undefined;
+          void browser.close().catch(() => undefined);
+        }
+      }
     } finally {
       this.busy = false;
     }
@@ -111,9 +122,16 @@ export class CollectorRuntime {
     return binding;
   }
 
-  private async getBrowser(): Promise<Browser> {
-    if (this.browser === undefined || !this.browser.isConnected())
-      this.browser = await chromium.launch({ headless: true });
+  private async getBrowser(signal: AbortSignal): Promise<Browser> {
+    if (this.browser === undefined || !this.browser.isConnected()) {
+      // The pinned runtime accepts signal; LaunchOptions does not declare it.
+      const options = {
+        headless: true,
+        signal,
+        timeout: this.config.requestTimeoutMs,
+      };
+      this.browser = await chromium.launch(options);
+    }
     return this.browser;
   }
 }
@@ -236,18 +254,36 @@ async function readWithContext(
   signal: AbortSignal,
   timeout: number,
 ): Promise<SyncResult> {
-  const context = await browser
-    .newContext({
-      acceptDownloads: false,
-      javaScriptEnabled: false,
-      serviceWorkers: "block",
-      storageState: storageState as NonNullable<
-        Parameters<Browser["newContext"]>[0]
-      >["storageState"],
-    })
+  if (signal.aborted) throw new CollectorBeforeIOUnavailableError();
+  const pendingContext = browser.newContext({
+    acceptDownloads: false,
+    javaScriptEnabled: false,
+    serviceWorkers: "block",
+    storageState: storageState as NonNullable<
+      Parameters<Browser["newContext"]>[0]
+    >["storageState"],
+  });
+  // Context creation has no native timeout. Dispose late results after cancellation.
+  void pendingContext.then(
+    (context) => {
+      if (signal.aborted) void context.close().catch(() => undefined);
+    },
+    () => undefined,
+  );
+  let cancelSetup = (): void => {};
+  const cancelled = new Promise<never>((_, reject) => {
+    cancelSetup = () => {
+      void browser.close().catch(() => undefined);
+      reject(new CollectorBeforeIOUnavailableError());
+    };
+    signal.addEventListener("abort", cancelSetup, { once: true });
+    if (signal.aborted) cancelSetup();
+  });
+  const context = await Promise.race([pendingContext, cancelled])
     .catch(() => {
       throw new CollectorBeforeIOUnavailableError();
-    });
+    })
+    .finally(() => signal.removeEventListener("abort", cancelSetup));
   let violation: Error | undefined;
   const reject = (message: string): void => {
     violation ??= new Error(message);
@@ -260,18 +296,27 @@ async function readWithContext(
     await context.route("**/*", async (route) => {
       try {
         requireAllowedRequest(binding, request, route);
-        const response = await route.fetch({
-          maxRedirects: 0,
-          maxRetries: 0,
-          timeout,
+        const headers = await route.request().allHeaders();
+        for (const name of ["host", "connection", "content-length"])
+          delete headers[name];
+        const response = await fetch(route.request().url(), {
+          headers,
+          redirect: "error",
+          signal,
         });
-        try {
-          if (response.status() >= 300 && response.status() < 400)
-            throw new Error("redirect_blocked");
-          await route.fulfill({ response });
-        } finally {
-          await response.dispose();
-        }
+        const data = await readProviderBody(response);
+        const responseHeaders = Object.fromEntries(response.headers);
+        // fetch returns decoded bytes; Chromium must not decompress them again.
+        delete responseHeaders["content-encoding"];
+        delete responseHeaders["content-length"];
+        const cookies = response.headers.getSetCookie();
+        if (cookies.length > 0)
+          responseHeaders["set-cookie"] = cookies.join("\n");
+        await route.fulfill({
+          status: response.status,
+          headers: responseHeaders,
+          body: data,
+        });
       } catch {
         reject("network_policy_violation");
         await route.abort("blockedbyclient");
@@ -321,26 +366,7 @@ async function readWithContext(
         redirect: "error",
         signal: AbortSignal.any([signal, AbortSignal.timeout(timeout)]),
       });
-      if (response.body === null) throw new Error("provider_body_missing");
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let size = 0;
-      while (true) {
-        const result = await reader.read();
-        if (result.done) break;
-        size += result.value.byteLength;
-        if (size > maximumProviderResponseBytes) {
-          await reader.cancel();
-          throw new Error("provider_body_too_large");
-        }
-        chunks.push(result.value);
-      }
-      const data = new Uint8Array(size);
-      let offset = 0;
-      for (const chunk of chunks) {
-        data.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
+      const data = await readProviderBody(response);
       if (violation !== undefined) throw violation;
       if (response.url !== targetURL) throw new Error("redirect_blocked");
       if (page.url() !== binding.origin + entry.path)
@@ -380,6 +406,24 @@ async function readWithContext(
     signal.removeEventListener("abort", abort);
     await context.close().catch(() => undefined);
   }
+}
+
+async function readProviderBody(response: Response): Promise<Buffer> {
+  if (response.body === null) throw new Error("provider_body_missing");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (true) {
+    const result = await reader.read();
+    if (result.done) break;
+    size += result.value.byteLength;
+    if (size > maximumProviderResponseBytes) {
+      await reader.cancel();
+      throw new Error("provider_body_too_large");
+    }
+    chunks.push(result.value);
+  }
+  return Buffer.concat(chunks, size);
 }
 
 function requireAllowedRequest(

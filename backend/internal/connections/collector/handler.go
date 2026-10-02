@@ -22,12 +22,13 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 	if execution.Job.Kind != jobdomain.Sync || execution.Job.SecretPurpose != connections.BrowserSession || h.Vault == nil || h.Service == nil {
 		return jobs.Result{State: jobdomain.Waiting, Reason: jobdomain.HandlerUnavailable}, nil
 	}
-	var applied bool
-	var providerFailure bool
+	var result jobs.Result
 	var client *Client
 	err := h.Vault.WithJobSecret(ctx, execution.Principal, execution.Job, connections.BrowserSession, func(session []byte) error {
 		var err error
-		client, err = NewClient(h.Socket, execution.Job.Binding, execution.Job.AdmissionRevision, session, execution.BeginExternal)
+		client, err = NewClient(h.Socket, execution.Job.Binding, execution.Job.AdmissionRevision, session, func(ctx context.Context) error {
+			return execution.BeginExternal(ctx)
+		})
 		if err != nil {
 			return err
 		}
@@ -39,10 +40,28 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		if err != nil {
 			return err
 		}
-		currentApplied, typedFailure, err := h.Service.Ingest(ctx, execution.Principal, execution.Job, gateway)
-		applied = currentApplied
-		providerFailure = typedFailure != nil
-		return err
+		for {
+			applied, typedFailure, err := h.Service.Ingest(ctx, execution.Principal, execution.Job, gateway)
+			if err != nil {
+				return err
+			}
+			page, complete, failure := client.Outcome()
+			if (typedFailure != nil) != failure || !page && !failure {
+				return ErrUnavailable
+			}
+			if !applied {
+				result = jobs.Result{State: jobdomain.Unresolved}
+				return nil
+			}
+			if complete || failure {
+				result = jobs.Result{Committed: true}
+				return nil
+			}
+			execution, err = execution.Refresh(ctx)
+			if err != nil {
+				return err
+			}
+		}
 	})
 	if err != nil {
 		if (errors.Is(err, ErrBusy) || errors.Is(err, ErrPreflightRejected) || errors.Is(err, ErrSessionInvalid) || errors.Is(err, ErrBeforeIOUnavailable)) && client != nil && client.ExternalStarted() {
@@ -65,15 +84,5 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		}
 		return jobs.Result{}, err
 	}
-	page, complete, failure := client.Outcome()
-	if providerFailure != failure || !page && !failure {
-		return jobs.Result{}, ErrUnavailable
-	}
-	if applied && (complete || failure) {
-		return jobs.Result{Committed: true}, nil
-	}
-	if applied {
-		return jobs.Result{State: jobdomain.Ready}, nil
-	}
-	return jobs.Result{State: jobdomain.Unresolved}, nil
+	return result, nil
 }

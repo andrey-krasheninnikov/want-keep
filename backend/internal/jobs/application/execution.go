@@ -36,6 +36,18 @@ func (e Execution) BeginExternal(ctx context.Context) error {
 	return e.repository.BeginExternal(ctx, e.Principal, e.Job)
 }
 
+// Refresh reads committed progress without taking a new lease or attempt.
+func (e Execution) Refresh(ctx context.Context) (Execution, error) {
+	err := e.repository.WithinHousehold(ctx, e.Principal, func(ctx context.Context) error {
+		current, err := e.repository.FenceJob(ctx, e.Principal, e.Job)
+		if err == nil {
+			e.Job = current
+		}
+		return err
+	})
+	return e, err
+}
+
 func (e Execution) RejectBeforeProviderIO(ctx context.Context) error {
 	return e.repository.WithinHousehold(ctx, e.Principal, func(ctx context.Context) error {
 		return e.repository.AcknowledgeExternalResult(ctx, e.Principal, e.Job)
