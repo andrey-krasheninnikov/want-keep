@@ -395,7 +395,7 @@ func TestRefundRoundTripsAllAssetsAndThirdAssetFee(t *testing.T) {
 	}
 }
 
-func TestItemRefundPreservesReceiptBasisAndCapsEachItem(t *testing.T) {
+func TestItemRefundPreservesReceiptBasisAndCapsEachItemAfterCorrection(t *testing.T) {
 	f := newFixture(t)
 	client := f.client(f.p)
 	accountID := f.account(money.RUB, "100")
@@ -432,6 +432,29 @@ func TestItemRefundPreservesReceiptBasisAndCapsEachItem(t *testing.T) {
 	refund := view.Refunds[0]
 	if refund.State != "applied" || len(refund.ReturnedItems) != 1 || refund.ReturnedItems[0].ItemId != firstItem || refund.ReturnedItems[0].Amount.Amount != "2" || len(refund.Members) != 2 {
 		t.Fatalf("item refund=%+v", refund)
+	}
+	corrected := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+created.Result.Id+"/corrections", uuid.NewString(), map[string]any{
+		"expectedRevision": 1, "reason": "Correct confirmed return amount",
+		"principal": []any{map[string]any{"accountId": accountID, "money": map[string]any{"amount": "3", "asset": "RUB"}, "role": "principal", "funding": "own", "treatment": "movement"}},
+	}, http.StatusAccepted))
+	if corrected.Status != "succeeded" || corrected.Result.Revision != 2 || f.available(accountID, f.p) != "93" {
+		t.Fatalf("corrected refund=%+v balance=%s", corrected, f.available(accountID, f.p))
+	}
+	unresolved := readTransaction(t, client, created.Result.Id).Refunds[0]
+	if unresolved.State != "clarification" || unresolved.Amount.Amount != "3" || len(unresolved.ReturnedItems) != 0 || len(unresolved.Members) != 0 || len(unresolved.Categories) != 0 {
+		t.Fatalf("corrected item attribution=%+v", unresolved)
+	}
+	linked := decodeResponse[generated.CommandSucceeded](t, client.call(http.MethodPost, "/transactions/"+created.Result.Id+"/links", uuid.NewString(), map[string]any{
+		"kind": "refund", "reason": "Confirm corrected returned item",
+		"expectedRevisions": []any{map[string]any{"transactionId": created.Result.Id, "expectedRevision": 2}, map[string]any{"transactionId": purchase.Result.Id, "expectedRevision": 2}},
+		"refund":            map[string]any{"purchaseId": purchase.Result.Id, "expectedRevision": unresolved.Revision, "returnedItems": []any{map[string]any{"itemId": firstItem, "amount": map[string]any{"amount": "3", "asset": "RUB"}}}},
+	}, http.StatusAccepted))
+	if linked.Status != "succeeded" || f.available(accountID, f.p) != "93" {
+		t.Fatalf("relinked refund=%+v balance=%s", linked, f.available(accountID, f.p))
+	}
+	refund = readTransaction(t, client, created.Result.Id).Refunds[0]
+	if refund.State != "applied" || len(refund.ReturnedItems) != 1 || refund.ReturnedItems[0].Amount.Amount != "3" {
+		t.Fatalf("relinked item attribution=%+v", refund)
 	}
 
 	failed := decodeResponse[generated.CommandFailed](t, client.call(http.MethodPost, "/refunds", uuid.NewString(), map[string]any{

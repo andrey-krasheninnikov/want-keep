@@ -54,6 +54,19 @@ func recalculate(ctx context.Context, repository Repository, principal household
 		if amountErr != nil || revision.Type != ledger.Refund || amount.Asset() != purchaseAmount.Asset() {
 			return expenses.Refund{}, expenses.ErrInvalidRefund
 		}
+		if change == nil && link.RefundRevision != revision.Revision && len(link.Items) > 0 {
+			itemTotal := zero
+			for _, item := range link.Items {
+				itemTotal, err = itemTotal.Add(item.Amount)
+				if err != nil {
+					return expenses.Refund{}, expenses.ErrInvalidRefund
+				}
+			}
+			if compared, _ := itemTotal.Compare(amount); compared != 0 {
+				link.Items = nil
+				links[id] = link
+			}
+		}
 		if !active(purchase, revision) {
 			continue
 		}
