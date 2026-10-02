@@ -230,6 +230,8 @@ func reject(err error) error {
 		return commands.Rejection{Code: "decision_conflict"}
 	case errors.Is(err, expenses.ErrInvalidRefund), errors.Is(err, money.ErrAssetMismatch), errors.Is(err, money.ErrInvalidMoney):
 		return commands.Rejection{Code: "invalid_refund"}
+	case errors.Is(err, ledger.ErrInvalidRevision), errors.Is(err, ledger.ErrInvalidTransition):
+		return commands.Rejection{Code: "invalid_transaction"}
 	case errors.Is(err, command.ErrVersionConflict):
 		return commands.Rejection{Code: "version_conflict"}
 	case errors.Is(err, ledger.ErrNotFound), errors.Is(err, account.ErrNotFound):

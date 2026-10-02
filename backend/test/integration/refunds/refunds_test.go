@@ -609,6 +609,7 @@ func TestRefundRefusalsAreTerminalAndLeaveNoFinancialChange(t *testing.T) {
 		input      map[string]any
 	}{
 		{"/refunds", "not_found", map[string]any{"purchaseId": purchase.Result.Id, "purchaseExpectedRevision": 1, "receivingAccountId": uuid.NewString(), "occurredAt": "2026-09-07T12:00:00Z", "amount": map[string]any{"amount": "1", "asset": "RUB"}, "returnedItems": []any{}, "fees": []any{}, "reason": "Unknown receiving account"}},
+		{"/refunds", "invalid_transaction", map[string]any{"purchaseId": purchase.Result.Id, "purchaseExpectedRevision": 1, "receivingAccountId": accountID, "occurredAt": "2026-09-07T12:00:00Z", "amount": map[string]any{"amount": "1", "asset": "RUB"}, "returnedItems": []any{}, "fees": []any{map[string]any{"accountId": accountID, "amount": map[string]any{"amount": "0.1", "asset": "RUB"}, "funding": "credit"}}, "reason": "Invalid credit funding on cash account"}},
 		{"/transactions/" + created.Result.Id + "/corrections", "refund_exceeds_purchase", map[string]any{"expectedRevision": 1, "reason": "Excessive refund", "principal": []any{map[string]any{"accountId": accountID, "money": map[string]any{"amount": "1100", "asset": "RUB"}, "role": "principal", "treatment": "movement", "funding": "own"}}}},
 	} {
 		key := uuid.NewString()
