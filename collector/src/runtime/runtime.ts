@@ -260,7 +260,18 @@ async function readWithContext(
     await context.route("**/*", async (route) => {
       try {
         requireAllowedRequest(binding, request, route);
-        await route.continue();
+        const response = await route.fetch({
+          maxRedirects: 0,
+          maxRetries: 0,
+          timeout,
+        });
+        try {
+          if (response.status() >= 300 && response.status() < 400)
+            throw new Error("redirect_blocked");
+          await route.fulfill({ response });
+        } finally {
+          await response.dispose();
+        }
       } catch {
         reject("network_policy_violation");
         await route.abort("blockedbyclient");

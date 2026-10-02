@@ -236,12 +236,27 @@ describe("collector security boundary", () => {
     },
   );
 
-  it("blocks an entry redirect outside the allowlist", async () => {
-    const portal = await startPortal("redirect");
-    const collector = await start(portal.origin, "/portal");
-    const result = await post(collector.socket, "/v1/read", envelope("alpha"));
-    expect(result.status).toBe(503);
-  });
+  it.each(["same origin", "different origin"])(
+    "blocks an entry redirect to a forbidden target on %s before IO",
+    async (destinationOrigin) => {
+      const destination = await startPortal("safe");
+      const portal = await startPortal(
+        "redirect",
+        destinationOrigin === "same origin"
+          ? "/unknown"
+          : destination.origin + "/unknown",
+      );
+      const collector = await start(portal.origin, "/portal");
+      const result = await post(
+        collector.socket,
+        "/v1/read",
+        envelope("alpha"),
+      );
+      expect(result.status).toBe(503);
+      expect(portal.requests()).toBe(1);
+      expect(destination.requests()).toBe(0);
+    },
+  );
 
   it("blocks the page download request", async () => {
     const portal = await startPortal("download");
@@ -392,7 +407,7 @@ function config(
   });
 }
 
-async function startPortal(scenario: string) {
+async function startPortal(scenario: string, redirectTarget = "/unknown") {
   let workerRequests = 0;
   let requests = 0;
   let statementRequests = 0;
@@ -402,7 +417,7 @@ async function startPortal(scenario: string) {
     requests++;
     if (request.url === "/portal") {
       if (scenario === "redirect") {
-        response.writeHead(302, { location: "/unknown" }).end();
+        response.writeHead(302, { location: redirectTarget }).end();
         return;
       }
       const behavior =
