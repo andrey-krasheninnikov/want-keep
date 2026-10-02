@@ -132,6 +132,13 @@ jobs:
           make test-contract PROVIDER=rates
           make test-integration AREA=rates
 
+      - name: Verify native Raiffeisen contracts and fenced ingestion
+        env:
+          WANT_KEEP_TEST_DATABASE_URL: postgres://postgres:synthetic-admin@127.0.0.1:5432/want_keep_test?sslmode=disable
+        run: |
+          make test-contract PROVIDER=raiffeisen
+          make test-raiffeisen-race
+
       - name: Verify durable jobs, scheduling and process recovery
         env:
           WANT_KEEP_TEST_DATABASE_URL: postgres://postgres:synthetic-admin@127.0.0.1:5432/want_keep_test?sslmode=disable

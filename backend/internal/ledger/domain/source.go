@@ -51,7 +51,11 @@ type SourceInput struct {
 	UnresolvedReason string
 	ExpectedRevision uint64
 	Operation        *Revision
+	Aliases          []SourceAlias
+	SourceAsOf       calendar.Instant
 }
+
+type SourceAlias struct{ Kind, Value string }
 
 func (i SourceInput) Validate() error {
 	if err := i.Key.Validate(); err != nil {

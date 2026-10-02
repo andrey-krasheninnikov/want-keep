@@ -401,7 +401,13 @@ type TransactionRecord struct {
 	Merchant, Note, FeeKnowledge, PnLBasis         string
 	EvidenceID                                     string
 	Postings                                       []Posting
+	// Native adapters retain record identity separately from the enclosing report evidence.
+	SemanticIdentity bool
+	SourceAsOf       calendar.Instant
+	Aliases          []SourceAlias
 }
+
+type SourceAlias struct{ Kind, Value string }
 
 type Record struct {
 	Kind             RecordKind

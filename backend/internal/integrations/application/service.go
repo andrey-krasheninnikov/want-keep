@@ -422,7 +422,7 @@ func (s *Service) prepareTransactions(p household.Principal, issued jobs.Job, pa
 		if !found {
 			return nil, ingestion.ErrInvalidContract
 		}
-		hash, err := sourceHash(record.CanonicalPayload, stored.Raw.Digest)
+		hash, err := transactionSourceHash(issued.Binding.Provider, *record.Transaction, record.CanonicalPayload, stored.Raw.Digest)
 		if err != nil {
 			return nil, err
 		}
@@ -539,7 +539,7 @@ func (s *Service) applyTransaction(ctx context.Context, p household.Principal, i
 	if !found {
 		return ingestion.ErrInvalidContract
 	}
-	payloadHash, err := sourceHash(canonical, stored.Raw.Digest)
+	payloadHash, err := transactionSourceHash(issued.Binding.Provider, record, canonical, stored.Raw.Digest)
 	if err != nil {
 		return err
 	}
@@ -557,6 +557,12 @@ func (s *Service) applyTransaction(ctx context.Context, p household.Principal, i
 		}
 	}
 	input := ledger.SourceInput{Key: key, PayloadHash: payloadHash, EvidenceRef: stored.Reference, ConnectionID: issued.ConnectionID, JobID: issued.ID, FetchedAt: fetchedAt, Classification: record.Classification, ExpectedRevision: expectedSourceRevision}
+	if record.SemanticIdentity {
+		input.SourceAsOf = record.SourceAsOf
+		for _, alias := range record.Aliases {
+			input.Aliases = append(input.Aliases, ledger.SourceAlias{Kind: alias.Kind, Value: alias.Value})
+		}
+	}
 	if record.ProviderState == "unknown" {
 		input.UnresolvedReason = "provider_state_unknown"
 		_, err = s.sources.Apply(ctx, p, input)
@@ -687,6 +693,17 @@ func sourceHash(canonical []byte, digest string) (string, error) {
 		return "", err
 	}
 	return hashString(value), nil
+}
+
+func transactionSourceHash(provider string, record ingestion.TransactionRecord, canonical []byte, digest string) (string, error) {
+	if !record.SemanticIdentity {
+		return sourceHash(canonical, digest)
+	}
+	if provider != "raiffeisen" || !strings.HasPrefix(record.ProviderRecordID, "camt-v1:") || record.SourceAsOf.String() == "" {
+		return "", ingestion.ErrInvalidContract
+	}
+	// Raw report digests still authenticate retained evidence, but cannot revise an unchanged fact.
+	return sourceHash(canonical, hashString(sha256.Sum256([]byte("camt-semantic-v1"))))
 }
 
 func hasGap(coverage reporting.Coverage, expected string) bool {

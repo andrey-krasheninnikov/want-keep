@@ -578,7 +578,7 @@ export interface paths {
     };
     /**
      * connections raiffeisen callback
-     * @description Registered external route. Requires the same authenticated external-owner session, bound state/nonce/PKCE and exactly one of code or error. Single consumption; no automatic retry of ambiguous token exchange. Handler belongs to task-4.2; currently unavailable.
+     * @description Registered external route. Requires the same authenticated external-owner session, bound state/nonce/PKCE and exactly one of code or error. Single consumption; no automatic retry of ambiguous token exchange. The configured RBO handler validates the signed ID token against operator-pinned issuer and JWKS. Missing configuration fails closed. A completed callback may be read back without repeating the token exchange.
      */
     get: operations["connections_raiffeisen_callback"];
     put?: never;
@@ -2360,7 +2360,7 @@ export interface components {
       deploymentGate: components["schemas"]["DeploymentGate"];
       externalAccountOwnerId: components["schemas"]["ID"];
       generation: components["schemas"]["Revision"];
-      historyFrom: components["schemas"]["Date"];
+      historyFrom?: components["schemas"]["Date"];
       id: components["schemas"]["ID"];
       lastError?: components["schemas"]["APIError"];
       products: string[];
@@ -2379,6 +2379,7 @@ export interface components {
     ConnectionAction: {
       expectedRevision: components["schemas"]["Revision"];
     };
+    /** @description Current implementation admits only Raiffeisen entrepreneur current accounts; other products return feature_unavailable. historyFrom cannot be after the current Moscow date. */
     ConnectionCreate: {
       externalAccountOwnerId: components["schemas"]["ID"];
       historyFrom: components["schemas"]["Date"];

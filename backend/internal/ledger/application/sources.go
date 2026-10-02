@@ -28,6 +28,10 @@ type Sources struct {
 	allocations AllocationResolver
 }
 
+type SourceIdentityRepository interface {
+	CheckSourceIdentity(context.Context, household.Principal, ledger.SourceInput) (string, error)
+}
+
 func NewSources(r SourceRepository, w JournalWriter, allocations AllocationResolver) *Sources {
 	return &Sources{repository: r, writer: w, allocations: allocations}
 }
@@ -39,6 +43,17 @@ func (s *Sources) Apply(ctx context.Context, p household.Principal, input ledger
 	}
 	if err := p.RequireHousehold(input.Key.HouseholdID); err != nil {
 		return ledger.SourceOutcome{}, err
+	}
+	if input.SourceAsOf.String() != "" || len(input.Aliases) > 0 {
+		repository, ok := s.repository.(SourceIdentityRepository)
+		if !ok {
+			return ledger.SourceOutcome{}, ledger.ErrInvalidSource
+		}
+		var err error
+		input.Classification, err = repository.CheckSourceIdentity(ctx, p, input)
+		if err != nil {
+			return ledger.SourceOutcome{}, err
+		}
 	}
 	if input.Operation != nil {
 		raw := input.Operation.Clone()

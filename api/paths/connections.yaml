@@ -378,5 +378,4 @@
             description: Same-origin connection screen, never a request-provided URL.
     description: Registered external route. Requires the same authenticated external-owner
       session, bound state/nonce/PKCE and exactly one of code or error. Single consumption;
-      no automatic retry of ambiguous token exchange. Handler belongs to task-4.2;
-      currently unavailable.
+      no automatic retry of ambiguous token exchange. The configured RBO handler validates the signed ID token against operator-pinned issuer and JWKS. Missing configuration fails closed. A completed callback may be read back without repeating the token exchange.

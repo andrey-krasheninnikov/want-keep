@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,10 +20,10 @@ import (
 	"github.com/pchkauu/want-keep/backend/internal/connections/admission"
 	collector "github.com/pchkauu/want-keep/backend/internal/connections/collector"
 	"github.com/pchkauu/want-keep/backend/internal/connections/credentials"
-	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	openaigateway "github.com/pchkauu/want-keep/backend/internal/gateways/openai"
 	integrations "github.com/pchkauu/want-keep/backend/internal/integrations/application"
+	"github.com/pchkauu/want-keep/backend/internal/integrations/raiffeisen"
 	ratesource "github.com/pchkauu/want-keep/backend/internal/integrations/rates"
 	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/application"
 	domain "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
@@ -45,30 +43,9 @@ func main() {
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	var bindings []connections.Binding
-	// File content is deployment-owned and contains only non-secret exact artifact bindings.
-	if path := os.Getenv("WANT_KEEP_JOB_BINDINGS_FILE"); path != "" {
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		dec := json.NewDecoder(f)
-		dec.DisallowUnknownFields()
-		if err = dec.Decode(&bindings); err != nil {
-			return err
-		}
-		if err = dec.Decode(new(any)); err != io.EOF {
-			return errors.New("invalid binding file")
-		}
-		for _, b := range bindings {
-			if b.Environment != os.Getenv("WANT_KEEP_ENV") {
-				return errors.New("binding environment mismatch")
-			}
-			if err = b.Validate(); err != nil {
-				return err
-			}
-		}
+	bindings, err := admission.LoadBindings(os.Getenv("WANT_KEEP_JOB_BINDINGS_FILE"), os.Getenv("WANT_KEEP_ENV"))
+	if err != nil {
+		return err
 	}
 	db, err := storage.Open(ctx, storage.Config{DSN: os.Getenv("WANT_KEEP_DATABASE_URL"), Environment: os.Getenv("WANT_KEEP_ENV"), MaxConnections: 8})
 	if err != nil {
@@ -95,7 +72,7 @@ func run() error {
 			report(jobs.Diagnostic{Kind: domain.Sync, Stage: "evidence_reconciliation", Code: "collector_evidence_reconciliation_failed"})
 		},
 	}
-	if socket := os.Getenv("WANT_KEEP_COLLECTOR_SOCKET"); socket != "" {
+	if socket := os.Getenv("WANT_KEEP_COLLECTOR_SOCKET"); socket != "" || os.Getenv("WANT_KEEP_CONNECTION_KEYRING") != "" {
 		connectionKeys, keyErr := cryptobox.Load(os.Getenv("WANT_KEEP_CONNECTION_KEYRING"), "connections")
 		evidence, evidenceErr := collector.NewEvidenceStore(db, connectionKeys)
 		reimbursementService := ledger.NewReimbursementService(db, now, uuid.NewString)
@@ -109,7 +86,16 @@ func run() error {
 			report(jobs.Diagnostic{Kind: domain.Sync, Stage: "startup", Code: "collector_configuration_invalid"})
 		} else {
 			connectionAccess := connectionaccess.NewService(nil, db, admissionService)
-			syncHandler = collector.Handler{Socket: socket, Vault: credentials.New(connectionAccess, db, connectionKeys), Service: ingestionService}
+			vault := credentials.New(connectionAccess, db, connectionKeys)
+			var authorizer *raiffeisen.Authorizer
+			if os.Getenv("WANT_KEEP_RAIF_CLIENT_ID_FILE") != "" {
+				authorizer, _ = raiffeisen.LoadOAuth(os.Getenv("WANT_KEEP_RAIF_CLIENT_ID_FILE"), os.Getenv("WANT_KEEP_RAIF_CLIENT_SECRET_FILE"), os.Getenv("WANT_KEEP_RAIF_ISSUER"), os.Getenv("WANT_KEEP_RAIF_JWKS_FILE"), "https://want-keep.tech/api/v1/connections/raiffeisen/callback")
+			}
+			var collectorHandler jobs.Handler
+			if socket != "" {
+				collectorHandler = collector.Handler{Socket: socket, Vault: vault, Service: ingestionService}
+			}
+			syncHandler = raiffeisen.Dispatcher{Native: raiffeisen.Handler{Vault: vault, Service: ingestionService, Gate: admissionService, Repository: db, Authorizer: authorizer, Now: time.Now}, Collector: collectorHandler}
 		}
 	}
 	rateService := valuationapp.Service{Repository: db, Sources: ratesource.New(&http.Client{Timeout: 3 * time.Second}, os.Getenv("WANT_KEEP_COINGECKO_KEY_FILE"), db), Now: time.Now}

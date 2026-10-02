@@ -15,7 +15,7 @@ E2E_WEB_DIR ?= web
 
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap check format-check format-check-go lint typecheck test test-tooling build docs-check check-contracts generate-contracts generate-ai-runtime-contract check-ai-runtime-contract test-go test-web test-collector test-integration test-storage-race test-identity-race test-household-race test-accounts-race test-ledger-race test-audit-race test-matching-race test-categories-race test-family-allocation-race test-refunds-race test-family-reimbursements-race test-reconciliation-race test-jobs-race test-ingestion-race test-ai-budget-race test-contract e2e eval-ai check-deploy backup-check restore-check
+.PHONY: help bootstrap check format-check format-check-go lint typecheck test test-tooling build docs-check check-contracts generate-contracts generate-ai-runtime-contract check-ai-runtime-contract test-go test-web test-collector test-integration test-storage-race test-identity-race test-household-race test-accounts-race test-ledger-race test-audit-race test-matching-race test-categories-race test-family-allocation-race test-refunds-race test-family-reimbursements-race test-reconciliation-race test-jobs-race test-ingestion-race test-raiffeisen-race test-ai-budget-race test-contract e2e eval-ai check-deploy backup-check restore-check
 
 help:
 	@echo "Want Keep repository commands"
@@ -131,9 +131,14 @@ test-identity-race:
 test-storage-race:
 	cd backend && $(GO) test -count=1 -race -tags=integration ./test/integration/storage/...
 
+test-raiffeisen-race:
+	cd backend && $(GO) test -count=1 -race -tags=integration ./test/integration/raiffeisen/...
+
 test-contract:
 	@if [ -z "$(PROVIDER)" ]; then echo "PROVIDER=<name> is required." >&2; exit 2; fi
-ifeq ($(PROVIDER),rates)
+ifeq ($(PROVIDER),raiffeisen)
+	cd backend && $(GO) test -count=1 ./internal/integrations/raiffeisen/...
+else ifeq ($(PROVIDER),rates)
 	cd backend && $(GO) test -count=1 ./internal/integrations/rates/... ./internal/valuation/...
 else
 	@if [ ! -d "collector/contracts/$(PROVIDER)" ]; then echo "Provider contract suite '$(PROVIDER)' is not implemented." >&2; exit 2; fi
