@@ -157,7 +157,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	reviewService := aiapp.NewReviewService(database, ledger.NewServiceWithAllocations(database, matchingService, allocationService, now, uuid.NewString), allocationService, matchingService, uuid.NewString)
+	reviewService := aiapp.NewReviewService(database, ledger.NewServiceWithAllocations(database, matchingService, allocationService, now, uuid.NewString), matchingService, uuid.NewString)
 	reviewHandler, err := reviewdelivery.New(reviewService, executor, queries, service, database, config, now)
 	if err != nil {
 		return err

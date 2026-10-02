@@ -7,6 +7,8 @@ import (
 	"io"
 	"slices"
 	"unicode/utf8"
+
+	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
 )
 
 const ReviewContractVersion = "transaction_review_v1"
@@ -160,4 +162,13 @@ type ReviewAnswer struct {
 	ExpectedRevision        uint64
 	SubjectExpectedRevision uint64
 	ChoiceID, Text          string
+}
+
+func (c Clarification) RetryFailedAnswer(expected uint64) (Clarification, error) {
+	if c.State != "checking" || c.Revision != expected || c.Revision >= command.MaxRevision {
+		return c, ErrReviewCommand
+	}
+	c.State = "open"
+	c.Revision++
+	return c, nil
 }

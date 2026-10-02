@@ -160,7 +160,7 @@ func run() error {
 	reviewWriter := ledger.NewWriterWithRefundsAndReimbursements(db, db, reconciliationService, expenses.NewProjector(db), ledger.NewReimbursementService(db, now, uuid.NewString))
 	matchingService := matching.NewService(db, reviewWriter, now, uuid.NewString)
 	allocationService := allocation.NewService(db, now, uuid.NewString)
-	reviewService := ai.NewReviewService(db, ledger.NewServiceWithAllocations(db, matchingService, allocationService, now, uuid.NewString), allocationService, matchingService, uuid.NewString)
+	reviewService := ai.NewReviewService(db, ledger.NewServiceWithAllocations(db, matchingService, allocationService, now, uuid.NewString), matchingService, uuid.NewString)
 	for _, kind := range []domain.Kind{domain.Sync, domain.Outbox, domain.AI, domain.AIAnswer, domain.AIValidation} {
 		var handler jobs.Handler
 		if kind == domain.Sync {

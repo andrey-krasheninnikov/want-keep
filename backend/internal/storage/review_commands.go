@@ -321,3 +321,72 @@ func (s *Store) ProposalClarifications(ctx context.Context, p household.Principa
 	}
 	return out, rows.Err()
 }
+
+const failedReviewAnswers = ` FROM want_keep.review_clarifications c
+ JOIN want_keep.review_answers a ON (a.household_id,a.clarification_id,a.revision)=(c.household_id,c.id,c.revision)
+ JOIN want_keep.jobs j ON (j.household_id,j.id)=(a.household_id,a.job_id)
+ WHERE c.state='checking' AND c.revision<9007199254740991 AND (
+ (j.state IN ('failed','canceled') AND NOT EXISTS(
+ SELECT 1 FROM want_keep.ai_attempts t JOIN want_keep.review_validation_jobs v ON (v.household_id,v.attempt_id)=(t.household_id,t.id)
+ JOIN want_keep.jobs check_job ON (check_job.household_id,check_job.id)=(v.household_id,v.job_id)
+ WHERE (t.household_id,t.job_id)=(j.household_id,j.id) AND check_job.state NOT IN ('failed','canceled')))
+ OR EXISTS(SELECT 1 FROM want_keep.ai_attempts t JOIN want_keep.review_validation_jobs v ON (v.household_id,v.attempt_id)=(t.household_id,t.id)
+ JOIN want_keep.jobs check_job ON (check_job.household_id,check_job.id)=(v.household_id,v.job_id)
+ WHERE (t.household_id,t.job_id)=(j.household_id,j.id) AND check_job.state IN ('failed','canceled')))`
+
+// recoverReviewAnswers handles terminal checks without repeating provider IO.
+func (s *Store) recoverReviewAnswers(ctx context.Context) error {
+	rows, err := s.pool.Query(ctx, `SELECT c.household_id,c.id,c.revision,a.actor_id,(SELECT active.id FROM want_keep.memberships active WHERE active.household_id=a.household_id AND active.user_id=a.actor_id AND active.active)`+failedReviewAnswers+` AND EXISTS(SELECT 1 FROM want_keep.memberships active WHERE active.household_id=a.household_id AND active.user_id=a.actor_id AND active.active) ORDER BY c.household_id,c.id LIMIT 100`)
+	if err != nil {
+		return err
+	}
+	type target struct {
+		id         string
+		revision   uint64
+		membership household.Membership
+	}
+	targets := []target{}
+	for rows.Next() {
+		var item target
+		err = rows.Scan(&item.membership.HouseholdID, &item.id, &item.revision, &item.membership.UserID, &item.membership.ID)
+		if err != nil {
+			rows.Close()
+			return err
+		}
+		item.membership.Active = true
+		targets = append(targets, item)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, item := range targets {
+		p, err := item.membership.Principal()
+		if err != nil {
+			return err
+		}
+		if err = s.WithinHousehold(ctx, p, func(ctx context.Context) error {
+			q, err := s.reader(ctx, p)
+			if err != nil {
+				return err
+			}
+			var failed bool
+			if err = q.QueryRow(ctx, `SELECT EXISTS(SELECT 1`+failedReviewAnswers+` AND c.household_id=$1 AND c.id=$2 AND c.revision=$3)`, p.HouseholdID(), item.id, item.revision).Scan(&failed); err != nil || !failed {
+				return err
+			}
+			question, err := s.Clarification(ctx, p, item.id)
+			if err != nil {
+				return err
+			}
+			question, err = question.RetryFailedAnswer(item.revision)
+			if err != nil {
+				return err
+			}
+			return s.SaveClarification(ctx, p, question)
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}

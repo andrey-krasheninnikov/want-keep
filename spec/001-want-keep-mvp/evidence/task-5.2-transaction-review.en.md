@@ -23,6 +23,8 @@ New suite scenarios: separate durable validation after provider outcome; classif
 
 Fix regressions cover historical 60/40 after a rule changes to 40/60, separately for classification and an explicit rule command; an unmatched allocation retaining the open question; operator reconciliation of an unknown ai_answer with replay and continuation; and HTTP preview of the selected member and linked transaction. The shared classification path preserves explicit allocation and user protections.
 
+Second review regressions preserve 70/30 for a mixed receipt: a personal item of 40 and a shared item of 60 split 50/50. Rechecking an unchanged rule result creates no revision. Deadline, cancellation, a confirmed charged outcome and a validation-job deadline restore the question for a new answer while retaining history; an unresolved outcome does not reopen it before reconciliation. Recovery performs no provider IO. The coordinator no longer carries an unused resolver dependency: allocation belongs to the shared ledger path.
+
 ## Coverage and limitations
 
 Evidence covers backend parts of AC-012/018/019/021/022/060/064/069/078/081/085/086/090, without claiming full product acceptance. Catalogs/rules are bounded to 100 entries and candidates to 20; projections state incompleteness. Receipt-item classification, chat, budget/goals, notification delivery and UI remain with their owning tasks. Applying budget/goal proposals without their handlers returns `feature_unavailable`.

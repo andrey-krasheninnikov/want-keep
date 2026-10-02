@@ -53,7 +53,7 @@ func (f *fixture) service() *aiapp.ReviewService {
 	m := matching.NewService(f.store, f.writer, func() calendar.Instant { return f.now }, uuid.NewString)
 	a := allocation.NewService(f.store, func() calendar.Instant { return f.now }, uuid.NewString)
 	l := journal.NewServiceWithAllocations(f.store, m, a, func() calendar.Instant { return f.now }, uuid.NewString)
-	return aiapp.NewReviewService(f.store, l, a, m, uuid.NewString)
+	return aiapp.NewReviewService(f.store, l, m, uuid.NewString)
 }
 func (f *fixture) step(kind jobs.Kind, h jobapp.Handler) {
 	f.t.Helper()

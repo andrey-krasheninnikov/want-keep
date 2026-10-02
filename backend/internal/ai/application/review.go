@@ -8,7 +8,6 @@ import (
 	"unicode/utf8"
 
 	ai "github.com/pchkauu/want-keep/backend/internal/ai/domain"
-	allocation "github.com/pchkauu/want-keep/backend/internal/allocation/domain"
 	category "github.com/pchkauu/want-keep/backend/internal/categories/domain"
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
 	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
@@ -45,15 +44,14 @@ type ReviewRepository interface {
 }
 
 type ReviewService struct {
-	repository  ReviewRepository
-	ledger      *journal.Service
-	allocations journal.AllocationResolver
-	matching    *matchingapp.Service
-	newID       func() string
+	repository ReviewRepository
+	ledger     *journal.Service
+	matching   *matchingapp.Service
+	newID      func() string
 }
 
-func NewReviewService(r ReviewRepository, l *journal.Service, a journal.AllocationResolver, m *matchingapp.Service, newID func() string) *ReviewService {
-	return &ReviewService{r, l, a, m, newID}
+func NewReviewService(r ReviewRepository, l *journal.Service, m *matchingapp.Service, newID func() string) *ReviewService {
+	return &ReviewService{repository: r, ledger: l, matching: m, newID: newID}
 }
 
 // Prepare uses no provider IO: the durable source is an already settled response.
@@ -227,23 +225,18 @@ func (s *ReviewService) prepareCommands(ctx context.Context, p household.Princip
 		if c.Kind != "distribution" {
 			continue
 		}
-		var input ledger.AllocationInput
+
+		var allocation ledger.AllocationChange
 		if *c.Distribution == "rule" {
-			categoryID, merchantID := current.CategoryID, current.MerchantID
-			if change.CategoryID != nil {
-				categoryID = *change.CategoryID
-			}
-			if change.MerchantID != nil {
-				merchantID = *change.MerchantID
-			}
-			var matched bool
-			condition := allocation.Condition{MerchantID: merchantID, CategoryID: categoryID}
-			resolved, err := s.allocations.ResolveAtBoundary(ctx, p, []allocation.Condition{condition}, projection.RuleBoundary)
-			input, matched = resolved[condition]
+			resolved, known, err := s.ledger.ReviewRuleAllocation(ctx, p, current, change, projection.RuleBoundary)
 			if err != nil {
 				return change, false, err
 			}
-			for _, rule := range input.RuleRefs {
+			refs := slices.Clone(resolved.Allocation.RuleRefs)
+			for _, item := range resolved.Items {
+				refs = append(refs, item.Allocation.RuleRefs...)
+			}
+			for _, rule := range refs {
 				found := false
 				for _, ref := range projection.References {
 					if ref.Kind == "rule" && ref.ID == rule.ID && ref.Revision == rule.Revision {
@@ -255,29 +248,40 @@ func (s *ReviewService) prepareCommands(ctx context.Context, p household.Princip
 					return change, false, commands.Rejection{Code: "version_conflict"}
 				}
 			}
-			if !matched || input.Mode == ledger.AllocationUnknown {
+			if !known {
 				if approved {
 					return change, false, commands.Rejection{Code: "clarification_required"}
 				}
 				approval = true
 				continue
 			}
+			allocation = resolved
 		} else if approved {
-			input = ledger.AllocationInput{Mode: ledger.AllocationEqual, Purpose: ledger.AllocationShared, Reason: c.Reason, Origin: ledger.AllocationExplicitPurchase}
+			allocation.Allocation = ledger.AllocationInput{Mode: ledger.AllocationEqual, Purpose: ledger.AllocationShared, Reason: c.Reason, Origin: ledger.AllocationExplicitPurchase}
 			if *c.Distribution == "personal" {
 				ref, err := projection.Resolve(*c.Member, "member")
 				if err != nil {
 					return change, false, commands.Rejection{Code: "invalid_request"}
 				}
-				input.Mode = ledger.AllocationByShares
-				input.Purpose = ledger.AllocationPersonal
-				input.Members = []ledger.AllocationMemberInput{{MemberID: household.MembershipID(ref.ID), Share: "100"}}
+				allocation.Allocation.Mode = ledger.AllocationByShares
+				allocation.Allocation.Purpose = ledger.AllocationPersonal
+				allocation.Allocation.Members = []ledger.AllocationMemberInput{{MemberID: household.MembershipID(ref.ID), Share: "100"}}
+			}
+			_, items, err := current.AllocationBases()
+			if err != nil {
+				return change, false, err
+			}
+			for _, item := range items {
+				if item.Allocation.Origin == ledger.AllocationExplicitItem {
+					allocation.Items = append(allocation.Items, item)
+				}
 			}
 		} else {
 			continue
 		}
-		change.Allocation = &ledger.AllocationChange{Allocation: input}
+		change.Allocation = &allocation
 	}
+
 	if !approved {
 		fields := []ledger.Field{}
 		if change.CategoryID != nil {

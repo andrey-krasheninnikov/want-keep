@@ -225,3 +225,27 @@ func (s *Service) ApplyValidatedReview(ctx context.Context, p household.Principa
 	}
 	return s.applyChanges(ctx, p, []Change{{OperationID: id, Expected: expected, Correction: change}}, reason, "automated")
 }
+
+// ReviewRuleAllocation uses the same item precedence as trusted classification.
+func (s *Service) ReviewRuleAllocation(ctx context.Context, p household.Principal, current ledger.Revision, classification ledger.Correction, boundary uint64) (ledger.AllocationChange, bool, error) {
+	current = current.Clone()
+	if classification.CategoryID != nil {
+		current.CategoryID = *classification.CategoryID
+	}
+	if classification.MerchantID != nil {
+		current.MerchantID = *classification.MerchantID
+	}
+	resolved, _, err := s.resolveAllocationAt(ctx, p, current, boundary)
+	if err != nil {
+		return ledger.AllocationChange{}, false, err
+	}
+	fallback, items, err := resolved.AllocationBases()
+	if err != nil {
+		return ledger.AllocationChange{}, false, err
+	}
+	members, err := s.allocations.ActiveMemberIDs(ctx, p)
+	if err != nil {
+		return ledger.AllocationChange{}, false, err
+	}
+	return ledger.AllocationChange{Allocation: fallback, Items: items, Members: members}, resolved.Allocation.State != ledger.AllocationUnresolved && resolved.Allocation.State != ledger.AllocationPartial, nil
+}
