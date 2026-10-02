@@ -551,6 +551,14 @@ components:
       "$ref": "./schemas/chat.yaml#/Thread"
     Clarification:
       "$ref": "./schemas/chat.yaml#/Clarification"
+    ClarificationChoice:
+      "$ref": "./schemas/chat.yaml#/ClarificationChoice"
+    ReviewReference:
+      "$ref": "./schemas/chat.yaml#/ReviewReference"
+    ReviewMember:
+      "$ref": "./schemas/chat.yaml#/ReviewMember"
+    ReviewChange:
+      "$ref": "./schemas/chat.yaml#/ReviewChange"
     ClarificationAnswer:
       "$ref": "./schemas/chat.yaml#/ClarificationAnswer"
     Proposal:

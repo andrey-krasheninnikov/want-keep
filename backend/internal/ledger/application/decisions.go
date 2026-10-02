@@ -145,9 +145,6 @@ func (s *Service) applyChanges(ctx context.Context, p household.Principal, chang
 			}
 		}
 		if kind == "automated" {
-			if in.Correction.CategoryID != nil || in.Correction.MerchantID != nil || in.Correction.ReceiptItems != nil {
-				return command.Result{}, commands.Rejection{Code: "clarification_required"}
-			}
 			if r.HumanOverride && len(r.Protections) == 0 {
 				return command.Result{}, commands.Rejection{Code: "protected_field"}
 			}
@@ -163,7 +160,8 @@ func (s *Service) applyChanges(ctx context.Context, p household.Principal, chang
 				return command.Result{}, commands.Rejection{Code: "source_conflict"}
 			}
 		}
-		if kind == "correction" && in.Correction.Allocation == nil && s.shouldResolveAllocation(r, fields) {
+		_, allocationProtected := r.Protections[ledger.AllocationField]
+		if (kind == "correction" || kind == "automated" && !allocationProtected) && in.Correction.Allocation == nil && s.shouldResolveAllocation(r, fields) {
 			basis, basisErr := s.repository.FirstLedgerRuleBoundary(ctx, p, r.OperationID)
 			if basisErr != nil {
 				return command.Result{}, s.reject(basisErr)
@@ -260,6 +258,13 @@ func (s *Service) resolveAllocationAt(ctx context.Context, p household.Principal
 	}
 	items := make([]ledger.ItemAllocationInput, 0, len(revision.ReceiptItems))
 	for _, item := range revision.ReceiptItems {
+		net, err := item.Net()
+		if err != nil {
+			return revision, false, err
+		}
+		if net.Sign() == 0 {
+			continue
+		}
 		if preserved, ok := preservedItems[item.ID]; ok {
 			items = append(items, ledger.ItemAllocationInput{ItemID: item.ID, Allocation: preserved})
 			continue

@@ -49,7 +49,7 @@ func loadRuntimeContract() (runtimeContract, error) {
 		return contract, err
 	}
 	metadata := contract.metadata()
-	if contract.Kind != "want_keep_openai_runtime_contract_v1" || contract.SourceVersion != string(ai.TerraXHigh) || contract.SourceFingerprint != "837e23ea8215423dc003129da9c99e4ea02ec37ad260199a53fe154cc8de222b" || contract.RuntimeSchemaAdaptation != "add_usdc_asset_v1" || contract.Prompt == "" || len(contract.Schema) == 0 || contract.ReasoningEffort != "xhigh" || contract.ReasoningMode != "standard" || contract.ServiceTier != "default" || contract.Store || contract.Background || contract.PromptCacheMode != "explicit" || contract.Truncation != "disabled" || contract.ParallelToolCalls || contract.GlobalMaximumInput != 262144 || contract.MonthlyLimit != "50" || contract.MaximumFamilyConcurrent != 2 || contract.ProductionAdmitted {
+	if contract.Kind != "want_keep_openai_runtime_contract_v1" || contract.SourceVersion != string(ai.TerraXHigh) || contract.SourceFingerprint != "837e23ea8215423dc003129da9c99e4ea02ec37ad260199a53fe154cc8de222b" || contract.RuntimeSchemaAdaptation != "transaction_review_commands_v1" || contract.Prompt == "" || len(contract.Schema) == 0 || contract.ReasoningEffort != "xhigh" || contract.ReasoningMode != "standard" || contract.ServiceTier != "default" || contract.Store || contract.Background || contract.PromptCacheMode != "explicit" || contract.Truncation != "disabled" || contract.ParallelToolCalls || contract.GlobalMaximumInput != 262144 || contract.MonthlyLimit != "50" || contract.MaximumFamilyConcurrent != 2 || contract.ProductionAdmitted {
 		return contract, errors.New("invalid OpenAI runtime contract")
 	}
 	if err := metadata.Validate(); err != nil {

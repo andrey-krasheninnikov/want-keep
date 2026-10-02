@@ -123,7 +123,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 #### FORM-12 — Ответ и предложение AI
 
-**Поля:** Ответ на конкретное уточнение или явное решение по предложенным изменениям; версия объекта и вопроса.
+**Поля:** expectedRevision вопроса/предложения, subjectExpectedRevision операции и ровно choiceId либо свободный answer; для предложения явное apply/reject.
 
 **Проверки и права:** Оба для операций, только владелец для личного плана/цели; actor не меняется текстом. Одновременный ответ проверяет версию; preview перед финансовым изменением.
 
@@ -446,7 +446,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 #### FORM-12 — AI response and proposal
 
-**Fields:** Answer to a specific clarification or explicit decision on proposed changes; object/question revision.
+**Fields:** Question/proposal expectedRevision, transaction subjectExpectedRevision and exactly choiceId or free-text answer; explicit apply/reject for a proposal.
 
 **Validation and permissions:** Either member for transactions, owner only for personal plan/goal; text cannot change actor. Concurrent response checks revision; preview before financial change.
 

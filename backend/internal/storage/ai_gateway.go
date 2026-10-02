@@ -61,8 +61,8 @@ type aiReviewCase struct {
 
 // ReviewInput is the only storage-to-provider projection. It excludes credentials,
 // sessions, connection secrets, source payloads and unrelated household data.
-func (s *Store) ReviewInput(ctx context.Context, p household.Principal, job jobs.Job) (json.RawMessage, error) {
-	if job.HouseholdID != p.HouseholdID() || job.ActorID != p.UserID() || job.Kind != jobs.AI {
+func (s *Store) buildReviewInput(ctx context.Context, p household.Principal, job jobs.Job) (json.RawMessage, error) {
+	if job.HouseholdID != p.HouseholdID() || job.ActorID != p.UserID() || !job.Kind.ProviderCall() {
 		return nil, household.ErrForbidden
 	}
 	revision, err := s.LedgerRevision(ctx, p, job.ResourceID, job.ResourceRevision)
@@ -271,6 +271,11 @@ func (s *Store) SaveAIOutcome(ctx context.Context, p household.Principal, job jo
 	if err = s.writeAISettlement(ctx, scope.tx, p.HouseholdID(), attemptID, current, settlement, now); err != nil {
 		return err
 	}
+	if settlement.Result.State == ai.Refused || settlement.Result.State == ai.Incomplete || settlement.Result.State == ai.SchemaError || settlement.Terminal {
+		if err = s.enqueueAIValidation(ctx, p, job, attemptID); err != nil {
+			return err
+		}
+	}
 	if !current.ExternalStarted {
 		return nil
 	}
@@ -301,6 +306,9 @@ func (s *Store) SaveAICompletion(ctx context.Context, p household.Principal, job
 		return errors.Join(err, ai.ErrInvalidAttempt)
 	}
 	if err = s.writeAISettlement(ctx, scope.tx, p.HouseholdID(), attemptID, current, settlement, now); err != nil {
+		return err
+	}
+	if err = s.enqueueAIValidation(ctx, p, job, attemptID); err != nil {
 		return err
 	}
 	return s.clearAIJobExternal(ctx, scope.tx, p, job)
@@ -522,7 +530,7 @@ func (s *Store) ResumeAIBudgetWaiting(ctx context.Context, now time.Time) (int64
 	  WHERE (a.household_id,a.job_id)=(j.household_id,j.id)
 	  ORDER BY a.created_at DESC,a.created_ns DESC,a.id DESC LIMIT 1
 	 ) last_attempt ON true
-	 WHERE j.kind='ai' AND j.state='waiting' AND j.reason='budget_wait'
+	 WHERE j.kind IN ('ai','ai_answer') AND j.state='waiting' AND j.reason='budget_wait'
 	  AND NOT j.cancel_requested AND NOT j.external_started
 	  AND NOT COALESCE(g.blocked,false) AND COALESCE(g.active,0)<2 AND COALESCE(g.used,0)<50
 	  AND (last_attempt.code IS DISTINCT FROM 'budget_exhausted'
@@ -551,7 +559,7 @@ func (s *Store) ResumeAIGatewayWaiting(ctx context.Context) error {
 		return err
 	}
 	rows, err := tx.Query(ctx, `SELECT household_id,id FROM want_keep.jobs
-	 WHERE kind='ai' AND state='waiting' AND reason='gateway_unavailable'
+	 WHERE kind IN ('ai','ai_answer') AND state='waiting' AND reason='gateway_unavailable'
 	  AND COALESCE(run_deadline,deadline)<=$1
 	 ORDER BY available_at,id LIMIT 100 FOR UPDATE SKIP LOCKED`, now)
 	if err != nil {
@@ -589,7 +597,7 @@ func (s *Store) ResumeAIGatewayWaiting(ctx context.Context) error {
 	}
 	if _, err = tx.Exec(ctx, `WITH pending AS (
 	 SELECT household_id,id FROM want_keep.jobs
-	 WHERE kind='ai' AND state='waiting' AND reason='gateway_unavailable'
+	 WHERE kind IN ('ai','ai_answer') AND state='waiting' AND reason='gateway_unavailable'
 	  AND NOT cancel_requested AND NOT external_started
 	  AND available_at<=clock_timestamp() AND COALESCE(run_deadline,deadline)>clock_timestamp()
 	 ORDER BY available_at,id LIMIT 100 FOR UPDATE SKIP LOCKED

@@ -215,3 +215,7 @@ test-ingestion-race:
 
 test-ai-budget-race:
 	cd backend && $(GO) test -count=1 -race -tags=integration ./test/integration/ai-budget/...
+
+.PHONY: test-ai-commands-race
+test-ai-commands-race:
+	cd backend && $(GO) test -count=1 -race -tags=integration ./test/integration/ai-commands/...

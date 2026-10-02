@@ -66,6 +66,11 @@ func (s *Server) transactionDTO(p household.Principal, v application.View) (gene
 			out.Review.ClassificationProposal = proposal
 		}
 	}
+	references := []generated.ReviewReference{}
+	for _, ref := range v.ReviewReferences {
+		references = append(references, generated.ReviewReference{Kind: generated.ReviewReferenceKind(ref.Kind), Id: ref.ID, Revision: generated.Revision(ref.Revision), State: generated.ReviewReferenceState(ref.State)})
+	}
+	out.ReviewReferences = &references
 	out.SourceFacts = []generated.SourceTransactionFact{}
 	for _, fact := range v.SourceFacts {
 		dto, err := s.sourceFactDTO(fact)

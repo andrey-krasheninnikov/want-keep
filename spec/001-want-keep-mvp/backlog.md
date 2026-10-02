@@ -41,7 +41,7 @@
 | [task-4.5](tasks/task-4.5.md) | Реализовать коннектор Aifory Pro | task-0.5, task-3.3, task-2.4, task-2.5 | [#33](https://github.com/pchkauu/want-keep/issues/33) |
 | [task-4.6](tasks/task-4.6.md) | Реализовать коннектор EMCD | task-0.6, task-3.3, task-2.4, task-2.5 | [#34](https://github.com/pchkauu/want-keep/issues/34) |
 | [task-5.1](tasks/task-5.1.md) | Создать OpenAI gateway и контроль расходов | task-0.8, task-3.1, task-1.5 | [#35](https://github.com/pchkauu/want-keep/issues/35) |
-| [task-5.2](tasks/task-5.2.md) | Проверять каждую операцию через AI-команды | task-5.1, task-2.4, task-2.6, task-2.8, task-2.9 | [#36](https://github.com/pchkauu/want-keep/issues/36) |
+| [task-5.2](tasks/task-5.2.md) | Проверять каждую операцию через AI-команды | task-5.1, task-2.4, task-2.6, task-2.8, task-2.9 | [#36](https://github.com/andrey-krasheninnikov/want-keep/issues/36) |
 | [task-5.3](tasks/task-5.3.md) | Обрабатывать чеки и позиции | task-5.2, task-1.5, task-2.7 | [#37](https://github.com/pchkauu/want-keep/issues/37) |
 | [task-5.4](tasks/task-5.4.md) | Реализовать чат и очередь уточнений | task-5.3, task-5.2 | [#38](https://github.com/pchkauu/want-keep/issues/38) |
 | [task-5.5](tasks/task-5.5.md) | Формировать обоснованные AI-инсайты | task-5.1, task-6.8 | [#39](https://github.com/pchkauu/want-keep/issues/39) |

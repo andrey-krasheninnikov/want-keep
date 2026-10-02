@@ -406,6 +406,15 @@ func TestRefreshMakesZeroNetItemNotApplicableAndRetainsBasis(t *testing.T) {
 	if allocationMemberTotal(corrected.Allocation, members[0], money.RUB) != "50" || allocationMemberTotal(corrected.Allocation, members[1], money.RUB) != "50" {
 		t.Fatalf("remaining allocation = %+v", corrected.Allocation.Members)
 	}
+	_, bases, err := corrected.AllocationBases()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, basis := range bases {
+		if basis.ItemID == "first" {
+			t.Fatal("dormant basis became an allocation input")
+		}
+	}
 }
 
 func TestMultiAssetAmountAllocationRefreshUsesUniqueMembers(t *testing.T) {

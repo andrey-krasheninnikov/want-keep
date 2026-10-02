@@ -5,12 +5,16 @@ import "time"
 type Kind string
 
 const (
-	Sync   Kind = "sync"
-	Outbox Kind = "outbox"
-	AI     Kind = "ai"
+	Sync         Kind = "sync"
+	Outbox       Kind = "outbox"
+	AI           Kind = "ai"
+	AIAnswer     Kind = "ai_answer"
+	AIValidation Kind = "ai_validation"
 )
 
-func (k Kind) Valid() bool { return k == Sync || k == Outbox || k == AI }
+func (k Kind) Valid() bool {
+	return k == Sync || k == Outbox || k == AI || k == AIAnswer || k == AIValidation
+}
 
 type State string
 
@@ -79,3 +83,5 @@ type SyncProgress struct {
 	LastSuccessAt    *time.Time
 	Completed        bool
 }
+
+func (k Kind) ProviderCall() bool { return k == AI || k == AIAnswer }

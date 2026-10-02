@@ -138,7 +138,7 @@ func (w Worker) Step(ctx context.Context) (err error) {
 	}
 	if runErr != nil {
 		result = Result{State: jobs.Ready, Reason: jobs.TemporaryFailure}
-		if j.Kind == jobs.AI {
+		if j.Kind.ProviderCall() {
 			result = Result{State: jobs.Waiting, Reason: jobs.GatewayUnavailable, MinimumDelay: jobs.DefaultRetryPolicy().Maximum}
 		}
 	}
