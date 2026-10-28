@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   collector:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     env:
       WANT_KEEP_ENV: test
@@ -43,6 +43,16 @@ jobs:
           cache-dependency-path: collector/package-lock.json
       - run: npm ci --prefix collector
       - run: npm exec --prefix collector -- playwright install --with-deps chromium
+      - name: Verify sandboxed Chromium startup
+        working-directory: collector
+        env:
+          DEBUG: pw:browser
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from "playwright";
+          const browser = await chromium.launch({ chromiumSandbox: true });
+          await browser.close();
+          JS
       - name: Verify isolated collector and encrypted evidence
         env:
           WANT_KEEP_TEST_DATABASE_URL: postgres://postgres:synthetic-admin@127.0.0.1:5432/want_keep_test?sslmode=disable
