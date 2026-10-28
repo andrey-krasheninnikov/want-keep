@@ -252,9 +252,9 @@ Source: `D-03`. Acceptance: [AC-041](acceptance_criteria.en.md#ac-041).
 
 ## REQ-042
 
-Alfa automatically reads debit, current/savings, deposits and cashback under a verified contract.
+Alfa automatically reads current accounts, debit cards, transactions and cashback under a verified contract.
 
-Source: `D-37`. Acceptance: [AC-042](acceptance_criteria.en.md#ac-042).
+Source: `D-47`. Acceptance: [AC-042](acceptance_criteria.en.md#ac-042).
 
 ## REQ-043
 

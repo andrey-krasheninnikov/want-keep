@@ -34,7 +34,7 @@
 | [task-3.1](tasks/task-3.1.md) | Создать долговечные фоновые задания | task-1.3, task-2.3 | [#26](https://github.com/pchkauu/want-keep/issues/26) |
 | [task-3.2](tasks/task-3.2.md) | Определить входной контракт коннекторов | task-3.1, task-1.2, task-2.1, task-2.2 | [#27](https://github.com/pchkauu/want-keep/issues/27) |
 | [task-3.3](tasks/task-3.3.md) | Создать изолированный браузерный сборщик | task-3.2, task-1.5 | [#28](https://github.com/pchkauu/want-keep/issues/28) |
-| [task-4.1](tasks/task-4.1.md) | Реализовать коннектор Альфа-Банк | task-0.1, task-3.3, task-2.4, task-2.5 | [#29](https://github.com/pchkauu/want-keep/issues/29) |
+| [task-4.1](tasks/task-4.1.md) | Реализовать коннектор Альфа-Банк | task-0.1, task-3.3, task-2.4, task-2.5 | [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) |
 | [task-4.2](tasks/task-4.2.md) | Реализовать коннектор Райффайзенбанк РФ | task-0.2, task-3.3, task-2.4, task-2.5 | [#30](https://github.com/pchkauu/want-keep/issues/30) |
 | [task-4.3](tasks/task-4.3.md) | Реализовать коннектор Ozon Банк | task-0.3, task-3.3, task-2.4, task-2.5 | [#31](https://github.com/pchkauu/want-keep/issues/31) |
 | [task-4.4](tasks/task-4.4.md) | Реализовать коннектор Bybit | task-0.4, task-3.3, task-2.4, task-2.5 | [#32](https://github.com/pchkauu/want-keep/issues/32) |

@@ -29,7 +29,7 @@
 - **REQ-033:** Накопления показывают фактические начисления и прогноз по ставкам, срокам, капитализации и денежным потокам.
 - **REQ-039:** Отсутствующие курсы и неподдерживаемые активы не превращаются в нулевые суммы или условный паритет USD/USDT/USDC.
 - **REQ-041:** История сохраняет границы покрытия, курсоры, пробелы и статусы источника.
-- **REQ-042:** Alfa автоматически читает debit, current/savings, deposits и кэшбэк по проверенному контракту.
+- **REQ-042:** Alfa автоматически читает текущие счета, дебетовые карты, операции и кэшбэк по проверенному контракту.
 - **REQ-048:** Интеграции и браузерный сборщик выполняют только разрешённые операции чтения.
 - **REQ-065:** Принадлежность счёта, владелец внешнего аккаунта, автор записи и принадлежность расхода являются отдельными признаками.
 - **REQ-073:** Оба управляют подключениями; банковскую авторизацию выполняет владелец внешнего аккаунта без раскрытия секретов партнёру или AI.
@@ -40,9 +40,9 @@
 
 #### AC-042
 
-- **Дано:** Подключён разрешённый аккаунт Alfa с продуктами D-37.
-- **Когда:** Запрошены счета, остатки, операции, кэшбэк и условия накоплений.
-- **Тогда:** Данные совпадают с source evidence; кредитка Alfa не требуется, unknown блокирует только deployment коннектора.
+- **Дано:** Подключён разрешённый аккаунт Alfa с продуктами D-47.
+- **Когда:** Запрошены текущие счета, остатки, дебетовые карты, операции и кэшбэк.
+- **Тогда:** Данные совпадают с source evidence; накопительные счета, вклады и кредиты Alfa исключены. Unknown блокирует только deployment коннектора.
 - **Уровень:** `contract+manual`.
 
 #### AC-041
@@ -124,7 +124,7 @@ Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.
 - **REQ-033:** Savings show actual accruals and forecasts using rates, terms, compounding and cash flows.
 - **REQ-039:** Missing rates and unsupported assets never become zero amounts or assumed USD/USDT/USDC parity.
 - **REQ-041:** History retains coverage boundaries, cursors, gaps and source status.
-- **REQ-042:** Alfa automatically reads debit, current/savings, deposits and cashback under a verified contract.
+- **REQ-042:** Alfa automatically reads current accounts, debit cards, transactions and cashback under a verified contract.
 - **REQ-048:** Integrations and the browser collector perform authorized read operations only.
 - **REQ-065:** Account ownership, external-account owner, record author and expense attribution are distinct dimensions.
 - **REQ-073:** Both manage connections; the external-account owner performs bank authentication without exposing secrets to the partner or AI.
@@ -135,9 +135,9 @@ A link establishes coverage but does not prove the whole criterion; verification
 
 #### AC-042
 
-- **Given:** An authorized Alfa account with D-37 products is connected.
-- **When:** Accounts, balances, transactions, cashback and savings terms are requested.
-- **Then:** Data matches source evidence; an Alfa credit card is not required and unknown blocks only connector deployment.
+- **Given:** An authorized Alfa account with D-47 products is connected.
+- **When:** Current accounts, balances, debit cards, transactions and cashback are requested.
+- **Then:** Data matches source evidence; Alfa savings accounts, deposits and credit products are excluded. Unknown blocks only connector deployment.
 - **Level:** `contract+manual`.
 
 #### AC-041

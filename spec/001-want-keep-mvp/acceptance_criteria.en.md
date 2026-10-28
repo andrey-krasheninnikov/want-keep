@@ -548,13 +548,13 @@ REQ: `REQ-041`.
 
 ## AC-042
 
-Alfa automatically reads debit, current/savings, deposits and cashback under a verified contract.
+Alfa automatically reads current accounts, debit cards, transactions and cashback under a verified contract.
 
 REQ: `REQ-042`.
 
-- **Given:** An authorized Alfa account with D-37 products is connected.
-- **When:** Accounts, balances, transactions, cashback and savings terms are requested.
-- **Then:** Data matches source evidence; an Alfa credit card is not required and unknown blocks only connector deployment.
+- **Given:** An authorized Alfa account with D-47 products is connected.
+- **When:** Current accounts, balances, debit cards, transactions and cashback are requested.
+- **Then:** Data matches source evidence; Alfa savings accounts, deposits and credit products are excluded. Unknown blocks only connector deployment.
 - **Level:** `contract+manual`.
 
 ## AC-043

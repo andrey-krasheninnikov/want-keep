@@ -3,9 +3,9 @@
 
 ## RU
 
-Автоматически получать согласованные данные продуктов Alfa из объёма D-37.
+Автоматически получать согласованные данные текущих счетов, дебетовых карт, операций и кэшбэка Alfa по D-47.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** В работе: зависимости закрыты. Первый живой read-прогон одного аккаунта завершён; финансовый mapping, конец истории, связь выплаты кэшбэка и второй аккаунт ещё не подтверждены. Коннектор не реализован, admission не включён. Отчёт: spec/001-want-keep-mvp/evidence/task-4.1-alfa.md.
 
 **Зависимости:** `task-0.1`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -13,7 +13,7 @@
 
 ### Изменение и контракты
 
-Реализовать D-37: дебетовую карту, текущий и накопительные счета, вклады и кэшбэк. Общая ручная модель кредиток сохраняется, но кредитка Alfa не входит в этот коннектор. До включения provider deployment доказать разрешённый структурированный read path, allowlist, стабильную account/source identity D-39, пагинацию/coverage, revisions/statuses/fees/cashback lifecycle, reauth и два независимых аккаунта. Browser collector допустим только для подтверждённого API-пробела. Неполная история даёт `source_partial`; неизвестное обязательное поле остаётся unknown; коллизия даёт `source_ambiguous` без проводки. Повторное подключение связывается с тем же внешним счётом, а stale job после disconnect не применяется. Alfa route/DNS/TLS с целевого хоста проверяются до deployment, а не являются SDD-блокером. Provider evidence публикуется admission service для точного D-43 binding; conformance до admission идёт в quarantine без source record/проводки, а смена binding снова закрывает sync.
+Реализовать D-47: текущие счета, дебетовые карты, операции и кэшбэк. Накопительные счета, вклады и кредиты Alfa исключены по решению владельца от 2026-10-28; остальные провайдеры и общие финансовые функции сохраняются. Подтверждённая денежная выплата кэшбэка создаёт один доход в дату выплаты; ожидаемое начисление не создаёт проводку. До deployment доказать разрешённый структурированный read path, точный allowlist, стабильную account/source identity D-39, пагинацию/coverage, revisions/statuses/fees/cashback lifecycle, reauth и два независимых аккаунта. Browser collector допустим только для подтверждённого API-пробела. Неполная история даёт `source_partial`; неизвестное обязательное поле остаётся unknown; коллизия даёт `source_ambiguous` без проводки. Reconnect связывается с тем же внешним счётом; stale job после disconnect не применяется. Target-host route/DNS/TLS проверяются до deployment. Provider evidence передаётся admission service для точного D-43 binding; conformance до admission не создаёт source record или проводок. Смена binding закрывает sync.
 
 ### Границы изменений
 
@@ -35,7 +35,7 @@
 - **REQ-039:** Отсутствующие курсы и неподдерживаемые активы не превращаются в нулевые суммы или условный паритет USD/USDT/USDC.
 - **REQ-040:** Каждый источник обновляется раз в час и по запросу с видимым временем успешного обновления.
 - **REQ-041:** История сохраняет границы покрытия, курсоры, пробелы и статусы источника.
-- **REQ-042:** Alfa автоматически читает debit, current/savings, deposits и кэшбэк по проверенному контракту.
+- **REQ-042:** Alfa автоматически читает текущие счета, дебетовые карты, операции и кэшбэк по проверенному контракту.
 - **REQ-048:** Интеграции и браузерный сборщик выполняют только разрешённые операции чтения.
 - **REQ-061:** Повторные задания, перезапуски и параллельные изменения не создают двойных финансовых эффектов.
 - **REQ-065:** Принадлежность счёта, владелец внешнего аккаунта, автор записи и принадлежность расхода являются отдельными признаками.
@@ -49,9 +49,9 @@
 
 #### AC-042
 
-- **Дано:** Подключён разрешённый аккаунт Alfa с продуктами D-37.
-- **Когда:** Запрошены счета, остатки, операции, кэшбэк и условия накоплений.
-- **Тогда:** Данные совпадают с source evidence; кредитка Alfa не требуется, unknown блокирует только deployment коннектора.
+- **Дано:** Подключён разрешённый аккаунт Alfa с продуктами D-47.
+- **Когда:** Запрошены текущие счета, остатки, дебетовые карты, операции и кэшбэк.
+- **Тогда:** Данные совпадают с source evidence; накопительные счета, вклады и кредиты Alfa исключены. Unknown блокирует только deployment коннектора.
 - **Уровень:** `contract+manual`.
 
 #### AC-040
@@ -130,9 +130,9 @@
 make test-contract PROVIDER=alfa && make test-integration AREA=alfa
 ```
 
-Продукты D-37 проходят синтетические fixtures и отдельный разрешённый live readback; доказаны два аккаунта, reauth, pagination, revisions и deployment gate. Кредитка Alfa не требуется. Неизвестные поля и gaps не проводят деньги.
+Продукты D-47 проходят синтетические fixtures и отдельный разрешённый live readback; доказаны два аккаунта, reauth, pagination, revisions и deployment gate. Накопительные счета, вклады и кредиты Alfa не требуются. Неизвестные поля и gaps не проводят деньги.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Общие команды Make реализованы; suites PROVIDER=alfa и AREA=alfa добавляются этой задачей. Синтетические проверки, живое чтение, повторный вход и второй независимый аккаунт фиксируются отдельно. Без обязательного live-доказательства задача остаётся открытой, а deployment admission не включается.
 
 ### Передача следующему агенту
 
@@ -142,9 +142,9 @@ make test-contract PROVIDER=alfa && make test-integration AREA=alfa
 
 ## EN
 
-Automatically retrieve consistent Alfa product data within D-37.
+Automatically retrieve consistent Alfa current-account, debit-card, transaction and cashback data under D-47.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** In progress: dependencies are closed. The first live read of one account is complete; financial mapping, history end, cashback payout links and a second account are not verified. The connector is not implemented and admission is disabled. Report: spec/001-want-keep-mvp/evidence/task-4.1-alfa.en.md.
 
 **Dependencies:** `task-0.1`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -152,7 +152,7 @@ Automatically retrieve consistent Alfa product data within D-37.
 
 ### Change and contracts
 
-Implement D-37: debit card, current and savings accounts, deposits and cashback. Shared manual credit-card accounting remains, but an Alfa credit card is outside this connector. Before provider deployment, prove an authorized structured read path, allowlist, stable D-39 account/source identity, pagination/coverage, revisions/statuses/fees/cashback lifecycle, reauthentication and two independent accounts. A browser collector is allowed only for a proven API gap. Incomplete history yields `source_partial`; an unknown mandatory field stays unknown; a collision yields `source_ambiguous` without posting. Reconnection links the same external account and a stale job cannot apply after disconnect. Alfa route/DNS/TLS from the target host is checked before deployment and is not an SDD blocker. Provider evidence is supplied to the admission service for the exact D-43 binding; pre-admission conformance runs in quarantine without source records/postings, and any binding change closes sync again.
+Implement D-47: current accounts, debit cards, transactions and cashback. Alfa savings accounts, deposits and credit products are excluded by the owner decision of 2026-10-28; other providers and shared financial features remain in scope. A confirmed cash cashback payout creates one income entry on its payout date; an expected accrual creates no posting. Before deployment, prove an authorized structured read path, an exact allowlist, stable D-39 account/source identity, pagination/coverage, revisions/statuses/fees/cashback lifecycle, reauthentication and two independent accounts. A browser collector is allowed only for a proven API gap. Incomplete history yields `source_partial`; an unknown mandatory field stays unknown; a collision yields `source_ambiguous` without posting. Reconnection links the same external account; a stale job cannot apply after disconnect. Target-host route/DNS/TLS are checked before deployment. Provider evidence goes to the admission service for the exact D-43 binding; pre-admission conformance creates no source records or postings. A binding change closes sync.
 
 ### Change boundaries
 
@@ -174,7 +174,7 @@ Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.
 - **REQ-039:** Missing rates and unsupported assets never become zero amounts or assumed USD/USDT/USDC parity.
 - **REQ-040:** Each source refreshes hourly and on demand with a visible last-success timestamp.
 - **REQ-041:** History retains coverage boundaries, cursors, gaps and source status.
-- **REQ-042:** Alfa automatically reads debit, current/savings, deposits and cashback under a verified contract.
+- **REQ-042:** Alfa automatically reads current accounts, debit cards, transactions and cashback under a verified contract.
 - **REQ-048:** Integrations and the browser collector perform authorized read operations only.
 - **REQ-061:** Repeated jobs, restarts and concurrent changes cannot create duplicate financial effects.
 - **REQ-065:** Account ownership, external-account owner, record author and expense attribution are distinct dimensions.
@@ -188,9 +188,9 @@ A link establishes coverage but does not prove the whole criterion; verification
 
 #### AC-042
 
-- **Given:** An authorized Alfa account with D-37 products is connected.
-- **When:** Accounts, balances, transactions, cashback and savings terms are requested.
-- **Then:** Data matches source evidence; an Alfa credit card is not required and unknown blocks only connector deployment.
+- **Given:** An authorized Alfa account with D-47 products is connected.
+- **When:** Current accounts, balances, debit cards, transactions and cashback are requested.
+- **Then:** Data matches source evidence; Alfa savings accounts, deposits and credit products are excluded. Unknown blocks only connector deployment.
 - **Level:** `contract+manual`.
 
 #### AC-040
@@ -269,9 +269,9 @@ A link establishes coverage but does not prove the whole criterion; verification
 make test-contract PROVIDER=alfa && make test-integration AREA=alfa
 ```
 
-D-37 products pass synthetic fixtures and a separate authorized live readback; two accounts, reauthentication, pagination, revisions and the deployment gate are proven. An Alfa credit card is not required. Unknown fields and gaps do not post money.
+D-47 products pass synthetic fixtures and a separate authorized live readback; two accounts, reauthentication, pagination, revisions and the deployment gate are proven. Alfa savings accounts, deposits and credit products are not required. Unknown fields and gaps do not post money.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Shared Make commands are implemented; this task adds the PROVIDER=alfa and AREA=alfa suites. Synthetic checks, live reads, reauthentication and a second independent account are recorded separately. Missing mandatory live evidence keeps the task open and deployment admission disabled.
 
 ### Handoff to the next agent
 

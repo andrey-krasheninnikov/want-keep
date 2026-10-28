@@ -34,7 +34,7 @@ The specification passed task-0.10 and is ready for development. The decision-co
 | [task-3.1](tasks/task-3.1.md) | Create durable background jobs | task-1.3, task-2.3 | [#26](https://github.com/pchkauu/want-keep/issues/26) |
 | [task-3.2](tasks/task-3.2.md) | Define connector ingestion contracts | task-3.1, task-1.2, task-2.1, task-2.2 | [#27](https://github.com/pchkauu/want-keep/issues/27) |
 | [task-3.3](tasks/task-3.3.md) | Create an isolated browser collector | task-3.2, task-1.5 | [#28](https://github.com/pchkauu/want-keep/issues/28) |
-| [task-4.1](tasks/task-4.1.md) | Implement Alfa-Bank connector | task-0.1, task-3.3, task-2.4, task-2.5 | [#29](https://github.com/pchkauu/want-keep/issues/29) |
+| [task-4.1](tasks/task-4.1.md) | Implement Alfa-Bank connector | task-0.1, task-3.3, task-2.4, task-2.5 | [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) |
 | [task-4.2](tasks/task-4.2.md) | Implement Raiffeisenbank Russia connector | task-0.2, task-3.3, task-2.4, task-2.5 | [#30](https://github.com/pchkauu/want-keep/issues/30) |
 | [task-4.3](tasks/task-4.3.md) | Implement Ozon Bank connector | task-0.3, task-3.3, task-2.4, task-2.5 | [#31](https://github.com/pchkauu/want-keep/issues/31) |
 | [task-4.4](tasks/task-4.4.md) | Implement Bybit connector | task-0.4, task-3.3, task-2.4, task-2.5 | [#32](https://github.com/pchkauu/want-keep/issues/32) |
