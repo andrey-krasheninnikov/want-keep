@@ -43,6 +43,7 @@ export async function readAlfa(
   request: SyncRequest,
   headers: Record<string, string>,
   timeout: number,
+  beforeProviderIO: () => void,
 ): Promise<SyncResult> {
   let permitted: { url: string; method: string; body?: string } | undefined;
   let violation = false;
@@ -91,6 +92,7 @@ export async function readAlfa(
       method: body === undefined ? "GET" : "POST",
       ...(body === undefined ? {} : { body }),
     };
+    beforeProviderIO();
     const response = await page.evaluate(
       async ({ url, method, body, headers, timeout }) => {
         const response = await fetch(url, {

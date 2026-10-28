@@ -286,7 +286,7 @@ func bankFixture(t *testing.T, name string) string {
 	}
 	return string(data)
 }
-func (f *fixture) collector(afterRead func(), externalAccount string) string {
+func (f *fixture) collector(afterRead func(), externalAccount, accountsFixture string) string {
 	f.t.Helper()
 	directory, err := os.MkdirTemp("/tmp", "wk-alfa-")
 	if err != nil {
@@ -313,7 +313,7 @@ func (f *fixture) collector(afterRead func(), externalAccount string) string {
 			http.Error(w, "invalid_envelope", 400)
 			return
 		}
-		b := map[string]any{"version": 1, "accounts": strings.ReplaceAll(bankFixture(f.t, "accounts"), "synthetic-current-a", externalAccount), "cards": strings.ReplaceAll(bankFixture(f.t, "cards"), "synthetic-current-a", externalAccount), "operations": bankFixture(f.t, "history"), "loyalty": bankFixture(f.t, "loyalty"), "summaries": []string{bankFixture(f.t, "summary")}, "account": externalAccount}
+		b := map[string]any{"version": 1, "accounts": strings.ReplaceAll(bankFixture(f.t, accountsFixture), "synthetic-current-a", externalAccount), "cards": strings.ReplaceAll(bankFixture(f.t, "cards"), "synthetic-current-a", externalAccount), "operations": bankFixture(f.t, "history"), "loyalty": bankFixture(f.t, "loyalty"), "summaries": []string{bankFixture(f.t, "summary")}, "account": externalAccount}
 		raw, _ := json.Marshal(b)
 		hash := sha256.Sum256(raw)
 		page := in.SyncRequest
@@ -370,7 +370,7 @@ func TestReadConnectorReplayAndOwnerSession(t *testing.T) {
 		t.Fatal("unadmitted sync created job")
 	}
 	f.admit()
-	socket := f.collector(nil, "synthetic-current-a")
+	socket := f.collector(nil, "synthetic-current-a", "accounts")
 	for range 2 {
 		f.sync()
 		if err := f.run(socket); err != nil {
@@ -401,7 +401,7 @@ func TestSessionReplacementQuarantinesOldResult(t *testing.T) {
 	f.enroll(0)
 	f.admit()
 	f.sync()
-	socket := f.collector(func() { f.enroll(0) }, "synthetic-current-a")
+	socket := f.collector(func() { f.enroll(0) }, "synthetic-current-a", "accounts")
 	if err := f.run(socket); err != nil && !errors.Is(err, jobdomain.ErrStaleAttempt) {
 		t.Fatal(err)
 	}
@@ -423,7 +423,7 @@ func TestDisconnectQuarantinesAndInvalidatesVault(t *testing.T) {
 		if err := f.db.WithinHousehold(ctx, f.q, func(ctx context.Context) error { return f.db.Disconnect(ctx, f.connection) }); err != nil {
 			t.Error(err)
 		}
-	}, "synthetic-current-a")
+	}, "synthetic-current-a", "accounts")
 	if err := f.run(socket); err != nil && !errors.Is(err, jobdomain.ErrStaleAttempt) {
 		t.Fatal(err)
 	}
@@ -456,7 +456,7 @@ func TestDistinctExternalAccountsAndOwnerAuthorization(t *testing.T) {
 	f.enroll(0)
 	f.admit()
 	f.sync()
-	if err := f.run(f.collector(nil, "synthetic-current-a")); err != nil {
+	if err := f.run(f.collector(nil, "synthetic-current-a", "accounts")); err != nil {
 		t.Fatal(err)
 	}
 	f.create(1)
@@ -466,7 +466,7 @@ func TestDistinctExternalAccountsAndOwnerAuthorization(t *testing.T) {
 	}
 	f.enroll(1)
 	f.sync()
-	if err := f.run(f.collector(nil, "synthetic-current-b")); err != nil {
+	if err := f.run(f.collector(nil, "synthetic-current-b", "accounts")); err != nil {
 		t.Fatal(err)
 	}
 	if count(t, f.admin, "accounts") != 2 || count(t, f.admin, "source_records") != 2 {
@@ -475,5 +475,23 @@ func TestDistinctExternalAccountsAndOwnerAuthorization(t *testing.T) {
 	w := f.request(0, "GET", "/api/v1/connections", "", "")
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "debit_card") || strings.Contains(w.Body.String(), "synthetic-xsrf") {
 		t.Fatal("connection metadata leaked secret or lost products", w.Code)
+	}
+}
+
+func TestUnsupportedAssetDoesNotRejectSupportedAccount(t *testing.T) {
+	f := newFixture(t)
+	f.create(0)
+	f.enroll(0)
+	f.admit()
+	f.sync()
+	if err := f.run(f.collector(nil, "synthetic-current-a", "accounts-mixed")); err != nil {
+		t.Fatal(err)
+	}
+	if count(t, f.admin, "accounts") != 1 || count(t, f.admin, "source_records") != 1 {
+		t.Fatal("unsupported asset rejected the supported page")
+	}
+	var partial bool
+	if err := f.admin.QueryRow(ctx, `SELECT coverage='partial' AND 'unsupported_asset'=ANY(gaps) FROM want_keep.sync_progress WHERE connection_id=$1`, f.connection).Scan(&partial); err != nil || !partial {
+		t.Fatal("unsupported asset gap missing", err)
 	}
 }

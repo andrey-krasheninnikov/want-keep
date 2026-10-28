@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	accountcatalog "github.com/pchkauu/want-keep/backend/internal/accounts/application"
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
 	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	ingestion "github.com/pchkauu/want-keep/backend/internal/integrations/domain"
@@ -96,6 +97,7 @@ func Normalize(page ingestion.Page, historyFrom calendar.Date) (ingestion.Page, 
 	cleanCards := []any{}
 	records := []ingestion.Record{}
 	known := map[string]ingestion.AccountReference{}
+	unsupportedAsset := false
 	for _, raw := range accounts.Accounts {
 		var a sourceAccount
 		if json.Unmarshal(raw, &a) != nil {
@@ -114,6 +116,9 @@ func Normalize(page ingestion.Page, historyFrom calendar.Date) (ingestion.Page, 
 		}
 		if _, ok := known[a.Number]; ok {
 			return invalid()
+		}
+		if _, err := accountcatalog.CanonicalSourceAsset("alfa", amount.Currency); err != nil {
+			unsupportedAsset = true
 		}
 		ref := ingestion.AccountReference{ExternalAccountID: a.Number, Product: "current", AssetCode: amount.Currency}
 		known[a.Number] = ref
@@ -186,7 +191,11 @@ func Normalize(page ingestion.Page, historyFrom calendar.Date) (ingestion.Page, 
 	hash := sha256.Sum256(data)
 	page.Evidence = []ingestion.Evidence{{ID: "alfa-page", MediaType: "application/json", Digest: hex.EncodeToString(hash[:]), Locator: "alfa:normalized-source:v1", Data: data}}
 	page.Records = records
-	page.Coverage, _ = reporting.NewCoverage(reporting.Partial, []string{"source_partial", "financial_mapping_unverified", "balance_as_of_unverified", "cashback_payout_unverified"})
+	gaps := []string{"source_partial", "financial_mapping_unverified", "balance_as_of_unverified", "cashback_payout_unverified"}
+	if unsupportedAsset {
+		gaps = append(gaps, "unsupported_asset")
+	}
+	page.Coverage, _ = reporting.NewCoverage(reporting.Partial, gaps)
 	return page, page.Validate()
 }
 func selectFields(raw []byte, keys ...string) (map[string]any, error) {

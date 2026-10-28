@@ -3,7 +3,10 @@ import { createServer } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { alfaManifest } from "../src/providers/alfa/read.js";
 import { parseRuntimeConfig } from "../src/runtime/config.js";
-import { CollectorRuntime } from "../src/runtime/runtime.js";
+import {
+  CollectorRuntime,
+  CollectorBeforeIOUnavailableError,
+} from "../src/runtime/runtime.js";
 import { parseSyncResult } from "../src/contracts/ingestion.js";
 
 const fixture = (name: string) =>
@@ -224,6 +227,27 @@ describe("Alfa browser boundary", () => {
     const f = await setup("repeat");
     const first = await f.read();
     await expect(f.read("member-a", first.page!.nextCursor!)).rejects.toThrow();
+  });
+  it("keeps page-setup failures before provider IO and disposes the context", async () => {
+    const f = await setup();
+    let closed = false;
+    Reflect.set(f.runtime, "browser", {
+      isConnected: () => true,
+      newContext: async () => ({
+        newPage: async () => {
+          throw new Error("synthetic_page_setup_failure");
+        },
+        close: async () => {
+          closed = true;
+        },
+      }),
+      close: async () => undefined,
+    });
+    await expect(f.read()).rejects.toBeInstanceOf(
+      CollectorBeforeIOUnavailableError,
+    );
+    expect(f.calls).toHaveLength(0);
+    expect(closed).toBe(true);
   });
   it("never follows redirects into payment routes", async () => {
     const f = await setup("redirect");

@@ -329,7 +329,6 @@ async function readWithContext(
   try {
     if (signal.aborted) throw new Error("request_aborted");
     if (binding.binding.provider === "alfa") {
-      providerIOStarted = true;
       return parseSyncResultJSON(
         JSON.stringify(
           await readAlfa(
@@ -338,6 +337,9 @@ async function readWithContext(
             request,
             sessionHeaders!,
             timeout,
+            () => {
+              providerIOStarted = true;
+            },
           ),
         ),
         request,

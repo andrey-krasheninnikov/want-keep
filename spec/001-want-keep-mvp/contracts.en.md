@@ -93,7 +93,7 @@ No bracket, multiple sign transitions, a zero period, missing valuation, incompl
 
 ### Alfa cashback: accrual and payout
 
-In task-4.1, a confirmed Alfa cash cashback payout is recognized as separate income on the payout date. An expected accrual creates no posting and does not increase available funds. The accrual, related purchase and bank credit retain distinct identities and evidence links; reading multiple journals repeatedly must not create several income entries for one payout. A marketing forecast, an absent status or matching amount and date do not establish a payout or a relationship between records.
+In task-4.7 / #94, a confirmed Alfa cash cashback payout is recognized as separate income on the payout date. An expected accrual creates no posting and does not increase available funds. The accrual, related purchase and bank credit retain distinct identities and evidence links; reading multiple journals repeatedly must not create several income entries for one payout. A marketing forecast, an absent status or matching amount and date do not establish a payout or a relationship between records. The task-4.1 read connector retains this data as evidence without monetary effects under D-48.
 
 This rule applies to D-47 products. The verified structured contract must establish statuses, stable IDs and source-change handling before money is posted. Live product acceptance requires reauthentication and a second independent account; synthetic fixtures do not complete those checks.
 
