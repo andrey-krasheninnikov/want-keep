@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pchkauu/want-keep/backend/internal/connections/credentials"
 	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	ingestion "github.com/pchkauu/want-keep/backend/internal/integrations/domain"
 )
@@ -29,6 +30,7 @@ type Client struct {
 	binding           connections.Binding
 	admissionRevision int64
 	session           json.RawMessage
+	headers           map[string]string
 	beforeRead        func(context.Context) error
 	mu                sync.Mutex
 	last              readOutcome
@@ -54,16 +56,8 @@ func NewClient(socket string, binding connections.Binding, admissionRevision int
 	if !filepath.IsAbs(socket) || binding.Validate() != nil || admissionRevision < 1 || admissionRevision > ingestion.MaxAdmissionRevision || beforeRead == nil {
 		return nil, ErrUnavailable
 	}
-	if len(session) < 2 || len(session) > 1024*1024 || !json.Valid(session) {
-		return nil, ErrSessionInvalid
-	}
-	var state struct {
-		Cookies []json.RawMessage `json:"cookies"`
-		Origins []json.RawMessage `json:"origins"`
-	}
-	decoder := json.NewDecoder(bytes.NewReader(session))
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&state) != nil || decoder.Decode(new(any)) != io.EOF || state.Cookies == nil || state.Origins == nil {
+	cleanSession, headers, err := credentials.DecodeBrowserSession(binding.Provider, session)
+	if err != nil {
 		return nil, ErrSessionInvalid
 	}
 	dialer := &net.Dialer{Timeout: time.Second}
@@ -76,7 +70,7 @@ func NewClient(socket string, binding connections.Binding, admissionRevision int
 	}
 	return &Client{
 		http:    &http.Client{Transport: transport, Timeout: 2 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
-		binding: binding, admissionRevision: admissionRevision, session: append(json.RawMessage(nil), session...), beforeRead: beforeRead,
+		binding: binding, admissionRevision: admissionRevision, session: cleanSession, headers: headers, beforeRead: beforeRead,
 	}, nil
 }
 
@@ -99,10 +93,11 @@ func (c *Client) Read(ctx context.Context, request []byte) ([]byte, error) {
 	c.externalStarted = true
 	c.mu.Unlock()
 	payload, err := c.call(ctx, "/v1/read", struct {
-		Version      int             `json:"version"`
-		SyncRequest  json.RawMessage `json:"syncRequest"`
-		StorageState json.RawMessage `json:"storageState"`
-	}{1, request, c.session})
+		Version        int               `json:"version"`
+		SyncRequest    json.RawMessage   `json:"syncRequest"`
+		StorageState   json.RawMessage   `json:"storageState"`
+		SessionHeaders map[string]string `json:"sessionHeaders,omitempty"`
+	}{1, request, c.session, c.headers})
 	if err != nil {
 		return nil, err
 	}
@@ -137,6 +132,8 @@ func (c *Client) Close() {
 	if c == nil {
 		return
 	}
+	clear(c.headers)
+	c.headers = nil
 	clear(c.session)
 	c.session = nil
 	c.http.CloseIdleConnections()

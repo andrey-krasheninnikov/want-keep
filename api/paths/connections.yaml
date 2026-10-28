@@ -379,3 +379,42 @@
     description: Registered external route. Requires the same authenticated external-owner
       session, bound state/nonce/PKCE and exactly one of code or error. Single consumption;
       no automatic retry of ambiguous token exchange. The configured RBO handler validates the signed ID token against operator-pinned issuer and JWKS. Missing configuration fails closed. A completed callback may be read back without repeating the token exchange.
+
+"/connections/{connectionId}/browser-session":
+  post:
+    operationId: connections_enrollBrowserSession
+    tags: [connections]
+    summary: Enroll an Alfa browser session for its external owner
+    description: Consumes a grant from authorization. Credentials never enter command history or responses. Replacement invalidates previous jobs and secrets atomically. This route is not safe to retry blindly; read connection metadata after an unknown result.
+    parameters:
+    - name: connectionId
+      in: path
+      required: true
+      schema:
+        $ref: ../schemas/money.yaml#/ID
+    - $ref: ../components.yaml#/parameters/CSRF
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/connections.yaml#/BrowserSessionEnrollment
+    responses:
+      '204':
+        description: Encrypted session saved; no secret is returned.
+      '400':
+        $ref: ../components.yaml#/responses/Problem
+      '401':
+        $ref: ../components.yaml#/responses/Problem
+      '403':
+        $ref: ../components.yaml#/responses/Problem
+      '404':
+        $ref: ../components.yaml#/responses/Problem
+      '409':
+        $ref: ../components.yaml#/responses/Problem
+      '413':
+        $ref: ../components.yaml#/responses/Problem
+      '429':
+        $ref: ../components.yaml#/responses/Problem
+      '503':
+        $ref: ../components.yaml#/responses/Problem

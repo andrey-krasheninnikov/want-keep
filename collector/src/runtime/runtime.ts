@@ -9,6 +9,8 @@ import {
   type SyncRequest,
   type SyncResult,
 } from "../contracts/ingestion.js";
+import { readAlfa } from "../providers/alfa/read.js";
+import { parseSessionHeaders } from "../providers/alfa/session.js";
 import { ContractError, fail, strictObject } from "../contracts/validation.js";
 import type { RouteRule, RuntimeBinding, RuntimeConfig } from "./config.js";
 
@@ -19,6 +21,7 @@ export interface ReadEnvelope {
   version: 1;
   syncRequest: SyncRequest;
   storageState: unknown;
+  sessionHeaders?: Record<string, string>;
 }
 
 export interface CapabilityEnvelope {
@@ -61,7 +64,11 @@ export class CollectorRuntime {
           admissionRevision: envelope.syncRequest.admissionRevision,
         });
         try {
-          validateStorageState(envelope.storageState, binding.origin);
+          validateStorageState(
+            envelope.storageState,
+            binding.origin,
+            binding.binding.provider,
+          );
         } catch (error) {
           if (error instanceof ContractError)
             throw new CollectorSessionInvalidError();
@@ -94,6 +101,7 @@ export class CollectorRuntime {
           envelope.storageState,
           signal,
           this.config.requestTimeoutMs,
+          envelope.sessionHeaders,
         );
       } finally {
         if (signal.aborted && this.browser === browser) {
@@ -127,6 +135,7 @@ export class CollectorRuntime {
       // The pinned runtime accepts signal; LaunchOptions does not declare it.
       const options = {
         headless: true,
+        chromiumSandbox: true,
         signal,
         timeout: this.config.requestTimeoutMs,
       };
@@ -136,7 +145,11 @@ export class CollectorRuntime {
   }
 }
 
-function validateStorageState(value: unknown, origin: string): void {
+function validateStorageState(
+  value: unknown,
+  origin: string,
+  provider: string,
+): void {
   const state = strictObject(value, ["cookies", "origins"]);
   if (!Array.isArray(state.cookies) || state.cookies.length > 256) fail();
   const host = new URL(origin).hostname;
@@ -158,7 +171,7 @@ function validateStorageState(value: unknown, origin: string): void {
       typeof cookie.value !== "string" ||
       cookie.value.length > 8192 ||
       typeof cookie.domain !== "string" ||
-      !cookieDomainMatches(cookie.domain, host) ||
+      !cookieDomainMatches(cookie.domain, host, provider) ||
       typeof cookie.path !== "string" ||
       !cookie.path.startsWith("/") ||
       typeof cookie.expires !== "number" ||
@@ -188,9 +201,18 @@ function validateStorageState(value: unknown, origin: string): void {
   }
 }
 
-function cookieDomainMatches(domain: string, host: string): boolean {
+function cookieDomainMatches(
+  domain: string,
+  host: string,
+  provider: string,
+): boolean {
   const normalized = domain.startsWith(".") ? domain.slice(1) : domain;
-  return normalized === host;
+  return (
+    normalized === host ||
+    (provider === "alfa" &&
+      host === "web.alfabank.ru" &&
+      normalized === "alfabank.ru")
+  );
 }
 
 export class CollectorBusyError extends Error {}
@@ -226,6 +248,7 @@ export function parseReadEnvelope(value: unknown): ReadEnvelope {
     "version",
     "syncRequest",
     "storageState",
+    "sessionHeaders",
   ]);
   if (object.version !== 1 || object.storageState === undefined) fail();
   const encoded = JSON.stringify(object.storageState);
@@ -237,10 +260,21 @@ export function parseReadEnvelope(value: unknown): ReadEnvelope {
     fail();
   const state = strictObject(object.storageState, ["cookies", "origins"]);
   if (!Array.isArray(state.cookies) || !Array.isArray(state.origins)) fail();
+  const syncRequest = parseSyncRequest(object.syncRequest);
+  if (
+    syncRequest.binding.provider !== "alfa" &&
+    object.sessionHeaders !== undefined
+  )
+    fail();
+  const sessionHeaders =
+    syncRequest.binding.provider === "alfa"
+      ? parseSessionHeaders(object.sessionHeaders)
+      : undefined;
   return {
     version: 1,
-    syncRequest: parseSyncRequest(object.syncRequest),
+    syncRequest,
     storageState: structuredClone(state),
+    ...(sessionHeaders === undefined ? {} : { sessionHeaders }),
   };
 }
 
@@ -253,6 +287,7 @@ async function readWithContext(
   storageState: unknown,
   signal: AbortSignal,
   timeout: number,
+  sessionHeaders?: Record<string, string>,
 ): Promise<SyncResult> {
   if (signal.aborted) throw new CollectorBeforeIOUnavailableError();
   const pendingContext = browser.newContext({
@@ -293,6 +328,23 @@ async function readWithContext(
   let providerIOStarted = false;
   try {
     if (signal.aborted) throw new Error("request_aborted");
+    if (binding.binding.provider === "alfa") {
+      return parseSyncResultJSON(
+        JSON.stringify(
+          await readAlfa(
+            context,
+            binding.origin,
+            request,
+            sessionHeaders!,
+            timeout,
+            () => {
+              providerIOStarted = true;
+            },
+          ),
+        ),
+        request,
+      );
+    }
     await context.route("**/*", async (route) => {
       try {
         requireAllowedRequest(binding, request, route);

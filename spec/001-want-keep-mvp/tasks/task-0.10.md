@@ -40,7 +40,7 @@
 - **REQ-034:** Доходность вложений сравнивается с учётом дат денежных потоков и валюты оценки.
 - **REQ-038:** Курсы обмена учитывают направление, сервис, время, сумму применимости и известные комиссии.
 - **REQ-039:** Отсутствующие курсы и неподдерживаемые активы не превращаются в нулевые суммы или условный паритет USD/USDT/USDC.
-- **REQ-042:** Alfa автоматически читает debit, current/savings, deposits и кэшбэк по проверенному контракту.
+- **REQ-042:** Alfa автоматически читает текущие счета, дебетовые карты, операции и кэшбэк по проверенному контракту.
 - **REQ-043:** Raiffeisen через RBO API читает только расчётный счёт ИП: остатки, поступления, списания, комиссии и историю (D-35).
 - **REQ-044:** Интеграция Ozon Банк автоматически читает дебетовую карту и связанный основной счёт: остатки, операции и доступные сведения в пределах подтверждённого контракта. Другие продукты Ozon отложены до расширения контракта.
 - **REQ-045:** Bybit автоматически читает Funding USDT/USDC/ETH/BTC, используемый Easy Earn и P2P; официальный API приоритетен. Остальные продукты отложены без блокировки по D-36.
@@ -100,9 +100,9 @@
 
 #### AC-042
 
-- **Дано:** Подключён разрешённый аккаунт Alfa с продуктами D-37.
-- **Когда:** Запрошены счета, остатки, операции, кэшбэк и условия накоплений.
-- **Тогда:** Данные совпадают с source evidence; кредитка Alfa не требуется, unknown блокирует только deployment коннектора.
+- **Дано:** Подключён разрешённый аккаунт Alfa с продуктами D-47.
+- **Когда:** Запрошены текущие счета, остатки, дебетовые карты, операции и кэшбэк.
+- **Тогда:** Данные совпадают с source evidence; накопительные счета, вклады и кредиты Alfa исключены. Unknown блокирует только deployment коннектора.
 - **Уровень:** `contract+manual`.
 
 #### AC-043
@@ -328,7 +328,7 @@ Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.
 - **REQ-034:** Investment returns are compared using dated cash flows and valuation currency.
 - **REQ-038:** Exchange quotes include direction, provider, timestamp, applicable amount and known fees.
 - **REQ-039:** Missing rates and unsupported assets never become zero amounts or assumed USD/USDT/USDC parity.
-- **REQ-042:** Alfa automatically reads debit, current/savings, deposits and cashback under a verified contract.
+- **REQ-042:** Alfa automatically reads current accounts, debit cards, transactions and cashback under a verified contract.
 - **REQ-043:** Raiffeisen RBO API reads only the entrepreneur current account: balances, receipts, debits, fees and history (D-35).
 - **REQ-044:** The Ozon Bank integration automatically reads the debit card and linked main account: balances, transactions and available details under a verified contract. Other Ozon products are deferred until a contract extension.
 - **REQ-045:** Bybit automatically reads Funding USDT/USDC/ETH/BTC, used Easy Earn and P2P; the official API is preferred. Other products are deferred without blocking under D-36.
@@ -388,9 +388,9 @@ A link establishes coverage but does not prove the whole criterion; verification
 
 #### AC-042
 
-- **Given:** An authorized Alfa account with D-37 products is connected.
-- **When:** Accounts, balances, transactions, cashback and savings terms are requested.
-- **Then:** Data matches source evidence; an Alfa credit card is not required and unknown blocks only connector deployment.
+- **Given:** An authorized Alfa account with D-47 products is connected.
+- **When:** Current accounts, balances, debit cards, transactions and cashback are requested.
+- **Then:** Data matches source evidence; Alfa savings accounts, deposits and credit products are excluded. Unknown blocks only connector deployment.
 - **Level:** `contract+manual`.
 
 #### AC-043

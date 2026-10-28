@@ -47,7 +47,7 @@ Connection:
   - generation
   - deploymentGate
 ConnectionCreate:
-  description: Current implementation admits only Raiffeisen entrepreneur current accounts; other products return feature_unavailable. historyFrom cannot be after the current Moscow date.
+  description: Current implementation supports Raiffeisen entrepreneur current accounts and Alfa current accounts with debit-card aliases; other products return feature_unavailable. historyFrom cannot be after the current Moscow date.
   type: object
   additionalProperties: false
   properties:
@@ -77,6 +77,21 @@ ConnectionAction:
       "$ref": "./money.yaml#/Revision"
   required:
   - expectedRevision
+BrowserSessionEnrollment:
+  description: Owner-only secret enrollment. The base64 JSON contains cookies, origins and Alfa headers; never persist this payload in the command journal or diagnostics. A single-use five-minute grant binds the current owner session, connection and generation. After an unknown result, inspect connection metadata before obtaining a new grant.
+  type: object
+  additionalProperties: false
+  required: [grantId, expectedRevision, session]
+  properties:
+    grantId:
+      $ref: ./money.yaml#/ID
+    expectedRevision:
+      $ref: ./money.yaml#/Revision
+    session:
+      type: string
+      format: byte
+      minLength: 4
+      maxLength: 1398104
 AuthorizationAttempt:
   type: object
   additionalProperties: false
@@ -94,6 +109,9 @@ AuthorizationAttempt:
       - ready
       - completed
       - failed
+    method:
+      type: string
+      enum: [oauth, browser_session]
     authorizationUrl:
       type: string
       format: uri
@@ -102,6 +120,7 @@ AuthorizationAttempt:
   - connectionId
   - expiresAt
   - state
+  - method
   description: URL is returned only to the authenticated external-account owner; no
     credentials in shared chat or general connection responses.
 ConnectionPage:

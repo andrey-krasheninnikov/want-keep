@@ -6,16 +6,23 @@ import (
 
 	"github.com/pchkauu/want-keep/backend/internal/connections/credentials"
 	connections "github.com/pchkauu/want-keep/backend/internal/connections/domain"
+	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
+	"github.com/pchkauu/want-keep/backend/internal/integrations/alfa"
 	integrations "github.com/pchkauu/want-keep/backend/internal/integrations/application"
 	contract "github.com/pchkauu/want-keep/backend/internal/integrations/contract"
 	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/application"
 	jobdomain "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
 )
 
+type ConnectionReader interface {
+	ConnectionRecord(context.Context, household.Principal, string) (connections.ConnectionRecord, error)
+}
+
 type Handler struct {
-	Socket  string
-	Vault   *credentials.Vault
-	Service *integrations.Service
+	Repository ConnectionReader
+	Socket     string
+	Vault      *credentials.Vault
+	Service    *integrations.Service
 }
 
 func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Result, error) {
@@ -36,9 +43,20 @@ func (h Handler) Prepare(ctx context.Context, execution jobs.Execution) (jobs.Re
 		if !client.Ready(ctx) {
 			return ErrUnavailable
 		}
-		gateway, err := contract.NewGateway(execution.Job.Binding, client)
+		rawGateway, err := contract.NewGateway(execution.Job.Binding, client)
 		if err != nil {
 			return err
+		}
+		var gateway integrations.ProviderGateway = rawGateway
+		if execution.Job.Binding.Provider == "alfa" {
+			if h.Repository == nil {
+				return ErrPreflightRejected
+			}
+			c, err := h.Repository.ConnectionRecord(ctx, execution.Principal, execution.Job.ConnectionID)
+			if err != nil {
+				return err
+			}
+			gateway = alfa.Gateway{Reader: rawGateway, HistoryFrom: c.HistoryFrom}
 		}
 		for {
 			applied, typedFailure, err := h.Service.Ingest(ctx, execution.Principal, execution.Job, gateway)

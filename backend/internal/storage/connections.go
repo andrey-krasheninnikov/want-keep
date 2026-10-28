@@ -70,13 +70,17 @@ func (s *Store) CreateConnectionRecord(ctx context.Context, p household.Principa
 	if err != nil {
 		return err
 	}
-	if p != scope.principal || c.Provider != "raiffeisen" || c.Revision != 1 || c.Generation != 1 || c.State != "pending" || c.HistoryFrom.String() == "" {
+	if p != scope.principal || (c.Provider != "raiffeisen" && c.Provider != "alfa") || c.Revision != 1 || c.Generation != 1 || c.State != "pending" || c.HistoryFrom.String() == "" {
 		return connections.ErrInvalidConnection
 	}
 	if _, err := s.Membership(ctx, p.HouseholdID(), c.OwnerID); err != nil {
 		return err
 	}
-	if err = s.CreateConnection(ctx, admission.Connection{HouseholdID: p.HouseholdID(), ID: c.ID, Provider: c.Provider, Owner: c.OwnerID, Generation: 1, SecretPurpose: connections.OAuthTokens}); err != nil {
+	purpose := connections.OAuthTokens
+	if c.Provider == "alfa" {
+		purpose = connections.BrowserSession
+	}
+	if err = s.CreateConnection(ctx, admission.Connection{HouseholdID: p.HouseholdID(), ID: c.ID, Provider: c.Provider, Owner: c.OwnerID, Generation: 1, SecretPurpose: purpose}); err != nil {
 		return err
 	}
 	_, err = scope.tx.Exec(ctx, `UPDATE want_keep.connections SET history_from=$3 WHERE household_id=$1 AND id=$2`, p.HouseholdID(), c.ID, c.HistoryFrom.String())

@@ -91,6 +91,12 @@ D-42 задаёт XIRR: агрегировать потоки одной кал�
 
 Нет bracket, несколько смен знака, нулевой период, missing valuation, неполная история, недоказанная numeric error bound или отсутствие сходимости возвращают объяснённый `unavailable`, не 0%. Native и reporting-currency результаты раздельны; provider APR не выдаётся за XIRR. Эталоны: `-1000` и `+1100` через 365 дней дают `0.100000000000`; `-1000` и `+1050` через 182 дня дают `0.102795595422`; `-1000/+0.000000001` через 365 дней принимают `rLow`, а `-1/+1000002` требует root выше `rHigh` и даёт `unavailable`. `-100,+230,-132`, один знак и same-day net zero недопустимы.
 
+### Кэшбэк Alfa: начисление и выплата
+
+В task-4.7 / #94 подтверждённая денежная выплата кэшбэка Alfa признаётся отдельным доходом в дату выплаты. Ожидаемое начисление не создаёт проводку и не увеличивает доступные средства. Начисление, связанная покупка и банковское зачисление сохраняют отдельные идентичности и связи с evidence; одна выплата не создаёт несколько доходов при повторном чтении разных журналов. Рекламный прогноз, отсутствие статуса или совпадение суммы и даты не подтверждают выплату либо связь записей. Read-коннектор task-4.1 сохраняет эти данные как evidence без денежных эффектов по D-48.
+
+Правило относится к продуктам D-47. Проверенный структурированный контракт должен установить статусы, устойчивые ID и обработку изменений источника до проведения денег. Продуктовая live-приёмка требует повторного входа и второго независимого аккаунта; синтетические fixtures не закрывают эти проверки.
+
 ## API веб-приложения
 
 Целевой префикс `/api/v1`, JSON, Money строками, UTC RFC3339 timestamps плюс явная budget timezone/date. Actor определяется сессией, семейный доступ — проверенным членством, право изменения — сохранённой принадлежностью ресурса. Списки используют cursor pagination. Изменения имеют `Idempotency-Key`; корректировки и подтверждения — `expectedRevision`. Ошибка: `code`, безопасное сообщение, field violations, retryable и correlation ID; без raw provider payload или секретов. Unknown/partial — часть ответа, не скрытый null/zero.
@@ -134,7 +140,7 @@ D-39 задаёт ключ исходной записи: `householdId + provide
 
 | Provider | Нормализованный namespace и особое правило |
 | --- | --- |
-| Alfa D-37 | debit/current/savings/deposit/cashback journals раздельны; стабильные account/record IDs должны прийти из structured fixture до deployment. UI selector или название продукта — не identity. |
+| Alfa D-47 | current/debit/cashback journals раздельны; стабильные account/record IDs должны прийти из structured fixture до deployment. UI selector или название продукта — не identity. |
 | Raiffeisen D-35 | Account UUID и number/accountKeys раздельны. CAMT entry допускает 1:N details. Каждый проводимый detail получает versioned `camtCrossReportFingerprint` из полей, доказанно неизменных между перекрывающимися camt.052/camt.053; он всегда canonical providerRecordId. NtryRef/AcctSvcrRef/EndToEndId и statement/report ID — атомарно зарегистрированные aliases/provenance, а не альтернативный ключ. Amount/time исключены. Недостаточный fingerprint, alias→несколько fingerprints или fingerprint→несколько фактов даёт `source_ambiguous`, сохраняет evidence и не создаёт новую проводку. Corrections/reversals — revisions. |
 | Ozon D-32 | accountToken/connection и groupID не identity; route-specific record ID живёт в собственном namespace. parent relation связывает fee, но не объединяет эффекты. |
 | Bybit D-36 | Route-specific IDs не переносятся между Funding/Earn/P2P. Amount/time matches — кандидаты. Для hourly без ID разрешён `(coin, productId, hourlyDate)` только в hourly namespace; differing payload создаёт collision. |
@@ -516,3 +522,13 @@ Runtime `transaction_review_v1` проверяет уже существующу
 Распределение чека сохраняет приоритет каждой позиции и явные item bases; правило покупки не заменяет личную позицию общей долей. После terminal failure/cancellation/deadline проверки свободного ответа уточнение получает новую revision и снова принимает ответ без повторного provider IO. Неопределённый платный вызов остаётся checking до подтверждённой операторской сверки; успешный сохранённый outcome ожидает собственной validation job.
 
 Полностью скидочные позиции не входят в денежные компоненты распределения. Их сохранённые основания остаются в revision и могут снова использоваться после изменения скидки; rule-проверка и явное подтверждение не передают dormant basis как активную сумму.
+
+## Alfa read connector: D-48
+
+Task-4.1 создаёт счета/алиасы, unknown source records и encrypted evidence через существующие ingestion и CommitPage. Банковские значения не получают денежного эффекта до финансового mapping task-4.7 / #94. Coverage остаётся partial; production admission не включается по синтетическим проверкам.
+
+`POST /connections/{id}/authorization` возвращает owner-only попытку с `method=oauth|browser_session`. Для Alfa выдаётся одноразовый grant на пять минут без authorizationUrl. `POST /connections/{id}/browser-session` принимает `grantId`, `expectedRevision`, base64 `session` (JSON до 1 MiB: cookies/origins/headers). Значения секретов не возвращаются и не записываются в command journal. После неизвестного результата клиент читает метаданные подключения перед выдачей нового grant.
+
+Grant привязан к текущей сессии внешнего владельца и generation подключения. Замена сессии под блокировкой семьи атомарно инвалидирует старые jobs, grants и секреты, повышает generation и сохраняет новый ciphertext. Commit-time fence отправляет старый результат в quarantine. Actor не назначается полями запроса.
+
+OpenAPI и оба клиента обновляются совместно: продуктовый API ещё не развёрнут. PostgreSQL-схема не меняется; существующие миграции сохраняются.

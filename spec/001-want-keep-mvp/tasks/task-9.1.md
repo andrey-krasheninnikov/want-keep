@@ -7,7 +7,7 @@
 
 **Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
 
-**Зависимости:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`.
+**Зависимости:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`, `task-4.7`.
 
 **Тип:** `verification`.
 
@@ -32,9 +32,9 @@
 
 #### AC-042
 
-- **Дано:** Подключён разрешённый аккаунт Alfa с продуктами D-37.
-- **Когда:** Запрошены счета, остатки, операции, кэшбэк и условия накоплений.
-- **Тогда:** Данные совпадают с source evidence; кредитка Alfa не требуется, unknown блокирует только deployment коннектора.
+- **Дано:** Подключён разрешённый аккаунт Alfa с продуктами D-47.
+- **Когда:** Запрошены текущие счета, остатки, дебетовые карты, операции и кэшбэк.
+- **Тогда:** Данные совпадают с source evidence; накопительные счета, вклады и кредиты Alfa исключены. Unknown блокирует только deployment коннектора.
 - **Уровень:** `contract+manual`.
 
 #### AC-043
@@ -381,7 +381,7 @@ Collect evidence for all requirements on the complete candidate.
 
 **Status:** Not started; the task awaits its own dependencies and entry gates.
 
-**Dependencies:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`.
+**Dependencies:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`, `task-4.7`.
 
 **Kind:** `verification`.
 
@@ -406,9 +406,9 @@ A link establishes coverage but does not prove the whole criterion; verification
 
 #### AC-042
 
-- **Given:** An authorized Alfa account with D-37 products is connected.
-- **When:** Accounts, balances, transactions, cashback and savings terms are requested.
-- **Then:** Data matches source evidence; an Alfa credit card is not required and unknown blocks only connector deployment.
+- **Given:** An authorized Alfa account with D-47 products is connected.
+- **When:** Current accounts, balances, debit cards, transactions and cashback are requested.
+- **Then:** Data matches source evidence; Alfa savings accounts, deposits and credit products are excluded. Unknown blocks only connector deployment.
 - **Level:** `contract+manual`.
 
 #### AC-043

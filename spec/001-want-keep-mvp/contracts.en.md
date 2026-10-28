@@ -91,6 +91,12 @@ Solve `Σ CF_i / (1+r)^((date_i−date_0)/365) = 0` with bracketed bisection bet
 
 No bracket, multiple sign transitions, a zero period, missing valuation, incomplete history, an unproven numeric error bound or non-convergence returns explained `unavailable`, never 0%. Native and reporting-currency results remain separate; provider APR is not XIRR. References: `-1000` and `+1100` after 365 days yields `0.100000000000`; `-1000` and `+1050` after 182 days yields `0.102795595422`; `-1000/+0.000000001` after 365 days accepts `rLow`, while `-1/+1000002` needs a root above `rHigh` and returns `unavailable`. `-100,+230,-132`, same-sign and same-day net-zero inputs are unavailable.
 
+### Alfa cashback: accrual and payout
+
+In task-4.7 / #94, a confirmed Alfa cash cashback payout is recognized as separate income on the payout date. An expected accrual creates no posting and does not increase available funds. The accrual, related purchase and bank credit retain distinct identities and evidence links; reading multiple journals repeatedly must not create several income entries for one payout. A marketing forecast, an absent status or matching amount and date do not establish a payout or a relationship between records. The task-4.1 read connector retains this data as evidence without monetary effects under D-48.
+
+This rule applies to D-47 products. The verified structured contract must establish statuses, stable IDs and source-change handling before money is posted. Live product acceptance requires reauthentication and a second independent account; synthetic fixtures do not complete those checks.
+
 ## Web API
 
 Target prefix `/api/v1`, JSON, money strings, UTC RFC3339 timestamps plus explicit budget timezone/date. Sessions determine actor; server-validated membership determines household access and stored resource ownership determines edit rights. Lists use cursor pagination. Mutations have `Idempotency-Key`; corrections/confirmation have `expectedRevision`. Errors contain `code`, safe message, field violations, retryable and correlation ID; no raw provider payload or secrets. Unknown/partial is explicit, not hidden null/zero.
@@ -134,7 +140,7 @@ Persist every page before its checkpoint. Coverage retains requested/observed ra
 
 | Provider | Normalized namespace and special rule |
 | --- | --- |
-| Alfa D-37 | Debit/current/savings/deposit/cashback journals are separate; stable account/record IDs must come from a structured fixture before deployment. A UI selector or product name is not identity. |
+| Alfa D-47 | Current/debit/cashback journals are separate; stable account/record IDs must come from a structured fixture before deployment. A UI selector or product name is not identity. |
 | Raiffeisen D-35 | Account UUID and number/accountKeys are separate. A CAMT entry permits 1:N details. Every postable detail gets a versioned `camtCrossReportFingerprint` from fields proven invariant across overlapping camt.052/camt.053; it is always the canonical providerRecordId. NtryRef/AcctSvcrRef/EndToEndId and statement/report ID are atomically registered aliases/provenance, not an alternative key. Amount/time are excluded. An insufficient fingerprint, alias→multiple fingerprints or fingerprint→multiple facts yields `source_ambiguous`, retains evidence and creates no new posting. Corrections/reversals are revisions. |
 | Ozon D-32 | accountToken/connection and groupID are not identity; route-specific record ID belongs to its namespace. A parent relation links a fee without merging effects. |
 | Bybit D-36 | Route-specific IDs do not cross Funding/Earn/P2P. Amount/time matches are candidates. Hourly records without ID may use `(coin, productId, hourlyDate)` only in the hourly namespace; differing payload is a collision. |
@@ -516,3 +522,13 @@ Task-5.2 freezes rules at the monotonic first financial fact boundary. The proje
 Receipt allocation preserves each item precedence and explicit item bases; a purchase rule cannot replace a personal item with shared allocation. After terminal failure/cancellation/deadline of a free-text answer check, the clarification gains a revision and accepts another answer without repeated provider IO. An unknown paid call remains checking until confirmed operator reconciliation; a successful saved outcome waits for its validation job.
 
 Fully discounted items do not contribute allocation money components. Their saved bases remain in the revision and can resume after a discount change; rule checks and explicit approval do not submit a dormant basis as an active amount.
+
+## Alfa read connector: D-48
+
+Task-4.1 creates accounts/aliases, unknown source records and encrypted evidence through existing ingestion and CommitPage. Bank values have no monetary effect until task-4.7 / #94 financial mapping. Coverage remains partial; synthetic checks do not enable production admission.
+
+`POST /connections/{id}/authorization` returns an owner-only attempt with `method=oauth|browser_session`. Alfa receives a single-use five-minute grant without authorizationUrl. `POST /connections/{id}/browser-session` accepts `grantId`, `expectedRevision`, base64 `session` (JSON up to 1 MiB: cookies/origins/headers). Secrets never enter responses or the command journal. After an unknown result, clients read connection metadata before requesting a new grant.
+
+The grant binds the current external-owner session and connection generation. Under the household lock, replacement atomically invalidates old jobs, grants and secrets, increments generation and saves new ciphertext. Commit-time fencing quarantines the old result. Request fields never assign the actor.
+
+OpenAPI and both clients ship together: the product API is not deployed yet. The PostgreSQL schema is unchanged; existing migrations remain intact.

@@ -699,6 +699,9 @@ func transactionSourceHash(provider string, record ingestion.TransactionRecord, 
 	if !record.SemanticIdentity {
 		return sourceHash(canonical, digest)
 	}
+	if provider == "alfa" && record.LogNamespace == "alfa-current-v1" && record.ProviderState == "unknown" {
+		return sourceHash(canonical, hashString(sha256.Sum256([]byte("alfa-semantic-v1"))))
+	}
 	if provider != "raiffeisen" || !strings.HasPrefix(record.ProviderRecordID, "camt-v1:") || record.SourceAsOf.String() == "" {
 		return "", ingestion.ErrInvalidContract
 	}

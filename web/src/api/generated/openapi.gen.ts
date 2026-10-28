@@ -627,6 +627,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/connections/{connectionId}/browser-session": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Enroll an Alfa browser session for its external owner
+     * @description Consumes a grant from authorization. Credentials never enter command history or responses. Replacement invalidates previous jobs and secrets atomically. This route is not safe to retry blindly; read connection metadata after an unknown result.
+     */
+    post: operations["connections_enrollBrowserSession"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/connections/{connectionId}/reauth": {
     parameters: {
       query?: never;
@@ -2100,6 +2120,8 @@ export interface components {
       expiresAt: components["schemas"]["Instant"];
       id: components["schemas"]["ID"];
       /** @enum {string} */
+      method: "oauth" | "browser_session";
+      /** @enum {string} */
       state: "awaiting_owner" | "ready" | "completed" | "failed";
     };
     /** @description Missing successful timestamp is unknown. Actual backup age determines potential loss; target recovery is four hours. */
@@ -2130,6 +2152,13 @@ export interface components {
       )[];
       /** @enum {string} */
       status: "blocked";
+    };
+    /** @description Owner-only secret enrollment. The base64 JSON contains cookies, origins and Alfa headers; never persist this payload in the command journal or diagnostics. A single-use five-minute grant binds the current owner session, connection and generation. After an unknown result, inspect connection metadata before obtaining a new grant. */
+    BrowserSessionEnrollment: {
+      expectedRevision: components["schemas"]["Revision"];
+      grantId: components["schemas"]["ID"];
+      /** Format: byte */
+      session: string;
     };
     Budget: {
       householdId: components["schemas"]["ID"];
@@ -2387,7 +2416,7 @@ export interface components {
     ConnectionAction: {
       expectedRevision: components["schemas"]["Revision"];
     };
-    /** @description Current implementation admits only Raiffeisen entrepreneur current accounts; other products return feature_unavailable. historyFrom cannot be after the current Moscow date. */
+    /** @description Current implementation supports Raiffeisen entrepreneur current accounts and Alfa current accounts with debit-card aliases; other products return feature_unavailable. historyFrom cannot be after the current Moscow date. */
     ConnectionCreate: {
       externalAccountOwnerId: components["schemas"]["ID"];
       historyFrom: components["schemas"]["Date"];
@@ -5593,6 +5622,41 @@ export interface operations {
       422: components["responses"]["Problem"];
       429: components["responses"]["Problem"];
       500: components["responses"]["Problem"];
+      503: components["responses"]["Problem"];
+    };
+  };
+  connections_enrollBrowserSession: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Session-bound token; validate Origin as well. Exceptions use ceremony-bound challenge/state. */
+        "X-CSRF-Token": components["parameters"]["CSRF"];
+      };
+      path: {
+        connectionId: components["schemas"]["ID"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BrowserSessionEnrollment"];
+      };
+    };
+    responses: {
+      /** @description Encrypted session saved; no secret is returned. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["Problem"];
+      401: components["responses"]["Problem"];
+      403: components["responses"]["Problem"];
+      404: components["responses"]["Problem"];
+      409: components["responses"]["Problem"];
+      413: components["responses"]["Problem"];
+      429: components["responses"]["Problem"];
       503: components["responses"]["Problem"];
     };
   };

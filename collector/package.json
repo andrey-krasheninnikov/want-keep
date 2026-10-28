@@ -11,8 +11,8 @@
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
     "start": "node dist/server-main.js",
-    "test": "vitest run --exclude tests/security.browser.test.ts",
-    "test:security": "vitest run tests/security.browser.test.ts",
+    "test": "vitest run --exclude tests/security.browser.test.ts --exclude tests/alfa.browser.test.ts",
+    "test:security": "vitest run tests/security.browser.test.ts tests/alfa.browser.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

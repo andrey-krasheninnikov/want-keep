@@ -1,0 +1,15 @@
+{
+  "operations": [
+    {
+      "id": "synthetic-operation-a",
+      "operationId": "synthetic-bank-reference",
+      "dateTime": "2026-08-31T23:15:00+03:00",
+      "title": "Synthetic purchase",
+      "amount": { "currency": "RUR", "minorUnits": 100, "value": 50000 },
+      "direction": "EXPENSE",
+      "status": "SUCCESS",
+      "token": "synthetic-secret"
+    }
+  ],
+  "pagesInfo": { "page": 1, "size": 20 }
+}

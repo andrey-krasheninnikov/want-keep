@@ -1,0 +1,8 @@
+{
+  "accounts": [
+    {
+      "account": { "id": "synthetic-loyalty-a", "type": "CASHBACK" },
+      "balance": { "amount": 100 }
+    }
+  ]
+}

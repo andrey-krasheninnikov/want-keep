@@ -34,12 +34,13 @@
 | [task-3.1](tasks/task-3.1.md) | Создать долговечные фоновые задания | task-1.3, task-2.3 | [#26](https://github.com/pchkauu/want-keep/issues/26) |
 | [task-3.2](tasks/task-3.2.md) | Определить входной контракт коннекторов | task-3.1, task-1.2, task-2.1, task-2.2 | [#27](https://github.com/pchkauu/want-keep/issues/27) |
 | [task-3.3](tasks/task-3.3.md) | Создать изолированный браузерный сборщик | task-3.2, task-1.5 | [#28](https://github.com/pchkauu/want-keep/issues/28) |
-| [task-4.1](tasks/task-4.1.md) | Реализовать коннектор Альфа-Банк | task-0.1, task-3.3, task-2.4, task-2.5 | [#29](https://github.com/pchkauu/want-keep/issues/29) |
+| [task-4.1](tasks/task-4.1.md) | Реализовать коннектор Альфа-Банк | task-0.1, task-3.3, task-2.4, task-2.5 | [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) |
 | [task-4.2](tasks/task-4.2.md) | Реализовать коннектор Райффайзенбанк РФ | task-0.2, task-3.3, task-2.4, task-2.5 | [#30](https://github.com/pchkauu/want-keep/issues/30) |
 | [task-4.3](tasks/task-4.3.md) | Реализовать коннектор Ozon Банк | task-0.3, task-3.3, task-2.4, task-2.5 | [#31](https://github.com/pchkauu/want-keep/issues/31) |
 | [task-4.4](tasks/task-4.4.md) | Реализовать коннектор Bybit | task-0.4, task-3.3, task-2.4, task-2.5 | [#32](https://github.com/pchkauu/want-keep/issues/32) |
 | [task-4.5](tasks/task-4.5.md) | Реализовать коннектор Aifory Pro | task-0.5, task-3.3, task-2.4, task-2.5 | [#33](https://github.com/pchkauu/want-keep/issues/33) |
 | [task-4.6](tasks/task-4.6.md) | Реализовать коннектор EMCD | task-0.6, task-3.3, task-2.4, task-2.5 | [#34](https://github.com/pchkauu/want-keep/issues/34) |
+| [task-4.7](tasks/task-4.7.md) | Подтвердить финансовый mapping и live-допуск Alfa | task-4.1 | [#94](https://github.com/andrey-krasheninnikov/want-keep/issues/94) |
 | [task-5.1](tasks/task-5.1.md) | Создать OpenAI gateway и контроль расходов | task-0.8, task-3.1, task-1.5 | [#35](https://github.com/pchkauu/want-keep/issues/35) |
 | [task-5.2](tasks/task-5.2.md) | Проверять каждую операцию через AI-команды | task-5.1, task-2.4, task-2.6, task-2.8, task-2.9 | [#36](https://github.com/andrey-krasheninnikov/want-keep/issues/36) |
 | [task-5.3](tasks/task-5.3.md) | Обрабатывать чеки и позиции | task-5.2, task-1.5, task-2.7 | [#37](https://github.com/pchkauu/want-keep/issues/37) |
@@ -71,5 +72,5 @@
 | [task-8.1](tasks/task-8.1.md) | Подготовить развёртывание и состояние системы | task-0.9, task-3.3, task-5.1, task-7.8 | [#63](https://github.com/pchkauu/want-keep/issues/63) |
 | [task-8.2](tasks/task-8.2.md) | Выгружать зашифрованные копии на MacBook | task-8.1, task-1.5 | [#64](https://github.com/pchkauu/want-keep/issues/64) |
 | [task-8.3](tasks/task-8.3.md) | Проверить восстановление из локальной копии | task-8.2 | [#65](https://github.com/pchkauu/want-keep/issues/65) |
-| [task-9.1](tasks/task-9.1.md) | Провести сквозную приёмку полного MVP | task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6, task-7.3, task-7.6, task-7.7, task-7.8, task-8.3, task-7.12 | [#66](https://github.com/pchkauu/want-keep/issues/66) |
+| [task-9.1](tasks/task-9.1.md) | Провести сквозную приёмку полного MVP | task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6, task-7.3, task-7.6, task-7.7, task-7.8, task-8.3, task-7.12, task-4.7 | [#66](https://github.com/pchkauu/want-keep/issues/66) |
 | [task-9.2](tasks/task-9.2.md) | Провести итоговую независимую проверку и передать MVP | task-9.1 | [#67](https://github.com/pchkauu/want-keep/issues/67) |

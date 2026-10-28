@@ -1,0 +1,32 @@
+{
+  "accounts": [
+    {
+      "number": "synthetic-current-a",
+      "type": "EE",
+      "openDate": "2020-01-01T00:00:00+03:00",
+      "amount": {
+        "currency": "RUR",
+        "minorUnits": 100,
+        "value": 900719925474099312345
+      },
+      "currentBalance": {
+        "currency": "RUR",
+        "minorUnits": 100,
+        "value": 500000
+      },
+      "properties": { "creditCardAccount": false },
+      "token": "synthetic-secret"
+    },
+    {
+      "number": "synthetic-savings",
+      "type": "SAVE",
+      "properties": { "creditCardAccount": false }
+    },
+    {
+      "number": "synthetic-current-eur",
+      "type": "EE",
+      "amount": { "currency": "EUR", "minorUnits": 100, "value": 123 },
+      "properties": { "creditCardAccount": false }
+    }
+  ]
+}

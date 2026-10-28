@@ -1,0 +1,19 @@
+{
+  "cards": [
+    {
+      "id": "synthetic-card-a",
+      "number": "**** 1234",
+      "isCredit": false,
+      "isClosed": false,
+      "account": { "number": "synthetic-current-a" },
+      "cvv": "synthetic-secret"
+    },
+    {
+      "id": "synthetic-credit",
+      "number": "**** 9876",
+      "isCredit": true,
+      "isClosed": false,
+      "account": { "number": "synthetic-current-a" }
+    }
+  ]
+}
