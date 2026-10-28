@@ -22,6 +22,7 @@ type Repository interface {
 	CreateSecretGrant(context.Context, domain.SecretGrant) (domain.SecretGrant, error)
 	SecretGrant(context.Context, household.Principal, string) (domain.SecretGrant, error)
 	ConsumeSecretGrant(context.Context, domain.SecretGrant) error
+	AuthorizeBrowserSession(context.Context, household.Principal, admission.Connection) error
 	SecretReference(context.Context, household.Principal, string, domain.SecretPurpose) (domain.SecretReference, bool, error)
 	Disconnect(context.Context, string) error
 	PrivacyAudit(context.Context, household.Principal, string, string) error
@@ -84,6 +85,19 @@ func (s *Service) Complete(ctx context.Context, token identity.Token, grantID st
 			if err = g.Require(a.Principal, a.Session.TokenHash, purpose, c.Generation, now); err != nil {
 				return err
 			}
+			browser := c.Provider == "alfa" && purpose == domain.BrowserSession
+			if browser {
+				if err = s.repo.ConsumeSecretGrant(ctx, g); err != nil {
+					return err
+				}
+				if err = s.repo.Disconnect(ctx, c.ID); err != nil {
+					return err
+				}
+				c, err = s.repo.Connection(ctx, a.Principal, c.ID)
+				if err != nil {
+					return err
+				}
+			}
 			previous, exists, err := s.repo.SecretReference(ctx, a.Principal, c.ID, purpose)
 			if err != nil {
 				return err
@@ -99,7 +113,11 @@ func (s *Service) Complete(ctx context.Context, token identity.Token, grantID st
 			if err = save(ctx, ref); err != nil {
 				return err
 			}
-			if err = s.repo.ConsumeSecretGrant(ctx, g); err != nil {
+			if !browser {
+				if err = s.repo.ConsumeSecretGrant(ctx, g); err != nil {
+					return err
+				}
+			} else if err = s.repo.AuthorizeBrowserSession(ctx, a.Principal, c); err != nil {
 				return err
 			}
 			return s.repo.PrivacyAudit(ctx, a.Principal, c.ID, "secret_saved")

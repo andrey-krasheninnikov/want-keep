@@ -64,6 +64,7 @@ func New(service *application.Service, sessions Sessions, queries *commands.Quer
 	}
 	s.mux.HandleFunc("POST /api/v1/connections/{connectionId}/authorization", s.authorize)
 	s.mux.HandleFunc("GET /api/v1/connections/raiffeisen/callback", s.callback)
+	s.mux.HandleFunc("POST /api/v1/connections/{connectionId}/browser-session", s.saveBrowser)
 	return s, nil
 }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +72,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.problem(w, err)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
+	limit := int64(64 * 1024)
+	if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/browser-session") {
+		limit = 2 * 1024 * 1024
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	s.mux.ServeHTTP(w, r)
 }
 func (s *Server) write(w http.ResponseWriter, status int, value any) {
@@ -174,6 +179,8 @@ func (s *Server) toDTO(c domain.ConnectionRecord) (generated.Connection, error) 
 	products := []string{}
 	if c.Provider == "raiffeisen" {
 		products = []string{"current"}
+	} else if c.Provider == "alfa" {
+		products = []string{"current", "debit_card"}
 	}
 	return generated.Connection{Id: c.ID, Revision: int64(c.Revision), Provider: generated.Provider(c.Provider), ExternalAccountOwnerId: string(c.OwnerID), HistoryFrom: from, Generation: int64(c.Generation), State: generated.ConnectionState(c.State), Products: products, DeploymentGate: gate, Quality: quality}, nil
 }
@@ -374,7 +381,11 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		s.problem(w, err)
 		return
 	}
-	s.write(w, 200, generated.AuthorizationAttempt{Id: out.ID, ConnectionId: id, ExpiresAt: out.ExpiresAt.UTC().Format(time.RFC3339Nano), State: "ready", AuthorizationUrl: &out.URL})
+	var url *string
+	if out.URL != "" {
+		url = &out.URL
+	}
+	s.write(w, 200, generated.AuthorizationAttempt{Id: out.ID, ConnectionId: id, ExpiresAt: out.ExpiresAt.UTC().Format(time.RFC3339Nano), State: "ready", AuthorizationUrl: url, Method: generated.AuthorizationAttemptMethod(out.Method)})
 }
 func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	a, err := s.guard.Authorize(r, s.sessions, false)
@@ -395,4 +406,28 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/connections/"+id, http.StatusSeeOther)
+}
+
+func (s *Server) saveBrowser(w http.ResponseWriter, r *http.Request) {
+	a, err := s.guard.Authorize(r, s.sessions, true)
+	if err != nil {
+		s.problem(w, err)
+		return
+	}
+	id := r.PathValue("connectionId")
+	if !validID(id) {
+		s.problem(w, contract.ErrInvalidRequest)
+		return
+	}
+	var dto generated.BrowserSessionEnrollment
+	if err = s.decode(r, "BrowserSessionEnrollment", &dto); err != nil {
+		s.problem(w, err)
+		return
+	}
+	defer clear(dto.Session)
+	if err = s.service.SaveBrowser(r.Context(), a, id, dto.GrantId, uint64(dto.ExpectedRevision), dto.Session); err != nil {
+		s.problem(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

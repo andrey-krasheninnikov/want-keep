@@ -522,3 +522,13 @@ Runtime `transaction_review_v1` проверяет уже существующу
 Распределение чека сохраняет приоритет каждой позиции и явные item bases; правило покупки не заменяет личную позицию общей долей. После terminal failure/cancellation/deadline проверки свободного ответа уточнение получает новую revision и снова принимает ответ без повторного provider IO. Неопределённый платный вызов остаётся checking до подтверждённой операторской сверки; успешный сохранённый outcome ожидает собственной validation job.
 
 Полностью скидочные позиции не входят в денежные компоненты распределения. Их сохранённые основания остаются в revision и могут снова использоваться после изменения скидки; rule-проверка и явное подтверждение не передают dormant basis как активную сумму.
+
+## Alfa read connector: D-48
+
+Task-4.1 создаёт счета/алиасы, unknown source records и encrypted evidence через существующие ingestion и CommitPage. Банковские значения не получают денежного эффекта до финансового mapping task-4.7 / #94. Coverage остаётся partial; production admission не включается по синтетическим проверкам.
+
+`POST /connections/{id}/authorization` возвращает owner-only попытку с `method=oauth|browser_session`. Для Alfa выдаётся одноразовый grant на пять минут без authorizationUrl. `POST /connections/{id}/browser-session` принимает `grantId`, `expectedRevision`, base64 `session` (JSON до 1 MiB: cookies/origins/headers). Значения секретов не возвращаются и не записываются в command journal. После неизвестного результата клиент читает метаданные подключения перед выдачей нового grant.
+
+Grant привязан к текущей сессии внешнего владельца и generation подключения. Замена сессии под блокировкой семьи атомарно инвалидирует старые jobs, grants и секреты, повышает generation и сохраняет новый ciphertext. Commit-time fence отправляет старый результат в quarantine. Actor не назначается полями запроса.
+
+OpenAPI и оба клиента обновляются совместно: продуктовый API ещё не развёрнут. PostgreSQL-схема не меняется; существующие миграции сохраняются.

@@ -7,7 +7,7 @@
 
 **Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
 
-**Зависимости:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`.
+**Зависимости:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`, `task-4.7`.
 
 **Тип:** `verification`.
 
@@ -381,7 +381,7 @@ Collect evidence for all requirements on the complete candidate.
 
 **Status:** Not started; the task awaits its own dependencies and entry gates.
 
-**Dependencies:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`.
+**Dependencies:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`, `task-4.7`.
 
 **Kind:** `verification`.
 

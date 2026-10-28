@@ -71,6 +71,7 @@ class ReadinessContractTest(unittest.TestCase):
       "task-4.4",
       "task-4.5",
       "task-4.6",
+      "task-4.7",
       "task-8.1",
       "task-9.1",
       "task-9.2",

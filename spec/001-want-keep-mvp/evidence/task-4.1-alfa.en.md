@@ -8,7 +8,7 @@ Date: 2026-10-28. Task: [#29](https://github.com/andrey-krasheninnikov/want-keep
 
 D-47 supersedes the D-37 product scope: current accounts, debit cards, transactions and cashback. By owner decision, Alfa savings accounts, deposits and credit products are excluded. Shared financial features and other providers remain in scope.
 
-The first live structured-read qualification stage covered one account. The connector, normalization, background worker and `PROVIDER=alfa` / `AREA=alfa` suites are not implemented yet. No financial records or deployment admission were created. This research does not establish acceptance of AC-042 or AC-106.
+The first live structured-read qualification stage covered one account. D-48 delivers the read connector, account/alias normalization, worker and `PROVIDER=alfa` / `AREA=alfa` suites. Financial mapping moves to [task-4.7 / #94](https://github.com/andrey-krasheninnikov/want-keep/issues/94). Live research created no financial records or deployment admission and does not establish full acceptance of AC-042 or AC-106.
 
 ## Observed routes
 
@@ -44,7 +44,19 @@ A separate Playwright APIRequestContext request failed certificate verification;
 - Verify the selected-date filter, history end, retention, gaps and pagination behavior during new or late transaction changes.
 - Establish balance units/composition, known/unknown fees, financial dates and `status=null` handling without invented facts.
 - Establish stable-ID links from accrual to bank payout and cashback correction/reversal. An expected accrual does not increase funds; a confirmed payout becomes one income entry under D-47.
-- Implement and verify normalization, vault enrollment, fences, worker, PostgreSQL integration and synthetic contract suites after their relevant questions are closed.
+- Complete financial normalization and live acceptance under task-4.7. Transport, owner-only vault enrollment, fences, worker and synthetic checks are implemented.
 - Obtain provider/host evidence for the exact D-43 binding. Production and admission remain unchanged.
 
-A second independent account will be available later. The issue stays open until mandatory evidence is complete. SDD status is **Ready for development**; connector acceptance and operational readiness are not established.
+A second independent account will be available later. Mandatory evidence remains in open task-4.7; D-48 limits task-4.1 to the read connector. SDD status is **Ready for development**; operational readiness is not established.
+
+## Read connector implementation
+
+`collector/src/providers/alfa/` runs a fixed read workflow. The `/history/` document is local: bank scripts and the automatic PUT never run. Requests have exact origin/method/path/body constraints; fetch uses `redirect=error`. Each context discards its state. Parent cookies are permitted only for `alfabank.ru` with origin `https://web.alfabank.ru`.
+
+Owner-only `POST /connections/{id}/authorization` issues a five-minute browser-session grant. `POST /connections/{id}/browser-session` accepts base64 JSON containing `cookies`, `origins`, `headers`. Only five verified header names are accepted. The grant binds the owner, owner session, connection and generation. Saving a new secret atomically revokes old jobs/secrets and increments generation. After an unknown result, read connection metadata; secret uploads never enter the command journal or replay responses.
+
+The Go connector retains current accounts and safe card aliases. `json.Number` preserves JSON number tokens without float conversion. Cards create no second balance. Unqualified operations become unknown source records without postings; balances and cashback remain evidence. No bank balance timestamp is invented. Repeated facts create no source revision; conflicting facts remain ambiguous.
+
+Writes use the shared `CommitPage`, encrypted evidence and existing PostgreSQL tables; no migration is needed. Admission, lease, generation and commit-time fences remain. Stale results enter quarantine. History coverage remains partial after page traversal. The cursor binds inventory, page and previous-ID fingerprint; a repeated page stops traversal.
+
+Checks are separate: Go normalization/credential unit tests, TypeScript contract tests, a synthetic Chromium portal and PostgreSQL `AREA=alfa`. Issue #94 covers two real accounts, financial lifecycle and the deployment host. Production and real keys were not changed.

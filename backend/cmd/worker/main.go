@@ -101,7 +101,7 @@ func run() error {
 			}
 			var collectorHandler jobs.Handler
 			if socket != "" {
-				collectorHandler = collector.Handler{Socket: socket, Vault: vault, Service: ingestionService}
+				collectorHandler = collector.Handler{Socket: socket, Vault: vault, Service: ingestionService, Repository: db}
 			}
 			syncHandler = raiffeisen.Dispatcher{Native: raiffeisen.Handler{Vault: vault, Service: ingestionService, Gate: admissionService, Repository: db, Authorizer: authorizer, Now: time.Now, Binding: nativeBinding}, Collector: collectorHandler}
 		}

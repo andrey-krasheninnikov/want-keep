@@ -17,6 +17,7 @@ import (
 	domain "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 	identity "github.com/pchkauu/want-keep/backend/internal/identity/application"
+	identitydomain "github.com/pchkauu/want-keep/backend/internal/identity/domain"
 )
 
 type Repository interface {
@@ -28,6 +29,8 @@ type Repository interface {
 	CreateConnectionRecord(context.Context, household.Principal, domain.ConnectionRecord) error
 	ChangeConnection(context.Context, household.Principal, domain.ConnectionRecord, string) error
 	ConnectionEvent(context.Context, household.Principal, string, uint64, string) error
+	CreateSecretGrant(context.Context, domain.SecretGrant) (domain.SecretGrant, error)
+	SecretGrant(context.Context, household.Principal, string) (domain.SecretGrant, error)
 	SaveOAuthAttempt(context.Context, domain.OAuthAttempt) error
 	OAuthAttempt(context.Context, household.Principal, string) (domain.OAuthAttempt, error)
 	OAuthPhase(context.Context, domain.OAuthAttempt, string, string) error
@@ -65,8 +68,8 @@ type CreateInput struct {
 	Products    []string
 }
 type Authorization struct {
-	ID, ConnectionID, URL string
-	ExpiresAt             time.Time
+	ID, ConnectionID, URL, Method string
+	ExpiresAt                     time.Time
 }
 
 func (s *Service) Read(ctx context.Context, p household.Principal, id string) (domain.ConnectionRecord, error) {
@@ -100,6 +103,17 @@ func (s *Service) Execute(ctx context.Context, a identity.Access, r commands.Req
 	if _, err := s.Executor.Register(ctx, a.Principal, r); err != nil {
 		return command.Command{}, err
 	}
+	// Provider is immutable; resolve it before identity locks without taking a household lock.
+	var syncBinding domain.Binding
+	if action == "sync" {
+		c, err := s.Repository.ConnectionRecord(ctx, a.Principal, id)
+		if err != nil && !errors.Is(err, domain.ErrConnectionNotFound) {
+			return command.Command{}, err
+		}
+		if err == nil {
+			syncBinding = s.Bindings[c.Provider]
+		}
+	}
 	var result command.Command
 	err := s.Sessions.WithinSession(ctx, a.Token, func(ctx context.Context, current identity.Access) error {
 		if current.Principal != a.Principal {
@@ -112,12 +126,8 @@ func (s *Service) Execute(ctx context.Context, a identity.Access, r commands.Req
 			})
 			return err
 		}
-		if action == "sync" {
-			binding, ok := s.Bindings["raiffeisen"]
-			if !ok {
-				return run(ctx)
-			}
-			return s.Repository.WithinAdmission(ctx, binding.Provider, binding.Environment, run)
+		if syncBinding.Provider != "" {
+			return s.Repository.WithinAdmission(ctx, syncBinding.Provider, syncBinding.Environment, run)
 		}
 		return run(ctx)
 	})
@@ -135,7 +145,7 @@ func (s *Service) mutate(ctx context.Context, p household.Principal, action, id 
 		}
 	}()
 	if action == "create" {
-		if in.Provider != "raiffeisen" || in.HistoryFrom.String() == "" || len(in.Products) != 1 || in.Products[0] != "current" {
+		if !supportedProducts(in.Provider, in.Products) || in.HistoryFrom.String() == "" {
 			return command.Result{}, commands.Rejection{Code: "feature_unavailable"}
 		}
 		c := domain.ConnectionRecord{ID: s.NewID(), HouseholdID: p.HouseholdID(), OwnerID: in.OwnerID, Provider: in.Provider, State: "pending", Revision: 1, Generation: 1, HistoryFrom: in.HistoryFrom}
@@ -209,11 +219,18 @@ func hashSecret(value string) string {
 }
 
 func (s *Service) Begin(ctx context.Context, a identity.Access, id string, revision uint64) (Authorization, error) {
+	c, err := s.Repository.ConnectionRecord(ctx, a.Principal, id)
+	if err != nil {
+		return Authorization{}, err
+	}
+	if c.Provider == "alfa" {
+		return s.beginBrowser(ctx, a, id, revision)
+	}
 	if s.Authorizer == nil || !s.Authorizer.Available() || s.Vault == nil || !s.Vault.Available() {
 		return Authorization{}, domain.ErrOAuthUnavailable
 	}
 	var out Authorization
-	err := s.Sessions.WithinSession(ctx, a.Token, func(ctx context.Context, current identity.Access) error {
+	err = s.Sessions.WithinSession(ctx, a.Token, func(ctx context.Context, current identity.Access) error {
 		if current.Principal != a.Principal {
 			return household.ErrForbidden
 		}
@@ -253,7 +270,7 @@ func (s *Service) Begin(ctx context.Context, a identity.Access, id string, revis
 				return err
 			}
 			url, err := s.Authorizer.URL(secrets)
-			out = Authorization{ID: attempt.ID, ConnectionID: id, URL: url, ExpiresAt: attempt.ExpiresAt}
+			out = Authorization{ID: attempt.ID, ConnectionID: id, URL: url, Method: "oauth", ExpiresAt: attempt.ExpiresAt}
 			return err
 		})
 	})
@@ -374,4 +391,86 @@ func (s *Service) Callback(ctx context.Context, a identity.Access, state, code s
 		return "", err
 	}
 	return attempt.ConnectionID, exchangeErr
+}
+
+func supportedProducts(provider string, products []string) bool {
+	if provider != "raiffeisen" && provider != "alfa" {
+		return false
+	}
+	if len(products) == 1 {
+		return products[0] == "current"
+	}
+	return provider == "alfa" && len(products) == 2 && (products[0] == "current" && products[1] == "debit_card" || products[1] == "current" && products[0] == "debit_card")
+}
+
+type browserVault interface {
+	Save(context.Context, identitydomain.Token, string, domain.SecretPurpose, []byte) error
+	ValidateBrowserSession(string, []byte) error
+}
+
+func (s *Service) beginBrowser(ctx context.Context, a identity.Access, id string, revision uint64) (Authorization, error) {
+	if s.Vault == nil || !s.Vault.Available() {
+		return Authorization{}, domain.ErrOAuthUnavailable
+	}
+	var result Authorization
+	err := s.Sessions.WithinSession(ctx, a.Token, func(ctx context.Context, current identity.Access) error {
+		if current.Principal != a.Principal {
+			return household.ErrForbidden
+		}
+		return s.Repository.WithinHousehold(ctx, current.Principal, func(ctx context.Context) error {
+			c, err := s.Repository.ConnectionRecord(ctx, current.Principal, id)
+			if err != nil {
+				return err
+			}
+			if err = c.Require(current.Principal, revision, true); err != nil {
+				return err
+			}
+			if c.Provider != "alfa" || c.State == "disconnected" {
+				return domain.ErrInvalidConnection
+			}
+			now, err := s.Repository.DatabaseTime(ctx)
+			if err != nil {
+				return err
+			}
+			g, err := s.Repository.CreateSecretGrant(ctx, domain.SecretGrant{HouseholdID: c.HouseholdID, OwnerID: c.OwnerID, ConnectionID: id, Generation: c.Generation, Purpose: domain.BrowserSession, SessionHash: current.Session.TokenHash, ExpiresAt: now.Add(5 * time.Minute)})
+			result = Authorization{ID: g.ID, ConnectionID: id, Method: "browser_session", ExpiresAt: g.ExpiresAt}
+			return err
+		})
+	})
+	return result, err
+}
+func (s *Service) SaveBrowser(ctx context.Context, a identity.Access, id, grantID string, revision uint64, plain []byte) error {
+	vault, ok := s.Vault.(browserVault)
+	if !ok || s.Vault == nil || !s.Vault.Available() {
+		return domain.ErrOAuthUnavailable
+	}
+	if err := vault.ValidateBrowserSession("alfa", plain); err != nil {
+		return domain.ErrInvalidConnection
+	}
+	err := s.Sessions.WithinSession(ctx, a.Token, func(ctx context.Context, current identity.Access) error {
+		if current.Principal != a.Principal {
+			return household.ErrForbidden
+		}
+		return s.Repository.WithinHousehold(ctx, current.Principal, func(ctx context.Context) error {
+			c, err := s.Repository.ConnectionRecord(ctx, current.Principal, id)
+			if err != nil {
+				return err
+			}
+			if err = c.Require(current.Principal, revision, true); err != nil {
+				return err
+			}
+			g, err := s.Repository.SecretGrant(ctx, current.Principal, grantID)
+			if err != nil {
+				return err
+			}
+			if c.Provider != "alfa" || g.ConnectionID != id {
+				return domain.ErrSecretAccess
+			}
+			return nil
+		})
+	})
+	if err != nil {
+		return err
+	}
+	return vault.Save(ctx, a.Token, grantID, domain.BrowserSession, plain)
 }

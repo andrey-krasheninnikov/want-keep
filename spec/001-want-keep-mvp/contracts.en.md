@@ -522,3 +522,13 @@ Task-5.2 freezes rules at the monotonic first financial fact boundary. The proje
 Receipt allocation preserves each item precedence and explicit item bases; a purchase rule cannot replace a personal item with shared allocation. After terminal failure/cancellation/deadline of a free-text answer check, the clarification gains a revision and accepts another answer without repeated provider IO. An unknown paid call remains checking until confirmed operator reconciliation; a successful saved outcome waits for its validation job.
 
 Fully discounted items do not contribute allocation money components. Their saved bases remain in the revision and can resume after a discount change; rule checks and explicit approval do not submit a dormant basis as an active amount.
+
+## Alfa read connector: D-48
+
+Task-4.1 creates accounts/aliases, unknown source records and encrypted evidence through existing ingestion and CommitPage. Bank values have no monetary effect until task-4.7 / #94 financial mapping. Coverage remains partial; synthetic checks do not enable production admission.
+
+`POST /connections/{id}/authorization` returns an owner-only attempt with `method=oauth|browser_session`. Alfa receives a single-use five-minute grant without authorizationUrl. `POST /connections/{id}/browser-session` accepts `grantId`, `expectedRevision`, base64 `session` (JSON up to 1 MiB: cookies/origins/headers). Secrets never enter responses or the command journal. After an unknown result, clients read connection metadata before requesting a new grant.
+
+The grant binds the current external-owner session and connection generation. Under the household lock, replacement atomically invalidates old jobs, grants and secrets, increments generation and saves new ciphertext. Commit-time fencing quarantines the old result. Request fields never assign the actor.
+
+OpenAPI and both clients ship together: the product API is not deployed yet. The PostgreSQL schema is unchanged; existing migrations remain intact.

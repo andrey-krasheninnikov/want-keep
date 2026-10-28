@@ -1,0 +1,9 @@
+{
+  "account": { "id": "synthetic-loyalty-a", "amount": 100 },
+  "forecast": { "totalActivePeriodAmount": { "amount": 50 } },
+  "statistics": {
+    "charges": [{ "month": "2026-08", "status": "EXPECTED", "amount": 50 }]
+  },
+  "overallCashback": { "amount": 150 },
+  "spendButton": { "deepLink": "synthetic-secret" }
+}

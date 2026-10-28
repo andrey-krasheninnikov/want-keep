@@ -40,6 +40,7 @@ The specification passed task-0.10 and is ready for development. The decision-co
 | [task-4.4](tasks/task-4.4.md) | Implement Bybit connector | task-0.4, task-3.3, task-2.4, task-2.5 | [#32](https://github.com/pchkauu/want-keep/issues/32) |
 | [task-4.5](tasks/task-4.5.md) | Implement Aifory Pro connector | task-0.5, task-3.3, task-2.4, task-2.5 | [#33](https://github.com/pchkauu/want-keep/issues/33) |
 | [task-4.6](tasks/task-4.6.md) | Implement EMCD connector | task-0.6, task-3.3, task-2.4, task-2.5 | [#34](https://github.com/pchkauu/want-keep/issues/34) |
+| [task-4.7](tasks/task-4.7.md) | Verify Alfa financial mapping and live admission | task-4.1 | [#94](https://github.com/andrey-krasheninnikov/want-keep/issues/94) |
 | [task-5.1](tasks/task-5.1.md) | Create OpenAI gateway and spend control | task-0.8, task-3.1, task-1.5 | [#35](https://github.com/pchkauu/want-keep/issues/35) |
 | [task-5.2](tasks/task-5.2.md) | Review every transaction through AI commands | task-5.1, task-2.4, task-2.6, task-2.8, task-2.9 | [#36](https://github.com/andrey-krasheninnikov/want-keep/issues/36) |
 | [task-5.3](tasks/task-5.3.md) | Process receipts and line items | task-5.2, task-1.5, task-2.7 | [#37](https://github.com/pchkauu/want-keep/issues/37) |
@@ -71,5 +72,5 @@ The specification passed task-0.10 and is ready for development. The decision-co
 | [task-8.1](tasks/task-8.1.md) | Prepare deployment and system health | task-0.9, task-3.3, task-5.1, task-7.8 | [#63](https://github.com/pchkauu/want-keep/issues/63) |
 | [task-8.2](tasks/task-8.2.md) | Pull encrypted backups to the MacBook | task-8.1, task-1.5 | [#64](https://github.com/pchkauu/want-keep/issues/64) |
 | [task-8.3](tasks/task-8.3.md) | Verify recovery from a local backup | task-8.2 | [#65](https://github.com/pchkauu/want-keep/issues/65) |
-| [task-9.1](tasks/task-9.1.md) | Run end-to-end acceptance of the full MVP | task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6, task-7.3, task-7.6, task-7.7, task-7.8, task-8.3, task-7.12 | [#66](https://github.com/pchkauu/want-keep/issues/66) |
+| [task-9.1](tasks/task-9.1.md) | Run end-to-end acceptance of the full MVP | task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6, task-7.3, task-7.6, task-7.7, task-7.8, task-8.3, task-7.12, task-4.7 | [#66](https://github.com/pchkauu/want-keep/issues/66) |
 | [task-9.2](tasks/task-9.2.md) | Run final independent review and hand off the MVP | task-9.1 | [#67](https://github.com/pchkauu/want-keep/issues/67) |

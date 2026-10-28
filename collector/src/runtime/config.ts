@@ -1,4 +1,7 @@
 import { readFileSync } from "node:fs";
+import { isDeepStrictEqual } from "node:util";
+
+import { alfaManifest } from "../providers/alfa/read.js";
 
 import type { components } from "../contracts/generated/ingestion.gen.js";
 import {
@@ -111,6 +114,19 @@ function parseRuntimeBinding(value: unknown): RuntimeBinding {
   }
   if (actionCounts.get("entry") !== 1 || actionCounts.get("read") !== 1) fail();
   if ((actionCounts.get("request_statement") ?? 0) > 1) fail();
+  if (
+    binding.provider === "alfa" &&
+    (binding.allowlistRevision !== "alfa-read-v1" ||
+      !isDeepStrictEqual(manifest, alfaManifest) ||
+      routes.length !== 2 ||
+      !routes.some((r) => r.action === "entry" && r.path === "/history/") ||
+      !routes.some(
+        (r) => r.action === "read" && r.path === "/api/v1/account/",
+      ) ||
+      (binding.environment === "production" &&
+        origin !== "https://web.alfabank.ru"))
+  )
+    fail();
   return {
     binding,
     admissionRevision: object.admissionRevision as number,

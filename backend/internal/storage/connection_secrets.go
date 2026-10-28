@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/pchkauu/want-keep/backend/internal/connections/admission"
 	domain "github.com/pchkauu/want-keep/backend/internal/connections/domain"
 	household "github.com/pchkauu/want-keep/backend/internal/household/domain"
 )
@@ -19,7 +20,7 @@ func (s *Store) CreateSecretGrant(ctx context.Context, g domain.SecretGrant) (do
 	}
 	g.ID = newID()
 	tag, err := scope.tx.Exec(ctx, `INSERT INTO want_keep.connection_secret_grants(household_id,id,connection_id,owner_id,generation,purpose,session_hash,expires_at)
- SELECT $1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::want_keep.revision,$6::text,$7::text,$8::timestamptz WHERE EXISTS(SELECT 1 FROM want_keep.connections WHERE household_id=$1 AND id=$3 AND external_owner_id=$4 AND generation=$5 AND secret_purpose=$6) AND EXISTS(SELECT 1 FROM want_keep.identity_sessions WHERE token_hash=$7 AND user_id=$4 AND NOT revoked AND created_at+INTERVAL '12 hours'>clock_timestamp() AND last_activity_at+INTERVAL '30 minutes'>clock_timestamp())`, g.HouseholdID, g.ID, g.ConnectionID, g.OwnerID, g.Generation, g.Purpose, g.SessionHash, g.ExpiresAt)
+ SELECT $1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::want_keep.revision,$6::text,$7::text,$8::timestamptz WHERE EXISTS(SELECT 1 FROM want_keep.connections WHERE household_id=$1 AND id=$3 AND external_owner_id=$4 AND generation=$5 AND secret_purpose=$6) AND EXISTS(SELECT 1 FROM want_keep.identity_sessions WHERE token_hash=$7 AND user_id=$4 AND NOT revoked AND created_at+INTERVAL '12 hours'>clock_timestamp() AND last_activity_at+INTERVAL '30 minutes'>clock_timestamp()) AND (SELECT count(*) FROM want_keep.connection_secret_grants WHERE household_id=$1 AND connection_id=$3 AND NOT consumed AND NOT revoked AND expires_at>clock_timestamp())<10`, g.HouseholdID, g.ID, g.ConnectionID, g.OwnerID, g.Generation, g.Purpose, g.SessionHash, g.ExpiresAt)
 	if err != nil {
 		return g, err
 	}
@@ -115,4 +116,20 @@ func (s *Store) RevokeConnectionSecrets(ctx context.Context, id string) error {
 		return err
 	}
 	return s.PrivacyAudit(ctx, scope.principal, id, "connection_access_revoked")
+}
+
+func (s *Store) AuthorizeBrowserSession(ctx context.Context, p household.Principal, c admission.Connection) error {
+	scope, err := s.familyScope(ctx)
+	if err != nil {
+		return err
+	}
+	if p != scope.principal || c.HouseholdID != p.HouseholdID() || c.Owner != p.UserID() || c.SecretPurpose != domain.BrowserSession {
+		return domain.ErrSecretAccess
+	}
+	var revision uint64
+	err = scope.tx.QueryRow(ctx, `UPDATE want_keep.connections SET authorized=true,connection_state='connected',revision=revision+1 WHERE household_id=$1 AND id=$2 AND external_owner_id=$3 AND generation=$4 AND secret_purpose='browser_session' AND revision<9007199254740991 RETURNING revision`, p.HouseholdID(), c.ID, p.UserID(), c.Generation).Scan(&revision)
+	if err != nil {
+		return err
+	}
+	return s.ConnectionEvent(ctx, p, c.ID, revision, "authorized")
 }

@@ -36,7 +36,7 @@ The `catalog.json` graph remains the source for exact dependencies. A range in t
 
 | Provider task | Preferred transport | Before mapping implementation | Before deployment enablement |
 | --- | --- | --- | --- |
-| task-4.1 Alfa | Official structured read, otherwise authorized Playwright | Synthetic D-37/D-39 contract; no UI-derived postings | Permission, fixtures, stable IDs, pagination/revisions/fees/cashback, reauthentication, two accounts, target-host route |
+| task-4.1 Alfa | Official structured read, otherwise authorized Playwright | D-47/D-48 read connector; unknown source records without postings | Financial mapping, live checks and deployment admission move to task-4.7 / #94 |
 | task-4.2 Raiffeisen | RBO API/CAMT | CAMT 1:N, canonical cross-report fingerprint + optional-ID aliases, CLBD/unknown semantics | OAuth rotation, corrections/reversals, full history, second account, live conformance |
 | task-4.3 Ozon | Verified session read | Sanitized HAR projection, route namespaces, parent fee relation | Session permission/lifecycle, stable account ID, history end, second account, reauthentication |
 | task-4.4 Bybit | Official RSA read-only API | Route IDs, candidate links, hourly collision policy | Precision/history, two accounts, key rotation/revocation, write-route denial |
@@ -115,6 +115,7 @@ All 67 tasks are listed explicitly; the dependency graph above determines order:
 - `task-4.4` — Implement Bybit connector
 - `task-4.5` — Implement Aifory Pro connector
 - `task-4.6` — Implement EMCD connector
+- `task-4.7` — Verify Alfa financial mapping and live admission (#94); depends on the task-4.1 read connector and blocks production admission and full task-9.1 acceptance.
 - `task-5.1` — Create OpenAI gateway and spend control
 - `task-5.2` — Review every transaction through AI commands
 - `task-5.3` — Process receipts and line items

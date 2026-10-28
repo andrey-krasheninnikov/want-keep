@@ -130,4 +130,6 @@ D-46, 2026-09-07: task-1.5 uses existing membership/sessions without blocking on
 
 ## Alfa coverage update, 2026-10-28
 
+D-48, 2026-10-29: by owner decision, task-4.1 delivers the read connector, accounts/aliases, unknown source records and encrypted evidence. Financial mapping and remaining live checks move to [task-4.7 / #94](https://github.com/andrey-krasheninnikov/want-keep/issues/94). Until completion, bank operations and balances have no confirmed monetary effect; production admission remains disabled. Full D-47 scope and D-39/D-43 remain. Task-9.1 acceptance depends on task-4.7.
+
 D-47: by owner decision, the current Alfa connector covers current accounts, debit cards, transactions and cashback. Savings accounts, deposits and credit products are excluded from this connector and its mandatory acceptance. This decision supersedes the D-37 product scope; other providers and shared financial features remain in scope. A confirmed cash cashback payout is recognized as separate income on its payout date; an expected accrual creates no posting. Reauthentication and a second independent account remain mandatory live checks.

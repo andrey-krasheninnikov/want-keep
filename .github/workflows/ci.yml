@@ -49,6 +49,8 @@ jobs:
         run: |
           make test-collector FILTER=security
           make test-integration AREA=collector
+          make test-contract PROVIDER=alfa
+          make test-alfa-race
 
   access:
     runs-on: ubuntu-latest

@@ -4109,16 +4109,16 @@
       "id": "task-4.1",
       "kind": "implementation",
       "status": {
-        "ru": "В работе: зависимости закрыты. Первый живой read-прогон одного аккаунта завершён; финансовый mapping, конец истории, связь выплаты кэшбэка и второй аккаунт ещё не подтверждены. Коннектор не реализован, admission не включён. Отчёт: spec/001-want-keep-mvp/evidence/task-4.1-alfa.md.",
-        "en": "In progress: dependencies are closed. The first live read of one account is complete; financial mapping, history end, cashback payout links and a second account are not verified. The connector is not implemented and admission is disabled. Report: spec/001-want-keep-mvp/evidence/task-4.1-alfa.en.md."
+        "ru": "Реализован read-коннектор: collector, vault, worker, счета/алиасы, unknown source records и encrypted evidence. Финансовый mapping и live-допуск переданы task-4.7 (#94). Production admission закрыт.",
+        "en": "Read connector implemented: collector, vault, worker, accounts/aliases, unknown source records and encrypted evidence. Financial mapping and live admission moved to task-4.7 (#94). Production admission remains disabled."
       },
       "title": {
         "ru": "Реализовать коннектор Альфа-Банк",
         "en": "Implement Alfa-Bank connector"
       },
       "goal": {
-        "ru": "Автоматически получать согласованные данные текущих счетов, дебетовых карт, операций и кэшбэка Alfa по D-47.",
-        "en": "Automatically retrieve consistent Alfa current-account, debit-card, transaction and cashback data under D-47."
+        "ru": "Читать структурированные данные Alfa без неподтверждённого денежного эффекта.",
+        "en": "Read structured Alfa data without unverified monetary effects."
       },
       "depends_on": [
         "task-0.1",
@@ -4144,19 +4144,19 @@
         "collector/src/providers/alfa/"
       ],
       "behavior": {
-        "ru": "Реализовать D-47: текущие счета, дебетовые карты, операции и кэшбэк. Накопительные счета, вклады и кредиты Alfa исключены по решению владельца от 2026-10-28; остальные провайдеры и общие финансовые функции сохраняются. Подтверждённая денежная выплата кэшбэка создаёт один доход в дату выплаты; ожидаемое начисление не создаёт проводку. До deployment доказать разрешённый структурированный read path, точный allowlist, стабильную account/source identity D-39, пагинацию/coverage, revisions/statuses/fees/cashback lifecycle, reauth и два независимых аккаунта. Browser collector допустим только для подтверждённого API-пробела. Неполная история даёт `source_partial`; неизвестное обязательное поле остаётся unknown; коллизия даёт `source_ambiguous` без проводки. Reconnect связывается с тем же внешним счётом; stale job после disconnect не применяется. Target-host route/DNS/TLS проверяются до deployment. Provider evidence передаётся admission service для точного D-43 binding; conformance до admission не создаёт source record или проводок. Смена binding закрывает sync.",
-        "en": "Implement D-47: current accounts, debit cards, transactions and cashback. Alfa savings accounts, deposits and credit products are excluded by the owner decision of 2026-10-28; other providers and shared financial features remain in scope. A confirmed cash cashback payout creates one income entry on its payout date; an expected accrual creates no posting. Before deployment, prove an authorized structured read path, an exact allowlist, stable D-39 account/source identity, pagination/coverage, revisions/statuses/fees/cashback lifecycle, reauthentication and two independent accounts. A browser collector is allowed only for a proven API gap. Incomplete history yields `source_partial`; an unknown mandatory field stays unknown; a collision yields `source_ambiguous` without posting. Reconnection links the same external account; a stale job cannot apply after disconnect. Target-host route/DNS/TLS are checked before deployment. Provider evidence goes to the admission service for the exact D-43 binding; pre-admission conformance creates no source records or postings. A binding change closes sync."
+        "ru": "D-48 разрешает завершить транспорт до финансовой квалификации task-4.7. Реализовать current/debit_card подключения, owner-only ввод сессии через vault, изолированный браузер без банковских скриптов, закрытый read workflow, пагинацию и типизированные отказы. Нормализовать счета/алиасы; операции сохранять как unknown source records, банковские суммы и кэшбэк как encrypted evidence без проводок и вымышленного sourceAsOf. Сохранять D-39, admission/lease/generation и commit-time quarantine. Замена сессии инвалидирует старые задания. Полнота истории, финансовый mapping, два live-аккаунта и host evidence остаются обязательными в #94 до production admission. D-47 сохраняется.",
+        "en": "D-48 permits transport completion before task-4.7 financial qualification. Implement current/debit_card connections, owner-only session enrollment through the vault, isolated browsing without bank scripts, a closed read workflow, pagination and typed failures. Normalize accounts/aliases; retain operations as unknown source records and bank amounts/cashback as encrypted evidence without postings or invented sourceAsOf. Preserve D-39, admission/lease/generation and commit-time quarantine. Session replacement invalidates old jobs. History completeness, financial mapping, two live accounts and host evidence remain mandatory in #94 before production admission. D-47 remains unchanged."
       },
       "verification": {
         "command": "make test-contract PROVIDER=alfa && make test-integration AREA=alfa",
         "expected": {
-          "ru": "Продукты D-47 проходят синтетические fixtures и отдельный разрешённый live readback; доказаны два аккаунта, reauth, pagination, revisions и deployment gate. Накопительные счета, вклады и кредиты Alfa не требуются. Неизвестные поля и gaps не проводят деньги.",
-          "en": "D-47 products pass synthetic fixtures and a separate authorized live readback; two accounts, reauthentication, pagination, revisions and the deployment gate are proven. Alfa savings accounts, deposits and credit products are not required. Unknown fields and gaps do not post money."
+          "ru": "Synthetic read-only workflow, pagination, isolation и typed failures проходят; PostgreSQL подтверждает vault, replay без дублей, partial coverage и stale quarantine. Банковских проводок нет. Финансовый mapping и live-проверки переданы #94.",
+          "en": "Synthetic read-only workflow, pagination, isolation and typed failures pass; PostgreSQL proves vault, duplicate-free replay, partial coverage and stale quarantine. No bank postings are created. Financial mapping and live checks belong to #94."
         }
       },
       "verification_note": {
-        "ru": "Общие команды Make реализованы; suites PROVIDER=alfa и AREA=alfa добавляются этой задачей. Синтетические проверки, живое чтение, повторный вход и второй независимый аккаунт фиксируются отдельно. Без обязательного live-доказательства задача остаётся открытой, а deployment admission не включается.",
-        "en": "Shared Make commands are implemented; this task adds the PROVIDER=alfa and AREA=alfa suites. Synthetic checks, live reads, reauthentication and a second independent account are recorded separately. Missing mandatory live evidence keeps the task open and deployment admission disabled."
+        "ru": "Suites PROVIDER=alfa и AREA=alfa реализованы. Приёмка task-4.1 относится к read-коннектору; полный AC-042/079/106 и production admission требуют task-4.7.",
+        "en": "PROVIDER=alfa and AREA=alfa suites are implemented. Task-4.1 acceptance covers the read connector; full AC-042/079/106 and production admission require task-4.7."
       },
       "github_url": "https://github.com/andrey-krasheninnikov/want-keep/issues/29"
     },
@@ -4415,6 +4415,58 @@
         "ru": "Команды make созданы основой task-1.1; финансовые provider/integration/E2E suites ещё не реализованы. Для документации используется make docs-check. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат; наличие команды или UI-доступа не доказывает runtime.",
         "en": "The task-1.1 foundation provides make commands; financial provider/integration/E2E suites are not implemented yet. Use make docs-check for documentation. Live/paid/manual checks separately record access and outcomes; an existing command or UI access is not runtime proof."
       }
+    },
+    {
+      "id": "task-4.7",
+      "kind": "implementation",
+      "status": {
+        "ru": "Открыта #94: требуется квалификация источника и второй live-аккаунт. Блокирует production admission Alfa.",
+        "en": "Open #94: source qualification and a second live account required. Blocks Alfa production admission."
+      },
+      "title": {
+        "ru": "Подтвердить финансовый mapping и live-допуск Alfa",
+        "en": "Verify Alfa financial mapping and live admission"
+      },
+      "goal": {
+        "ru": "Подтвердить финансовый mapping, историю, кэшбэк и deployment binding Alfa.",
+        "en": "Verify Alfa financial mapping, history, cashback and deployment binding."
+      },
+      "depends_on": [
+        "task-4.1"
+      ],
+      "acceptance": [
+        "AC-042",
+        "AC-040",
+        "AC-041",
+        "AC-048",
+        "AC-063",
+        "AC-070",
+        "AC-071",
+        "AC-079",
+        "AC-087",
+        "AC-090",
+        "AC-106"
+      ],
+      "targets": [
+        "backend/internal/integrations/alfa/",
+        "collector/src/providers/alfa/"
+      ],
+      "behavior": {
+        "ru": "Завершить финансовую нормализацию и live-приёмку Alfa после реализации read-коннектора в #29. По решению владельца эти проверки выделены в отдельную задачу и не останавливают реализацию транспорта. Production admission остаётся закрытым.\n\nОбъём D-47: текущие счета, дебетовые карты, операции и кэшбэк. Накопительные счета, вклады и кредитные продукты Alfa исключены.\n\n### Что требуется\n\n- Подтвердить состав `amount`, `total`, `holds`, `currentBalance`, единицы и источник времени баланса. Затем реализовать известные owned/available/locked/debt без выдуманного `sourceAsOf` и двойного вычитания удержаний.\n- Проверить финансовые даты, `HOLD`/`SUCCESS`/`FAILED`/`null`, комиссии и lifecycle изменений. Реализовать проверенные переходы и экономическую классификацию; внутренний перевод не становится доходом или расходом.\n- Подтвердить устойчивость account/operation/card IDs после повторного входа и на втором независимом аккаунте. Проверить reconnect и отсутствие слияния аккаунтов участников. Второй аккаунт будет доступен позже.\n- Проверить фильтр выбранной даты, конец и глубину истории, поздние изменения и смещение страниц при новых операциях. До этого сохранять `source_partial`.\n- Установить устойчивую связь начисления кэшбэка, банковской выплаты, исправления и отмены. Выплата создаёт один доход в дату выплаты; прогноз и начисления сами по себе не увеличивают средства.\n- Проверить возможность официального API для личного проекта. Если остаётся кабинет, подтвердить актуальность закрытого read workflow и минимального набора сессионных заголовков.\n- Проверить route/DNS/TLS на целевом хосте; сформировать provider/host evidence для точного D-43 binding. Не отключать TLS-проверку и не разрешать изменяющие банковские запросы.\n\n### Приёмка\n\nСохранить обезличенные RU/EN-доказательства и синтетические fixtures. Обновить нормализацию, контрактные и PostgreSQL-тесты. Выполнить `make test-contract PROVIDER=alfa`, `make test-integration AREA=alfa` и collector security suite. Отдельно зафиксировать разрешённое живое чтение двух аккаунтов, повторный вход, историю и кэшбэк. Синтетические тесты не заменяют live-доказательства.\n\nДо завершения этой задачи текущий read-коннектор сохраняет счета и алиасы, source records со статусом unknown и зашифрованные evidence. Банковские операции не создают денежного эффекта, баланс не объявляется подтверждённым и production admission не включается.\n\nСвязи: task-4.7; зависит от task-4.1 / #29. REQ-039/041/042/048/065/073/076/088; AC-041/042/048/079/087/090/106. Общая приёмка task-9.1 зависит от завершения этой задачи.",
+        "en": "Complete Alfa financial normalization and live acceptance after the read connector in #29. The owner moved these checks into a separate task so transport implementation can proceed. Production admission remains disabled.\n\nD-47 scope: current accounts, debit cards, transactions and cashback. Alfa savings accounts, deposits and credit products are excluded.\n\n### Required work\n\n- Verify the meaning of `amount`, `total`, `holds`, `currentBalance`, units and the balance timestamp. Implement known owned/available/locked/debt without inventing `sourceAsOf` or subtracting holds twice.\n- Verify financial dates, `HOLD`/`SUCCESS`/`FAILED`/`null`, fees and revision lifecycle. Implement confirmed transitions and economic classification; internal transfers must not become income or expenses.\n- Verify account/operation/card IDs across reauthentication and a second independent account. Test reconnect and member-account isolation. The second account will be available later.\n- Verify the selected-date filter, history end and depth, late revisions and page shifts under new transactions. Retain `source_partial` until then.\n- Establish stable links between cashback accrual, bank payout, revision and cancellation. Recognize one income entry on the payout date; forecasts and accruals alone do not increase funds.\n- Verify official API eligibility for the personal project. If cabinet access remains necessary, verify the closed read workflow and minimum session headers.\n- Verify route/DNS/TLS on the target host and produce provider/host evidence for the exact D-43 binding. Do not disable TLS validation or permit bank mutations.\n\n### Acceptance\n\nRetain sanitized RU/EN evidence and synthetic fixtures. Update normalization, contract and PostgreSQL tests. Run `make test-contract PROVIDER=alfa`, `make test-integration AREA=alfa` and the collector security suite. Record authorized live reads of two accounts, reauthentication, history and cashback separately. Synthetic checks do not replace live evidence.\n\nUntil this task is complete, the read connector retains accounts and aliases, unknown source records and encrypted evidence. Bank transactions have no monetary effect, balances remain unconfirmed and production admission stays disabled.\n\nLinks: task-4.7; depends on task-4.1 / #29. REQ-039/041/042/048/065/073/076/088; AC-041/042/048/079/087/090/106. Full task-9.1 acceptance depends on this task."
+      },
+      "verification": {
+        "command": "make test-contract PROVIDER=alfa && make test-integration AREA=alfa",
+        "expected": {
+          "ru": "Вопросы #94 закрыты раздельными synthetic/live доказательствами; два аккаунта изолированы, денежные эффекты подтверждены, D-43 binding проверен.",
+          "en": "Separate synthetic/live evidence resolves #94; two accounts are isolated, monetary effects confirmed and the D-43 binding verified."
+        }
+      },
+      "verification_note": {
+        "ru": "Требуется разрешённое живое чтение; второй аккаунт будет доступен позже.",
+        "en": "Authorized live reads required; the second account will be available later."
+      },
+      "github_url": "https://github.com/andrey-krasheninnikov/want-keep/issues/94"
     },
     {
       "id": "task-5.1",
@@ -5966,7 +6018,8 @@
         "task-7.7",
         "task-7.8",
         "task-8.3",
-        "task-7.12"
+        "task-7.12",
+        "task-4.7"
       ],
       "acceptance": [
         "AC-042",

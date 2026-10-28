@@ -12,7 +12,7 @@ func TestConfirmedSourceAssetMappings(t *testing.T) {
 		valid                 bool
 	}{
 		{"raiffeisen", "RUR", "RUB", true}, {"ozon", "RUR", "RUB", true}, {"raiffeisen", "RUB", "RUB", true},
-		{"bybit", "RUR", "RUB", false}, {"bybit", "USDC.E", "USDC", false}, {"ozon", "USD", "RUB", false},
+		{"alfa", "RUR", "RUB", true}, {"alfa", "USDC.E", "USDC", false}, {"bybit", "RUR", "RUB", false}, {"bybit", "USDC.E", "USDC", false}, {"ozon", "USD", "RUB", false},
 	} {
 		input := ImportInput{Provider: tc.provider, ExternalAssetCode: tc.code}
 		input.Asset = money.Asset(tc.asset)

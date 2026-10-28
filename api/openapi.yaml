@@ -104,6 +104,8 @@ paths:
     "$ref": "./paths/connections.yaml#/~1connections~1{connectionId}~1reauth"
   "/connections/{connectionId}/authorization":
     "$ref": "./paths/connections.yaml#/~1connections~1{connectionId}~1authorization"
+  "/connections/{connectionId}/browser-session":
+    "$ref": "./paths/connections.yaml#/~1connections~1{connectionId}~1browser-session"
   "/connections/raiffeisen/callback":
     "$ref": "./paths/connections.yaml#/~1connections~1raiffeisen~1callback"
   "/attachments":
@@ -531,6 +533,8 @@ components:
       "$ref": "./schemas/connections.yaml#/ConnectionCreate"
     ConnectionAction:
       "$ref": "./schemas/connections.yaml#/ConnectionAction"
+    BrowserSessionEnrollment:
+      "$ref": "./schemas/connections.yaml#/BrowserSessionEnrollment"
     AuthorizationAttempt:
       "$ref": "./schemas/connections.yaml#/AuthorizationAttempt"
     Attachment:

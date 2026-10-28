@@ -36,7 +36,7 @@
 
 | Provider task | Предпочтительный transport | До реализации mapping | До включения deployment |
 | --- | --- | --- | --- |
-| task-4.1 Alfa | Official structured read, иначе разрешённый Playwright | Synthetic contract D-37/D-39; никаких UI-derived проводок | Permission, fixtures, stable IDs, pagination/revisions/fees/cashback, reauth, два аккаунта, target-host route |
+| task-4.1 Alfa | Official structured read, иначе разрешённый Playwright | Read connector D-47/D-48; unknown source records без проводок | Финансовый mapping, live-проверки и deployment admission переданы task-4.7 / #94 |
 | task-4.2 Raiffeisen | RBO API/CAMT | CAMT 1:N, canonical cross-report fingerprint + optional-ID aliases, CLBD/unknown semantics | OAuth rotation, corrections/reversals, full history, second account, live conformance |
 | task-4.3 Ozon | Подтверждённый session read | Sanitized HAR projection, route namespaces, parent fee relation | Session permission/lifecycle, stable account ID, history end, second account, reauth |
 | task-4.4 Bybit | Official RSA read-only API | Route IDs, candidate links, hourly collision policy | Precision/history, two accounts, key rotation/revocation, write-route denial |
@@ -115,6 +115,7 @@ git diff --check
 - `task-4.4` — Реализовать коннектор Bybit
 - `task-4.5` — Реализовать коннектор Aifory Pro
 - `task-4.6` — Реализовать коннектор EMCD
+- `task-4.7` — Подтвердить финансовый mapping и live-допуск Alfa (#94); зависит от read-коннектора task-4.1, блокирует production admission и полную приёмку task-9.1.
 - `task-5.1` — Создать OpenAI gateway и контроль расходов
 - `task-5.2` — Проверять каждую операцию через AI-команды
 - `task-5.3` — Обрабатывать чеки и позиции
