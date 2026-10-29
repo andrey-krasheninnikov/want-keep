@@ -6,16 +6,26 @@ export function ActionTile({
   icon,
   children,
   className,
+  href,
   ...props
-}: Omit<ButtonProps, "variant" | "size"> & { icon: ReactNode }) {
+}: Omit<ButtonProps, "variant" | "size" | "asChild"> & {
+  icon: ReactNode;
+  href?: string;
+}) {
+  const content = (
+    <>
+      <span aria-hidden="true">{icon}</span>
+      <span>{children}</span>
+    </>
+  );
   return (
     <Button
       {...props}
+      asChild={Boolean(href)}
       variant="secondary"
       className={cn("wk-action-tile", className)}
     >
-      <span aria-hidden="true">{icon}</span>
-      <span>{children}</span>
+      {href ? <a href={href}>{content}</a> : content}
     </Button>
   );
 }

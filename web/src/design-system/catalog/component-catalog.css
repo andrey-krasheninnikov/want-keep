@@ -97,10 +97,6 @@
   color: var(--primary-foreground);
   background: var(--primary-active);
 }
-.catalog-balance .wk-button-ghost:focus-visible {
-  color: var(--wk-focus-foreground);
-  background: var(--wk-focus-fill);
-}
 .catalog-pixel-star {
   position: absolute;
   right: 20px;
@@ -273,14 +269,6 @@
 }
 .catalog-compare > button {
   grid-column: 1 / -1;
-}
-.catalog-brand:focus-visible,
-.catalog-token-link:focus-visible,
-.component-catalog summary:focus-visible {
-  outline: none;
-  background: var(--wk-focus-fill);
-  color: var(--wk-focus-foreground);
-  border-radius: var(--radius);
 }
 .component-catalog summary {
   cursor: pointer;

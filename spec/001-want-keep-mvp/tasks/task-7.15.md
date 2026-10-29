@@ -222,7 +222,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 ### Связанные требования
 
-- **REQ-077:** Тёмные токены Want Keep: сдержанный киберпанк и архитектурный ритм Ближнего Востока.
+- **REQ-077:** Полная тёмная тема want-desyst используется без локальной замены палитры, геометрии или фокуса.
 - **REQ-082:** Экранные состояния объясняют последствия и безопасный следующий шаг без потери ввода.
 - **REQ-084:** Доступность проверяется на реальных Chrome и Arc, включая клавиатуру, фокус, контраст, масштаб и reduced motion.
 - **REQ-087:** Контекстные pixel-анимации подтверждают значимые события и предупреждают о лимитах, сохраняя доступность и достоверность результата.
@@ -235,7 +235,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 - **Дано:** Обзор, вход, форма и таблица используют одну дизайн-систему.
 - **Когда:** Проверяются фон, поверхности, акценты и состояния.
-- **Тогда:** Фон #1A1A1A, рабочие поверхности #202020–#262626, бренд #5F4EF5; нет светлой темы. Брендовые плоскости #111114/#18171E, редкие песочные акценты #C7AF8F. Нет обводок карточек/полей; группировка заливкой, пространством и типографикой. Фокус заметен инверсией заливки; статусы имеют текст/значок.
+- **Тогда:** Фон #141414, поверхности #1C1C1C/#252525 и акцент #5962F0 берутся из закреплённого foundation. Статусы, радиусы, клавиатурный фокус и motion следуют общей теме. data-theme=dark и dark установлены до первого кадра. Название и логотип Want Keep сохраняются; светлой темы нет.
 - **Уровень:** `manual+e2e`.
 
 #### AC-099
@@ -496,7 +496,7 @@ Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.
 
 ### Linked requirements
 
-- **REQ-077:** Dark Want Keep tokens: restrained cyberpunk and Middle Eastern architectural rhythm.
+- **REQ-077:** Use the complete want-desyst dark theme without local palette, geometry or focus replacements.
 - **REQ-082:** Screen states explain consequences and a safe next step without losing input.
 - **REQ-084:** Accessibility is checked in actual Chrome and Arc, including keyboard, focus, contrast, zoom and reduced motion.
 - **REQ-087:** Contextual pixel animations acknowledge milestones and warn about limits while preserving accessibility and truthful outcomes.
@@ -509,7 +509,7 @@ A link establishes coverage but does not prove the whole criterion; verification
 
 - **Given:** Overview, sign-in, form and table use one design system.
 - **When:** Backgrounds, surfaces, accents and states are inspected.
-- **Then:** Base #1A1A1A, working surfaces #202020–#262626, brand #5F4EF5; no light theme. Brand planes #111114/#18171E, sparse sand accents #C7AF8F. No card/field outlines; group through fills, space and typography. Focus uses visible inverted fill; statuses have text/icons.
+- **Then:** Background #141414, surfaces #1C1C1C/#252525 and primary #5962F0 come from the pinned foundation. Status roles, radii, keyboard focus and motion follow the shared theme. Set data-theme=dark and dark before first paint. Keep the Want Keep name and logo; no light theme.
 - **Level:** `manual+e2e`.
 
 #### AC-099

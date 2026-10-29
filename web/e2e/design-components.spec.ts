@@ -13,7 +13,7 @@ for (const viewport of [
 ]) {
   test(`composition and form access at ${viewport.width} CSS pixels`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.setViewportSize(viewport);
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -51,7 +51,7 @@ for (const viewport of [
       page.getByRole("button", { name: "Открыть форму", exact: true }),
     ).toBeFocused();
     await page.screenshot({
-      path: `.cache/components-${viewport.width}.png`,
+      path: testInfo.outputPath(`components-${viewport.width}.png`),
       fullPage: false,
     });
     expect(errors).toEqual([]);
@@ -128,7 +128,7 @@ test("calendar validation and selection inside a dialog restore focus", async ({
     name: "Открыть календарь: Дата операции",
   });
   await trigger.click();
-  const calendar = page.locator(".wk-calendar");
+  const calendar = page.locator('[data-slot="date-popover"]');
   await expect(calendar).toBeVisible();
   await expect(calendar.locator("button:focus")).toHaveCount(1);
   await page.keyboard.press("ArrowLeft");
@@ -158,9 +158,11 @@ for (const timezoneId of ["Pacific/Honolulu", "Asia/Tokyo", "Europe/Berlin"]) {
     await page
       .getByRole("button", { name: "Открыть календарь: Дата операции" })
       .click();
-    await expect(page.locator(".wk-calendar .rdp-selected button")).toHaveText(
-      "29",
-    );
+    await expect(
+      page.locator(
+        '[data-slot="date-popover"] [data-day][aria-pressed="true"]',
+      ),
+    ).toHaveText("29");
     await page.keyboard.press("Enter");
     await expect(
       page.getByRole("textbox", { name: "Дата операции", exact: true }),
@@ -246,17 +248,19 @@ test("focus, errors, selected state, reduced motion and font failure retain read
   const input = page.getByLabel("Сумма", { exact: true });
   await input.fill("9".repeat(257));
   await input.focus();
-  await expect(input).toHaveCSS("background-color", "rgb(245, 245, 245)");
-  await expect(input).toHaveCSS("color", "rgb(26, 26, 26)");
-  await expect(input).toHaveCSS("outline-style", "none");
-  await expect(input).toHaveCSS("transition-duration", "0s, 0s");
-  const contrast = ThemeContract.contrast("#f5f5f5", "#1a1a1a");
-  expect(contrast).toBeGreaterThan(4.5);
+  await expect(input).toHaveAttribute("aria-invalid", "true");
+  await expect(input).toHaveCSS("outline-width", "2px");
+  await expect(input).toHaveCSS("color", "rgb(232, 232, 232)");
+  await expect(input).toHaveCSS("outline-style", "solid");
+  await expect(input).toHaveCSS(
+    "transition-duration",
+    /^(0s|1e-05s)(, (0s|1e-05s))*$/,
+  );
   const toggle = page.getByRole("button", { name: "Семья", exact: true });
   await toggle.focus();
   await toggle.hover();
-  await expect(toggle).toHaveCSS("background-color", "rgb(245, 245, 245)");
-  await page.route("**/fonts/**/*.ttf", (route) => route.abort());
+  await expect(toggle).toHaveCSS("background-color", "rgb(28, 28, 28)");
+  await page.route("**/*.woff*", (route) => route.abort());
   await page.reload();
   await page.getByRole("button", { name: "English", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -327,18 +331,23 @@ test("rendered action, selection and field states meet text contrast", async ({
       }
       const colors = await control.evaluate((element) => {
         const style = getComputedStyle(element);
-        return [style.color, style.backgroundColor];
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext("2d")!;
+        return [style.color, style.backgroundColor].map((color) => {
+          context.clearRect(0, 0, 1, 1);
+          context.fillStyle = color;
+          context.fillRect(0, 0, 1, 1);
+          return (
+            "#" +
+            [...context.getImageData(0, 0, 1, 1).data]
+              .slice(0, 3)
+              .map((channel) => channel.toString(16).padStart(2, "0"))
+              .join("")
+          );
+        });
       });
-      const hex = colors.map((color) => {
-        expect(color).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
-        return (
-          "#" +
-          color
-            .match(/\d+/g)!
-            .map((channel) => parseInt(channel).toString(16).padStart(2, "0"))
-            .join("")
-        );
-      });
+      const hex = colors;
       expect(
         ThemeContract.contrast(hex[0], hex[1]),
         `${state}: ${colors}`,
@@ -365,7 +374,9 @@ for (const [value, key] of [
     await page
       .getByRole("button", { name: "Открыть календарь: Дата операции" })
       .click();
-    await expect(page.locator(".wk-calendar button:focus")).toHaveCount(1);
+    await expect(
+      page.locator('[data-slot="date-popover"] button:focus'),
+    ).toHaveCount(1);
     await page.keyboard.press(key);
     await page.keyboard.press("Enter");
     await expect(date).toHaveValue(value);
@@ -402,7 +413,9 @@ test("portaled controls inherit the selected document language", async ({
       ),
     ).toBe(locale);
     await option.click();
+    await expect(page.getByRole("listbox")).not.toBeVisible();
     await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
     await page
       .getByRole("button", {
         name: ru ? "Показать toast" : "Show toast",
@@ -439,7 +452,7 @@ test("avatar names survive loaded images and failed-image fallback", async ({
   await page.route("**/brand/logo_512px.svg", (route) => route.abort());
   await page.reload();
   await expect(avatar).toHaveAccessibleName("Профиль с изображением");
-  await expect(avatar.locator("img")).toHaveCount(0);
+  await expect(avatar.locator("img")).not.toBeVisible();
   await expect(avatar).toHaveText("WK");
 });
 
@@ -460,17 +473,16 @@ test("unknown progress stays distinct from completion and is localized", async (
     "Объём пока неизвестен",
   );
   await expect(unknown).not.toHaveAttribute("aria-valuenow");
-  await expect(unknown.locator(".wk-progress-indicator")).not.toBeVisible();
-  await expect(unknown.locator(".wk-progress-track")).toHaveCSS(
-    "background-image",
-    /repeating-linear-gradient/,
-  );
-  await expect(complete).toHaveAttribute("aria-valuenow", "100");
-  await expect(complete.locator(".wk-progress-indicator")).toBeVisible();
-  await expect(complete.locator(".wk-progress-track")).toHaveCSS(
-    "background-image",
+  await expect(unknown).toHaveAttribute("data-state", "indeterminate");
+  await expect(unknown.locator('[data-slot="progress-indicator"]')).toHaveCSS(
+    "animation-name",
     "none",
   );
+  await expect(complete).toHaveAttribute("aria-valuenow", "100");
+  await expect(complete).toHaveAttribute("data-state", "complete");
+  await expect(
+    complete.locator('[data-slot="progress-indicator"]'),
+  ).toBeVisible();
   await page.getByRole("button", { name: "English", exact: true }).click();
   await expect(
     page.getByRole("progressbar", { name: "Processing", exact: true }),

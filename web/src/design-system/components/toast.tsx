@@ -1,8 +1,15 @@
-import { Toast as Primitive } from "@base-ui/react/toast";
+import {
+  ToastProvider,
+  Toast,
+  ToastTitle,
+  ToastDescription,
+  ToastClose,
+  ToastViewport,
+} from "@want-foundation/desyst-react";
+import { useRef, useState, type ReactNode } from "react";
 import { XIcon } from "lucide-react";
-import type { ReactNode } from "react";
 import { Button } from "./button";
-
+import { ToastContext, type ToastMessage } from "./toast-manager";
 export function Toaster({
   children,
   closeLabel,
@@ -10,37 +17,45 @@ export function Toaster({
   children: ReactNode;
   closeLabel: string;
 }) {
-  return (
-    <Primitive.Provider limit={3} timeout={8000}>
-      {children}
-      <ToastList closeLabel={closeLabel} />
-    </Primitive.Provider>
+  const nextId = useRef(0);
+  const [messages, setMessages] = useState<(ToastMessage & { id: number })[]>(
+    [],
   );
-}
-
-function ToastList({ closeLabel }: { closeLabel: string }) {
-  const { toasts } = Primitive.useToastManager();
   return (
-    <Primitive.Portal>
-      <Primitive.Viewport className="wk-toast-viewport">
-        {toasts.map((toast) => (
-          <Primitive.Root key={toast.id} toast={toast} className="wk-toast">
-            <Primitive.Content>
-              <div>
-                <Primitive.Title className="wk-label" />
-                <Primitive.Description className="wk-description" />
-              </div>
-              <Primitive.Close
-                render={<Button variant="ghost" size="icon" />}
-                aria-label={closeLabel}
-                aria-hidden={false}
-              >
+    <ToastContext.Provider
+      value={{
+        add(message) {
+          const id = ++nextId.current;
+          setMessages((current) => [...current, { ...message, id }].slice(-3));
+        },
+      }}
+    >
+      <ToastProvider duration={8000}>
+        {children}
+        {messages.map((message) => (
+          <Toast
+            key={message.id}
+            className="wk-toast"
+            onOpenChange={(open) => {
+              if (!open)
+                setMessages((current) =>
+                  current.filter((item) => item.id !== message.id),
+                );
+            }}
+          >
+            <div>
+              <ToastTitle>{message.title}</ToastTitle>
+              <ToastDescription>{message.description}</ToastDescription>
+            </div>
+            <ToastClose asChild>
+              <Button variant="ghost" size="icon" aria-label={closeLabel}>
                 <XIcon aria-hidden="true" />
-              </Primitive.Close>
-            </Primitive.Content>
-          </Primitive.Root>
+              </Button>
+            </ToastClose>
+          </Toast>
         ))}
-      </Primitive.Viewport>
-    </Primitive.Portal>
+        <ToastViewport className="wk-toast-viewport" />
+      </ToastProvider>
+    </ToastContext.Provider>
   );
 }

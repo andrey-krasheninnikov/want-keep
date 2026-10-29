@@ -11,7 +11,6 @@ import { Avatar } from "../components/avatar";
 import { ToggleGroup, ToggleItem } from "../components/toggle-group";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../components/tooltip";
 import type { CatalogLocale } from "./catalog-locale";
-
 export function ActionsSpecimen({ locale }: { locale: CatalogLocale }) {
   const ru = locale === "ru";
   const [selected, setSelected] = useState(["family"]);
@@ -23,8 +22,8 @@ export function ActionsSpecimen({ locale }: { locale: CatalogLocale }) {
         <h2>{ru ? "Одно ясное следующее действие" : "One clear next step"}</h2>
         <p>
           {ru
-            ? "Заливка определяет приоритет. Фокус виден без обводки."
-            : "Fill establishes priority. Focus remains visible without outlines."}
+            ? "Заливка определяет приоритет. Фокус обозначен контрастной обводкой."
+            : "Fill establishes priority. A contrasting outline marks focus."}
         </p>
       </div>
       <div className="catalog-controls">
@@ -65,22 +64,20 @@ export function ActionsSpecimen({ locale }: { locale: CatalogLocale }) {
         >
           {ru ? "Удалить" : "Remove"}
         </Button>
-        <Button
-          variant="link"
-          render={<a href="#states" />}
-          nativeButton={false}
-        >
-          {ru ? "Посмотреть состояния" : "View states"}
+        <Button variant="link" asChild>
+          <a href="#states">{ru ? "Посмотреть состояния" : "View states"}</a>
         </Button>
         <Tooltip>
           <TooltipTrigger
-            render={<Button variant="secondary" size="icon" />}
             aria-label={ru ? "Настройки образца" : "Sample settings"}
             onClick={() =>
               setResult(ru ? "Образец настройки" : "Settings sample")
             }
+            asChild
           >
-            <SettingsIcon aria-hidden="true" />
+            <Button variant="secondary" size="icon">
+              <SettingsIcon aria-hidden="true" />
+            </Button>
           </TooltipTrigger>
           <TooltipContent>
             {ru ? "Настройки этого образца" : "Settings for this sample"}

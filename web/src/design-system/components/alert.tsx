@@ -1,3 +1,4 @@
+import { Alert as SharedAlert } from "@want-foundation/desyst-react";
 import type { ReactNode } from "react";
 import {
   CircleCheckIcon,
@@ -28,7 +29,7 @@ export function Alert({
 }) {
   const Icon = icons[tone];
   return (
-    <div
+    <SharedAlert
       className="wk-alert"
       data-tone={tone}
       role={announce ? "status" : undefined}
@@ -39,6 +40,6 @@ export function Alert({
         <div className="wk-description">{children}</div>
         {action && <div className="wk-alert-action">{action}</div>}
       </div>
-    </div>
+    </SharedAlert>
   );
 }

@@ -1,5 +1,11 @@
-import { Select as Primitive } from "@base-ui/react/select";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import {
+  Select as Root,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@want-foundation/desyst-react";
+import { useFieldControl } from "./field-context";
 
 export type SelectOption = { value: string; label: string; disabled?: boolean };
 export type SelectProps = {
@@ -13,7 +19,6 @@ export type SelectProps = {
   describedBy?: string;
   onValueChange: (value: string | null) => void;
 };
-
 export function Select({
   id,
   label,
@@ -25,53 +30,31 @@ export function Select({
   describedBy,
   onValueChange,
 }: SelectProps) {
-  const items = [{ value: null, label: placeholder }, ...options];
+  const field = useFieldControl();
   return (
-    <Primitive.Root
-      items={items}
-      value={value}
-      onValueChange={onValueChange}
-      disabled={disabled}
-    >
-      <Primitive.Trigger
-        id={id}
+    <Root value={value ?? ""} onValueChange={onValueChange} disabled={disabled}>
+      <SelectTrigger
+        {...field}
+        id={id ?? field.id}
         aria-label={label}
         aria-invalid={invalid}
-        aria-describedby={describedBy}
+        aria-describedby={describedBy ?? field["aria-describedby"]}
         className="wk-select-trigger"
       >
-        <Primitive.Value />
-        <Primitive.Icon>
-          <ChevronDownIcon aria-hidden="true" />
-        </Primitive.Icon>
-      </Primitive.Trigger>
-      <Primitive.Portal>
-        <Primitive.Positioner
-          sideOffset={8}
-          alignItemWithTrigger={false}
-          className="wk-positioner"
-        >
-          <Primitive.Popup className="wk-select-popup">
-            <Primitive.List>
-              <Primitive.Group>
-                {options.map((option) => (
-                  <Primitive.Item
-                    key={option.value}
-                    value={option.value}
-                    disabled={option.disabled}
-                    className="wk-select-item"
-                  >
-                    <Primitive.ItemText>{option.label}</Primitive.ItemText>
-                    <Primitive.ItemIndicator>
-                      <CheckIcon aria-hidden="true" />
-                    </Primitive.ItemIndicator>
-                  </Primitive.Item>
-                ))}
-              </Primitive.Group>
-            </Primitive.List>
-          </Primitive.Popup>
-        </Primitive.Positioner>
-      </Primitive.Portal>
-    </Primitive.Root>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent position="popper" className="wk-select-popup">
+        {options.map((option) => (
+          <SelectItem
+            className="wk-select-item"
+            key={option.value}
+            value={option.value}
+            disabled={option.disabled}
+          >
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Root>
   );
 }

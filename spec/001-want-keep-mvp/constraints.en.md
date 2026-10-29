@@ -4,7 +4,7 @@
 
 The user selected the stack (D-17). task-1.1 provides reproducible manifests and a buildable foundation without a product runtime/API. The remainder of this document describes the target architecture.
 
-Go 1.26.5 and Node.js 24.19.0 LTS are pinned. Web uses React 19.2.8, Vite 8.2.2, TypeScript 6.0.3, Base UI 1.8.0 and shadcn 4.21.0; the collector uses Playwright 1.63.0. Direct npm dependencies use exact versions and each package has its own lockfile.
+Go 1.26.5 and Node.js 24.19.0 LTS are pinned. Web uses React 19.2.8, Vite 8.2.2, TypeScript 6.0.3, Radix-based @want-foundation/desyst-foundation/react 0.2.1; the collector uses Playwright 1.63.0. Direct npm dependencies use exact versions and each package has its own lockfile.
 
 ## Behavior ownership and layout
 
@@ -91,7 +91,7 @@ Financial source identity includes household, provider and a verified real exter
 
 ## Desktop and presentation
 
-Design, screens and navigation are UI contracts supplementing the API: [design](design.en.md), [screens](screens.en.md), [navigation](navigation.en.md). Design system narrowly owns tokens/primitives/motion; features own user tasks. Server returns amounts, explanations and statuses; client never repeats financial formulas. States and animation events do not control the ledger. The foundation pins Base UI/shadcn and dark base tokens; fonts, components and user screens belong to later UI tasks.
+Design, screens and navigation are UI contracts supplementing the API: [design](design.en.md), [screens](screens.en.md), [navigation](navigation.en.md). Design system narrowly owns tokens/primitives/motion; features own user tasks. Server returns amounts, explanations and statuses; client never repeats financial formulas. States and animation events do not control the ledger. D-49 adopts the complete shared dark theme and local want-desyst fonts. Import public exports and compiled CSS without source aliases or package-source Tailwind scanning. Product compositions, data, routes and states remain in Want Keep.
 
 ## PostgreSQL task-1.3
 

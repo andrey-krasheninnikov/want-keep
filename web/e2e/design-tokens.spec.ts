@@ -11,7 +11,7 @@ for (const viewport of [
 ]) {
   test(`fonts, exact amounts and allowed pairs at ${viewport.width}`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.setViewportSize(viewport);
     const errors: string[] = [];
     const externalFonts: string[] = [];
@@ -31,17 +31,20 @@ for (const viewport of [
       await document.fonts.ready;
     });
     await page.screenshot({
-      path: `.cache/design-tokens-${viewport.width}.png`,
+      path: testInfo.outputPath(`design-tokens-${viewport.width}.png`),
       fullPage: true,
     });
     expect(
       await page.evaluate(() =>
-        [...document.fonts].map((font) => [font.family, font.status]),
+        [...document.fonts].map((font) => [
+          font.family.replace(/^["']|["']$/g, ""),
+          font.status,
+        ]),
       ),
     ).toEqual(
       expect.arrayContaining([
-        ["Manrope", "loaded"],
-        ["Pixelify Sans", "loaded"],
+        ["Manrope Variable", "loaded"],
+        ["Days One", "loaded"],
       ]),
     );
     await expect(page.getByTestId("amount-ETH")).toHaveText(
@@ -115,15 +118,18 @@ test("keyboard feedback, locale, system light preference and reduced motion", as
   await page.goto("/__design/tokens");
   await expect(page.locator("html")).toHaveCSS(
     "background-color",
-    "rgb(26, 26, 26)",
+    "rgb(20, 20, 20)",
   );
+  await expect(
+    page.getByRole("button", { name: "English", exact: true }),
+  ).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("button", { name: "English", exact: true }),
   ).toBeFocused();
   await expect(
     page.getByRole("button", { name: "English", exact: true }),
-  ).toHaveCSS("background-color", "rgb(245, 245, 245)");
+  ).toHaveCSS("background-color", "rgb(37, 37, 37)");
   await page.keyboard.press("Enter");
   await expect(
     page.getByRole("heading", { name: "Tokens and typography" }),
@@ -132,17 +138,18 @@ test("keyboard feedback, locale, system light preference and reduced motion", as
     name: "Normal / Hover / Active",
     exact: true,
   });
+  // The published primary hover utility retains the primary fill.
   await button.hover();
-  await expect(button).toHaveCSS("background-color", "rgb(107, 90, 246)");
+  await expect(button).toHaveCSS("background-color", "rgb(89, 98, 240)");
   await page.mouse.down();
-  await expect(button).toHaveCSS("background-color", "rgb(81, 66, 213)");
+  await expect(button).toHaveCSS("background-color", "rgb(89, 98, 240)");
   await page.mouse.up();
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Tab");
   await expect(button).toBeFocused();
-  await expect(button).toHaveCSS("background-color", "rgb(245, 245, 245)");
-  await expect(button).toHaveCSS("outline-style", "none");
-  await expect(button).toHaveCSS("transition-duration", "0s");
+  await expect(button).toHaveCSS("background-color", "rgb(89, 98, 240)");
+  await expect(button).toHaveCSS("outline-style", "solid");
+  await expect(button).toHaveCSS("transition-duration", /^(0s|1e-05s)$/);
   const durations = await page.evaluate(() =>
     ["fast", "normal", "account", "saving", "goal", "shared-goal", "limit"].map(
       (name) =>
@@ -160,7 +167,7 @@ test("keyboard feedback, locale, system light preference and reduced motion", as
 test("font failure retains content and a readable fallback", async ({
   page,
 }) => {
-  await page.route("**/fonts/**/*.ttf", (route) => route.abort());
+  await page.route("**/*.woff*", (route) => route.abort());
   await page.goto("/__design/tokens");
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -170,7 +177,7 @@ test("font failure retains content and a readable fallback", async ({
   );
   await expect(page.getByTestId("brand-sample")).toHaveCSS(
     "font-family",
-    '"Pixelify Sans", Manrope, system-ui, sans-serif',
+    /Days One.*sans-serif/,
   );
   await expect(page.getByTestId("amount-BTC")).toHaveText("0.12345678");
   expect(
@@ -187,6 +194,6 @@ test("critical background is dark before the stylesheet arrives", async ({
   await page.goto("/");
   await expect(page.locator("html")).toHaveCSS(
     "background-color",
-    "rgb(26, 26, 26)",
+    "rgb(20, 20, 20)",
   );
 });

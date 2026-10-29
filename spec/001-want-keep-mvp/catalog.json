@@ -1833,10 +1833,10 @@
     },
     {
       "id": "REQ-077",
-      "decision": "D-30",
+      "decision": "D-49",
       "title": {
-        "ru": "Тёмные токены Want Keep: сдержанный киберпанк и архитектурный ритм Ближнего Востока.",
-        "en": "Dark Want Keep tokens: restrained cyberpunk and Middle Eastern architectural rhythm."
+        "ru": "Полная тёмная тема want-desyst используется без локальной замены палитры, геометрии или фокуса.",
+        "en": "Use the complete want-desyst dark theme without local palette, geometry or focus replacements."
       },
       "acceptance": {
         "id": "AC-094",
@@ -1849,18 +1849,18 @@
           "en": "Backgrounds, surfaces, accents and states are inspected."
         },
         "then": {
-          "ru": "Фон #1A1A1A, рабочие поверхности #202020–#262626, бренд #5F4EF5; нет светлой темы. Брендовые плоскости #111114/#18171E, редкие песочные акценты #C7AF8F. Нет обводок карточек/полей; группировка заливкой, пространством и типографикой. Фокус заметен инверсией заливки; статусы имеют текст/значок.",
-          "en": "Base #1A1A1A, working surfaces #202020–#262626, brand #5F4EF5; no light theme. Brand planes #111114/#18171E, sparse sand accents #C7AF8F. No card/field outlines; group through fills, space and typography. Focus uses visible inverted fill; statuses have text/icons."
+          "ru": "Фон #141414, поверхности #1C1C1C/#252525 и акцент #5962F0 берутся из закреплённого foundation. Статусы, радиусы, клавиатурный фокус и motion следуют общей теме. data-theme=dark и dark установлены до первого кадра. Название и логотип Want Keep сохраняются; светлой темы нет.",
+          "en": "Background #141414, surfaces #1C1C1C/#252525 and primary #5962F0 come from the pinned foundation. Status roles, radii, keyboard focus and motion follow the shared theme. Set data-theme=dark and dark before first paint. Keep the Want Keep name and logo; no light theme."
         },
         "level": "manual+e2e"
       }
     },
     {
       "id": "REQ-078",
-      "decision": "D-30",
+      "decision": "D-49",
       "title": {
-        "ru": "Pixelify Sans используется для бренда и крупных акцентов, Manrope — для повседневного интерфейса.",
-        "en": "Pixelify Sans serves branding and large accents; Manrope serves everyday UI."
+        "ru": "Days One используется для display, Manrope для повседневного интерфейса; шрифты поставляет want-desyst.",
+        "en": "Use Days One for display and Manrope for everyday UI, supplied by want-desyst."
       },
       "acceptance": {
         "id": "AC-095",
@@ -1873,18 +1873,18 @@
           "en": "Loaded and unavailable fonts are tested."
         },
         "then": {
-          "ru": "Шрифты размещены локально с лицензиями; кириллица и валютные символы читаемы, fallback не теряет символы или разряды. Таблицы и формы используют Manrope, крупные суммы могут использовать Pixelify Sans.",
-          "en": "Fonts are hosted locally with licenses; Cyrillic and currency symbols remain legible and fallback loses no glyphs or digits. Tables/forms use Manrope; large amounts may use Pixelify Sans."
+          "ru": "Шрифты foundation обслуживаются локально с лицензиями. Кириллица, валютные символы и fallback остаются читаемыми. Таблицы и сопоставляемые суммы используют Manrope с табличными цифрами. Pixelify Sans и прежние локальные font-face удалены; суммы остаются точными строками.",
+          "en": "Foundation fonts are served locally with their licenses. Cyrillic, currency glyphs and fallback remain legible. Tables and comparable amounts use Manrope tabular figures. Remove Pixelify Sans and the previous local font-face definitions; monetary values remain exact strings."
         },
         "level": "manual+e2e"
       }
     },
     {
       "id": "REQ-079",
-      "decision": "D-30",
+      "decision": "D-49",
       "title": {
-        "ru": "Компоненты shadcn/ui на Base UI принадлежат проекту и оформляются собственными семантическими токенами.",
-        "en": "Project-owned shadcn/ui components on Base UI use custom semantic tokens."
+        "ru": "Публичные компоненты want-desyst реализуют примитивы; Want Keep владеет продуктовыми композициями и состоянием.",
+        "en": "Public want-desyst components implement primitives; Want Keep owns product compositions and state."
       },
       "acceptance": {
         "id": "AC-096",
@@ -1897,8 +1897,8 @@
           "en": "States and primitive implementations are inspected."
         },
         "then": {
-          "ru": "Зафиксированы версии и Base UI; компоненты не сохраняют стандартное оформление shadcn, не дублируют бизнес-логику и поддерживают клавиатуру, подписи и фокус.",
-          "en": "Versions and Base UI are pinned; components replace stock shadcn styling, contain no duplicated business rules and support keyboard, labels and focus."
+          "ru": "Foundation/react закреплены одной версией 0.2.1 с lockfile. Используются публичные exports и собранные CSS/шрифты. Base UI/shadcn и дубли примитивов удалены. Сохранены клавиатура, подписи, ref, controlled state, порталы, черновики, ошибки и восстановление фокуса. Финансовые правила и API не входят в общую библиотеку.",
+          "en": "Pin foundation/react to matching 0.2.1 with a lockfile. Use public exports and compiled CSS/fonts. Remove Base UI/shadcn and duplicate primitives. Preserve keyboard access, labels, refs, controlled state, portals, drafts, errors and focus restoration. Shared packages contain no financial rules or product APIs."
         },
         "level": "manual+e2e"
       }
@@ -5736,8 +5736,8 @@
         "web/public/brand/"
       ],
       "behavior": {
-        "ru": "Единый источник CSS-токенов: графит, обсидиановые брендовые плоскости, фиолетовый и песочный акцент по референсам пользователя. Без обводок; видимый фокус через инверсию. Сохранить shadcn/Tailwind-алиасы, logo_512px.svg побайтно, полные локальные variable Pixelify Sans/Manrope с OFL, закреплёнными источниками и SHA-256. Точные суммы остаются строками; табличные цифры — Manrope. Длительности и reduced motion без финансовых триггеров. /__design/tokens не входит в production bundle.",
-        "en": "One CSS token source: graphite, obsidian brand planes, violet and sand accent following user references. No outlines; visible focus through inversion. Preserve shadcn/Tailwind aliases, byte-identical logo_512px.svg, full local variable Pixelify Sans/Manrope with OFL, pinned sources and SHA-256. Exact amounts remain strings; tabular figures use Manrope. Durations/reduced motion without financial triggers. /__design/tokens stays outside the production bundle."
+        "ru": "Историческая основа task-7.10 сохранена. D-49 и issue #97 переводят текущую тему на опубликованные foundation/react 0.2.1 целиком, включая Days One, Manrope, цвета, фокус и motion. Продуктовые layout-алиасы ссылаются на общие роли, не заменяя их. Логотип, точные строки сумм, табличные цифры, reduced motion и исключение dev-каталога из production сохраняются. Текущий контракт: design.md; прежние доказательства остаются историческими.",
+        "en": "Retain the historical task-7.10 foundation. D-49 and issue #97 move the current theme entirely to published foundation/react 0.2.1, including Days One, Manrope, colors, focus and motion. Product layout aliases reference shared roles without replacing them. Preserve the logo, exact monetary strings, tabular figures, reduced motion and production exclusion of the development catalog. Current contract: design.en.md; earlier evidence remains historical."
       },
       "verification": {
         "command": "make test-web FILTER=design-tokens",
@@ -5760,8 +5760,8 @@
       "id": "task-7.11",
       "kind": "implementation",
       "title": {
-        "ru": "Создать каталог компонентов на Base UI",
-        "en": "Create the Base UI component catalog"
+        "ru": "Поддерживать каталог общих компонентов Want",
+        "en": "Maintain the shared Want component catalog"
       },
       "goal": {
         "ru": "Доступные компоненты с собственным оформлением.",
@@ -5782,14 +5782,14 @@
         "web/src/design-system/catalog/"
       ],
       "behavior": {
-        "ru": "Компоненты shadcn 4.21.0 на Base UI 1.8.0 принадлежат design-system. Округлые формы и вложенная композиция нового референса сохраняют палитру Want Keep; радиусы 12/24/32 px и pill badges, без обводок. Buttons/action tiles, поля и формы, календарь с ручным RU/EN вводом, выборы, overlays, desktop navigation, tables/pagination, feedback, legend/chat result. Денежный ввод сохраняет точные строки и черновики; дата — YYYY-MM-DD без timezone-сдвига. Каталог /__design/components, UISTATE-01–17 и синтетические композиции доступны только в dev/test. Прикладных финансовых вычислений, API и browser storage в компонентах нет.",
-        "en": "Design-system owns shadcn 4.21.0 components on Base UI 1.8.0. Rounded shapes and inset composition follow the new reference while retaining the Want Keep palette; 12/24/32 px radii and pill badges, without outlines. Buttons/action tiles, inputs/forms, calendar with manual RU/EN entry, selections, overlays, desktop navigation, tables/pagination, feedback, legend/chat result. Money input retains exact strings and drafts; dates use YYYY-MM-DD without timezone shifting. /__design/components, UISTATE-01–17 and synthetic compositions are dev/test only. Components contain no application financial calculations, APIs or browser storage."
+        "ru": "Текущие примитивы поставляет @want-foundation/desyst-react 0.2.1 на Radix. Want Keep сохраняет только продуктовые композиции и адаптацию публичных props: формы, денежные строки, черновики дат, навигацию, keyset-pagination и уведомления. Дата остаётся YYYY-MM-DD в диапазоне 0001–9999. Каталог /__design/components и UISTATE-01–17 остаются синтетическими и исключаются из production. Историческая реализация Base UI завершена ранее; миграция отслеживается отдельно в task-7.16 / #97.",
+        "en": "Current primitives come from Radix-based @want-foundation/desyst-react 0.2.1. Want Keep retains only product compositions and public-prop adaptations: forms, monetary strings, date drafts, navigation, keyset pagination and feedback. Dates remain YYYY-MM-DD within years 0001–9999. /__design/components and UISTATE-01–17 remain synthetic and excluded from production. The historical Base UI implementation was completed earlier; task-7.16 / #97 tracks migration separately."
       },
       "verification": {
         "command": "make test-web FILTER=design-components",
         "expected": {
-          "ru": "Состояния доступны клавиатурой, фокус возвращается, подписи и ошибки читаемы; стандартное оформление заменено по design.",
-          "en": "States work by keyboard, focus returns and labels/errors are legible; stock visuals are replaced according to design."
+          "ru": "Сохраняются клавиатура, подписи, ошибки и возврат фокуса; тема и взаимодействие следуют want-desyst.",
+          "en": "Keyboard access, labels, errors and focus restoration remain intact; theme and interaction follow want-desyst."
         }
       },
       "github_url": "https://github.com/pchkauu/want-keep/issues/58",
@@ -6354,6 +6354,54 @@
       "verification_note": {
         "ru": "Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.",
         "en": "Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately."
+      }
+    },
+    {
+      "id": "task-7.16",
+      "kind": "implementation",
+      "title": {
+        "ru": "Мигрировать Want Keep на want-desyst",
+        "en": "Migrate Want Keep to want-desyst"
+      },
+      "goal": {
+        "ru": "Перевести существующий desktop UI на общую дизайн-систему с сохранением финансовых и авторизационных сценариев.",
+        "en": "Move the existing desktop UI to the shared design system while preserving financial and authentication flows."
+      },
+      "depends_on": [
+        "task-7.1",
+        "task-7.10",
+        "task-7.11"
+      ],
+      "acceptance": [
+        "AC-094",
+        "AC-095",
+        "AC-096",
+        "AC-099",
+        "AC-101"
+      ],
+      "targets": [
+        "web/",
+        "spec/001-want-keep-mvp/"
+      ],
+      "behavior": {
+        "ru": "D-49: полная тёмная тема, Days One/Manrope, публичные компоненты foundation/react 0.2.1 и проектный want-design. Существующие оболочка, вход, приглашения, recovery, безопасность, семейная панель, наличные счета и dev-каталог используют одну реализацию примитивов. Сохраняются API, права, CSRF, неизвестный исход команды, точные суммы/даты, RU/EN, черновики, доступность и reduced motion. Upstream calendar fix: want-desyst #7 / PR #9. Карта компонентов и границы: design-components.md. Новые экраны, backend, БД, OpenAI, банки и production вне объёма.",
+        "en": "D-49: complete dark theme, Days One/Manrope, public foundation/react 0.2.1 components and project-local want-design. Existing shell, sign-in, invitations, recovery, security, household panel, cash accounts and development catalog use one primitive implementation. Preserve APIs, authority, CSRF, unknown command outcomes, exact money/dates, RU/EN, drafts, accessibility and reduced motion. Upstream calendar fix: want-desyst #7 / PR #9. Component map and boundaries: design-components.en.md. New screens, backend, database, OpenAI, banking and production are excluded."
+      },
+      "verification": {
+        "command": "make test-web FILTER=all",
+        "expected": {
+          "ru": "Web-проверки, build, docs-check, браузерные design/access-сценарии и целевая приёмка Chrome/Arc подтверждены отдельно.",
+          "en": "Web checks, build, docs-check, design/access browser scenarios and targeted Chrome/Arc acceptance are evidenced separately."
+        }
+      },
+      "github_url": "https://github.com/andrey-krasheninnikov/want-keep/issues/97",
+      "status": {
+        "ru": "Реализовано и проверено локально; итог review и публикации фиксируется в GitHub #97.",
+        "en": "Implemented and verified locally; review and publication outcomes are recorded in GitHub #97."
+      },
+      "verification_note": {
+        "ru": "Проверки миграции не подтверждают приёмку всех экранов, банков или production. Полный журнал результата: evidence/issue-97-want-desyst.md.",
+        "en": "Migration checks do not establish acceptance of all screens, banking or production. Result evidence: evidence/issue-97-want-desyst.en.md."
       }
     }
   ],

@@ -8,7 +8,7 @@ export function BrandSpecimen({ locale }: { locale: "ru" | "en" }) {
         <h1 id="preview-title">
           {ru ? "Токены и типографика" : "Tokens and typography"}
         </h1>
-        <p>{ru ? "Киберпанк × Ближний Восток" : "Cyberpunk × Middle East"}</p>
+        <p>{ru ? "Общая дизайн-система Want" : "Shared Want design system"}</p>
       </div>
       <div className="brand-specimen__scene">
         <svg
@@ -51,8 +51,8 @@ export function BrandSpecimen({ locale }: { locale: "ru" | "en" }) {
       </div>
       <p className="brand-specimen__caption">
         {ru
-          ? "Образцы для разработки · Графит, фиолетовый свет и архитектурная глубина. Финансовых операций здесь нет."
-          : "Development specimens · Graphite, violet light and architectural depth. No financial operations here."}
+          ? "Образцы для разработки · Общие цвета и шрифты want-desyst. Финансовых операций здесь нет."
+          : "Development specimens · Shared want-desyst colors and fonts. No financial operations here."}
       </p>
     </section>
   );

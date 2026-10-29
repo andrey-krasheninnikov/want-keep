@@ -87,12 +87,7 @@ export function FormSpecimen({
         }}
       >
         <FieldGroup>
-          <Field
-            name="entryName"
-            validate={(value) =>
-              !value ? (ru ? "Введите название" : "Enter a name") : null
-            }
-          >
+          <Field>
             <FieldLabel>{ru ? "Назначение" : "Purpose"}</FieldLabel>
             <Input
               required
@@ -121,7 +116,7 @@ export function FormSpecimen({
                 : "Up to 256 characters; original precision is retained"}
             </FieldDescription>
             {amountTooLong && (
-              <FieldError match={true}>
+              <FieldError>
                 {ru
                   ? "Сумма длиннее 256 символов. Ввод сохранён целиком."
                   : "Amount exceeds 256 characters. All input is retained."}

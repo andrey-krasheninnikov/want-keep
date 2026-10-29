@@ -6,7 +6,8 @@ project="want-keep-access-$(date +%s)-$$"
 api_pid=""
 cleanup() {
   if [ -n "$api_pid" ]; then kill "$api_pid" 2>/dev/null || true; wait "$api_pid" 2>/dev/null || true; fi
-  docker rm -f "$project" >/dev/null 2>&1 || true
+  docker rm -fv "$project" >/dev/null 2>&1 || true
+  rm -rf "$private_dir"
 }
 trap cleanup EXIT HUP INT TERM
 image='postgres:17.11@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675'

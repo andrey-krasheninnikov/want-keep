@@ -1,3 +1,4 @@
+import { Badge as SharedBadge } from "@want-foundation/desyst-react";
 import type { ComponentProps } from "react";
 import { cn } from "../class-names";
 import type { FeedbackTone } from "./feedback-tone";
@@ -8,6 +9,11 @@ export function Badge({
   ...props
 }: ComponentProps<"span"> & { tone?: FeedbackTone }) {
   return (
-    <span {...props} className={cn("wk-badge", className)} data-tone={tone} />
+    <SharedBadge
+      variant="secondary"
+      {...props}
+      className={cn("wk-badge", className)}
+      data-tone={tone}
+    />
   );
 }

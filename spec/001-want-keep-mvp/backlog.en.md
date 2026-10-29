@@ -64,7 +64,7 @@ The specification passed task-0.10 and is ready for development. The decision-co
 | [task-7.8](tasks/task-7.8.md) | Add notifications and web push | task-7.1, task-6.8, task-5.5, task-1.4, task-3.1, task-7.9 | [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) |
 | [task-7.9](tasks/task-7.9.md) | Add household context and ownership to the interface | task-7.1, task-1.6 | [#56](https://github.com/andrey-krasheninnikov/want-keep/issues/56) |
 | [task-7.10](tasks/task-7.10.md) | Create tokens, typography and brand assets | task-1.1 | [#57](https://github.com/pchkauu/want-keep/issues/57) |
-| [task-7.11](tasks/task-7.11.md) | Create the Base UI component catalog | task-7.10 | [#58](https://github.com/pchkauu/want-keep/issues/58) |
+| [task-7.11](tasks/task-7.11.md) | Maintain the shared Want component catalog | task-7.10 | [#58](https://github.com/pchkauu/want-keep/issues/58) |
 | [task-7.12](tasks/task-7.12.md) | Verify desktop UX and visual acceptance | task-7.2, task-7.3, task-7.4, task-7.5, task-7.6, task-7.7, task-7.8, task-7.9, task-7.13, task-7.14, task-7.15 | [#59](https://github.com/andrey-krasheninnikov/want-keep/issues/59) |
 | [task-7.13](tasks/task-7.13.md) | Create connection and reauthorization screens | task-7.1, task-7.9, task-3.3, task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6 | [#60](https://github.com/andrey-krasheninnikov/want-keep/issues/60) |
 | [task-7.14](tasks/task-7.14.md) | Create settings and accounting health screens | task-7.9, task-7.8, task-8.2, task-2.6 | [#61](https://github.com/andrey-krasheninnikov/want-keep/issues/61) |
@@ -74,3 +74,4 @@ The specification passed task-0.10 and is ready for development. The decision-co
 | [task-8.3](tasks/task-8.3.md) | Verify recovery from a local backup | task-8.2 | [#65](https://github.com/andrey-krasheninnikov/want-keep/issues/65) |
 | [task-9.1](tasks/task-9.1.md) | Run end-to-end acceptance of the full MVP | task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6, task-7.3, task-7.6, task-7.7, task-7.8, task-8.3, task-7.12, task-4.7 | [#66](https://github.com/andrey-krasheninnikov/want-keep/issues/66) |
 | [task-9.2](tasks/task-9.2.md) | Run final independent review and hand off the MVP | task-9.1 | [#67](https://github.com/andrey-krasheninnikov/want-keep/issues/67) |
+| [task-7.16](tasks/task-7.16.md) | Migrate Want Keep to want-desyst | task-7.1, task-7.10, task-7.11 | [#97](https://github.com/andrey-krasheninnikov/want-keep/issues/97) |

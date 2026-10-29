@@ -1,5 +1,4 @@
-import { Progress as Primitive } from "@base-ui/react/progress";
-
+import { Progress as SharedProgress } from "@want-foundation/desyst-react";
 export function Progress({
   label,
   value,
@@ -10,16 +9,14 @@ export function Progress({
   description: string;
 }) {
   return (
-    <Primitive.Root
-      value={value}
-      getAriaValueText={() => description}
-      className="wk-progress"
-    >
-      <Primitive.Label className="wk-label">{label}</Primitive.Label>
-      <Primitive.Track className="wk-progress-track">
-        <Primitive.Indicator className="wk-progress-indicator" />
-      </Primitive.Track>
+    <div className="wk-progress">
+      <span className="wk-label">{label}</span>
+      <SharedProgress
+        label={label}
+        value={value}
+        aria-valuetext={description}
+      />
       <p className="wk-description">{description}</p>
-    </Primitive.Root>
+    </div>
   );
 }

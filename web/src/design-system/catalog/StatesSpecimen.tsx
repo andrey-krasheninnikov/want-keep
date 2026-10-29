@@ -11,7 +11,6 @@ import { ChartLegend, type LegendItem } from "../components/chart-legend";
 import { ChatResult } from "../components/chat-result";
 import { stateScenarios } from "./state-scenarios";
 import type { CatalogLocale } from "./catalog-locale";
-
 export function StatesSpecimen({ locale }: { locale: CatalogLocale }) {
   const ru = locale === "ru";
   const [id, setId] = useState<string | null>("UISTATE-10");
@@ -234,12 +233,8 @@ export function StatesSpecimen({ locale }: { locale: CatalogLocale }) {
         }
         tone="success"
         actions={
-          <Button
-            variant="secondary"
-            render={<a href="#tables" />}
-            nativeButton={false}
-          >
-            {ru ? "Посмотреть запись" : "View entry"}
+          <Button variant="secondary" asChild>
+            <a href="#tables">{ru ? "Посмотреть запись" : "View entry"}</a>
           </Button>
         }
       />

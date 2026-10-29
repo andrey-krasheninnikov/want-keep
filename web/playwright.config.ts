@@ -1,3 +1,6 @@
+import { tmpdir } from "node:os";
+import { join, basename } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "@playwright/test";
 
 const access = process.env.WANT_KEEP_ACCESS_E2E === "1";
@@ -6,8 +9,13 @@ export default defineConfig({
   testDir: "./e2e",
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
-  outputDir: "./.cache/playwright-results",
+  outputDir: join(
+    tmpdir(),
+    "want-keep-browser-" +
+      basename(fileURLToPath(new URL("../", import.meta.url))),
+  ),
   use: {
+    launchOptions: { chromiumSandbox: true },
     baseURL: access
       ? process.env.WANT_KEEP_ACCESS_ORIGIN!
       : "http://127.0.0.1:4180",

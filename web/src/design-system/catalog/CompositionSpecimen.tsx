@@ -14,7 +14,6 @@ import { ListItem } from "../components/list-item";
 import { Badge } from "../components/badge";
 import { Button } from "../components/button";
 import type { CatalogLocale } from "./catalog-locale";
-
 export function CompositionSpecimen({ locale }: { locale: CatalogLocale }) {
   const ru = locale === "ru";
   return (
@@ -34,29 +33,18 @@ export function CompositionSpecimen({ locale }: { locale: CatalogLocale }) {
             <p className="catalog-balance-amount">
               125 000<span>RUB</span>
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              render={<a href="#tables" />}
-              nativeButton={false}
-            >
-              {ru ? "Из чего сумма" : "Explain this amount"}
-              <ArrowUpRightIcon aria-hidden="true" />
+            <Button variant="ghost" size="sm" asChild>
+              <a href="#tables">
+                {ru ? "Из чего сумма" : "Explain this amount"}
+                <ArrowUpRightIcon aria-hidden="true" />
+              </a>
             </Button>
           </Surface>
           <div className="catalog-quick-actions">
-            <ActionTile
-              icon={<PlusIcon />}
-              render={<a href="#forms" />}
-              nativeButton={false}
-            >
+            <ActionTile icon={<PlusIcon />} href="#forms">
               {ru ? "Добавить запись" : "Add entry"}
             </ActionTile>
-            <ActionTile
-              icon={<WalletIcon />}
-              render={<a href="#states" />}
-              nativeButton={false}
-            >
+            <ActionTile icon={<WalletIcon />} href="#states">
               {ru ? "Проверить учёт" : "Check records"}
             </ActionTile>
           </div>
@@ -64,13 +52,8 @@ export function CompositionSpecimen({ locale }: { locale: CatalogLocale }) {
         <div className="catalog-activity">
           <div className="catalog-activity-heading">
             <h3>{ru ? "История" : "History"}</h3>
-            <Button
-              variant="secondary"
-              size="sm"
-              render={<a href="#tables" />}
-              nativeButton={false}
-            >
-              {ru ? "Все записи" : "View all"}
+            <Button variant="secondary" size="sm" asChild>
+              <a href="#tables">{ru ? "Все записи" : "View all"}</a>
             </Button>
           </div>
           <Surface className="catalog-activity-row">
@@ -123,13 +106,14 @@ export function CompositionSpecimen({ locale }: { locale: CatalogLocale }) {
             <Button
               variant="ghost"
               size="icon"
-              render={<a href="#navigation" />}
-              nativeButton={false}
               aria-label={
                 ru ? "Пример семейной навигации" : "Household navigation sample"
               }
+              asChild
             >
-              <ArrowUpRightIcon aria-hidden="true" />
+              <a href="#navigation">
+                <ArrowUpRightIcon aria-hidden="true" />
+              </a>
             </Button>
           }
         />
@@ -143,11 +127,12 @@ export function CompositionSpecimen({ locale }: { locale: CatalogLocale }) {
             <Button
               variant="ghost"
               size="icon"
-              render={<a href="#states" />}
-              nativeButton={false}
               aria-label={ru ? "Примеры состояний" : "State samples"}
+              asChild
             >
-              <ArrowUpRightIcon aria-hidden="true" />
+              <a href="#states">
+                <ArrowUpRightIcon aria-hidden="true" />
+              </a>
             </Button>
           }
         />

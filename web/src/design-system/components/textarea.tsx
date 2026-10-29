@@ -1,8 +1,12 @@
+import { Textarea as SharedTextarea } from "@want-foundation/desyst-react";
 import type { ComponentProps } from "react";
-import { cn } from "../class-names";
-
-export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
+import { useFieldControl } from "./field-context";
+export function Textarea(props: ComponentProps<typeof SharedTextarea>) {
   return (
-    <textarea {...props} className={cn("wk-input wk-textarea", className)} />
+    <SharedTextarea
+      {...useFieldControl()}
+      className="wk-input wk-textarea text-foreground"
+      {...props}
+    />
   );
 }

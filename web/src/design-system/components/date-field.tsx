@@ -1,15 +1,10 @@
-import { useId, useState } from "react";
-import { CalendarIcon } from "lucide-react";
-import { CalendarDate, type DateLocale } from "./calendar-date";
-import { Calendar } from "./calendar";
-import { Button } from "./button";
-import { Input } from "./input";
 import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  PopoverTitle,
-} from "./popover";
+  DateField as SharedDateField,
+  type DateFieldLabels,
+} from "@want-foundation/desyst-react";
+import { useId, useState } from "react";
+import { CalendarDate, type DateLocale } from "./calendar-date";
+import { Input } from "./input";
 
 export type DateFieldChange = {
   draft: string;
@@ -24,7 +19,6 @@ export type DateFieldProps = {
   disabled?: boolean;
   onChange: (change: DateFieldChange) => void;
 };
-
 export function DateField({
   id,
   value,
@@ -36,12 +30,27 @@ export function DateField({
 }: DateFieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
-  const [open, setOpen] = useState(false);
   const [touched, setTouched] = useState(false);
   const text = draft ?? CalendarDate.display(value, locale);
   const parsed = CalendarDate.parse(text, locale);
   const invalid = touched && parsed === undefined;
-  const hint = locale === "ru" ? "ДД.ММ.ГГГГ" : "MM/DD/YYYY";
+  const ru = locale === "ru";
+  const hint = ru ? "ДД.ММ.ГГГГ" : "MM/DD/YYYY";
+  const labels: DateFieldLabels = {
+    date: label,
+    datetime: label,
+    calendar: label,
+    year: ru ? "Год" : "Year",
+    previousYear: ru ? "Предыдущий год" : "Previous year",
+    previousMonth: ru ? "Предыдущий месяц" : "Previous month",
+    nextYear: ru ? "Следующий год" : "Next year",
+    nextMonth: ru ? "Следующий месяц" : "Next month",
+    hours: ru ? "Часы" : "Hours",
+    minutes: ru ? "Минуты" : "Minutes",
+    today: ru ? "Сегодня" : "Today",
+    clear: ru ? "Очистить" : "Clear",
+    apply: ru ? "Применить" : "Apply",
+  };
   return (
     <div className="wk-field">
       <label className="wk-label" htmlFor={inputId}>
@@ -59,42 +68,28 @@ export function DateField({
             onChange({ draft: next, value: CalendarDate.parse(next, locale) })
           }
         />
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger
-            render={<Button variant="secondary" size="icon" />}
-            disabled={disabled}
-            aria-label={
-              locale === "ru"
-                ? `Открыть календарь: ${label}`
-                : `Open calendar: ${label}`
-            }
-          >
-            <CalendarIcon aria-hidden="true" />
-          </PopoverTrigger>
-          <PopoverContent>
-            <PopoverTitle className="wk-label">{label}</PopoverTitle>
-            <Calendar
-              locale={locale}
-              value={CalendarDate.toDate(parsed ?? null)}
-              onValueChange={(date) => {
-                const next = date ? CalendarDate.fromDate(date) : null;
-                onChange({
-                  value: next,
-                  draft: CalendarDate.display(next, locale),
-                });
-                setTouched(false);
-                setOpen(false);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
+        <SharedDateField
+          mode="date"
+          value={parsed ?? ""}
+          labels={labels}
+          locale={locale}
+          disabled={disabled}
+          ariaLabel={`${ru ? "Открыть календарь" : "Open calendar"}: ${label}`}
+          onChange={(next) => {
+            setTouched(false);
+            onChange({
+              value: next || null,
+              draft: CalendarDate.display(next || null, locale),
+            });
+          }}
+        />
       </div>
       <p
         id={`${inputId}-help`}
         className={invalid ? "wk-field-error" : "wk-description"}
       >
         {invalid
-          ? locale === "ru"
+          ? ru
             ? `Проверьте дату. Формат: ${hint}`
             : `Check the date. Format: ${hint}`
           : hint}

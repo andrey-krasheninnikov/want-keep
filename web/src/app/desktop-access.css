@@ -48,7 +48,6 @@
 .login-brand h1 {
   color: var(--accent-readable);
   font: 400 32px/1.3 var(--wk-font-brand);
-  letter-spacing: 0.1em;
   margin: 0;
 }
 .login-action {
@@ -56,8 +55,6 @@
 }
 .login-button.wk-button {
   width: 100%;
-  min-height: 60px;
-  font: 500 22px var(--wk-font-brand);
 }
 .login-help {
   margin-top: 20px;
@@ -72,10 +69,6 @@
   background: var(--secondary);
   color: var(--foreground);
 }
-.language-switch button[aria-pressed="true"]:focus-visible {
-  background: var(--wk-focus-fill);
-  color: var(--wk-focus-foreground);
-}
 .access-link {
   display: inline-flex;
   padding: 8px 4px;
@@ -87,17 +80,6 @@
 }
 .access-link:hover {
   color: var(--foreground);
-}
-.access-link:focus-visible,
-.access-wordmark:focus-visible,
-.icon-link:focus-visible,
-.sidebar-brand:focus-visible {
-  outline: none;
-  background: var(--wk-focus-fill);
-  color: var(--wk-focus-foreground);
-}
-.access-link:focus-visible * {
-  color: inherit;
 }
 .access-form {
   display: grid;
@@ -213,11 +195,6 @@
   background: var(--primary);
   color: var(--primary-foreground);
 }
-.desktop-nav-link:focus-visible {
-  background: var(--wk-focus-fill);
-  color: var(--wk-focus-foreground);
-  outline: none;
-}
 .desktop-nav-link--lower {
   margin-top: auto;
 }
@@ -330,11 +307,6 @@
   margin-top: 12px;
   font-size: 14px;
 }
-.hero-link:focus-visible {
-  background: var(--background);
-  color: var(--foreground);
-  outline: none;
-}
 .start-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
@@ -442,9 +414,6 @@
   top: -100px;
   z-index: 100;
 }
-.skip-link:focus-visible {
-  top: 12px;
-}
 .unavailable-page {
   max-width: 720px;
   margin: 48px auto;
@@ -534,4 +503,9 @@
     animation: none;
     transition: none;
   }
+}
+
+.skip-link:focus-visible {
+  top: 12px;
+  transform: none;
 }

@@ -1,23 +1,33 @@
-import { Button as Primitive } from "@base-ui/react/button";
-import type { VariantProps } from "class-variance-authority";
+import { Button as SharedButton } from "@want-foundation/desyst-react";
+import type { ComponentProps } from "react";
 import { cn } from "../class-names";
-import { buttonVariants } from "./button-variants";
 
-export type ButtonProps = Omit<Primitive.Props, "className"> &
-  VariantProps<typeof buttonVariants> & { className?: string };
-
+export type ButtonProps = Omit<
+  ComponentProps<typeof SharedButton>,
+  "variant" | "size"
+> & {
+  variant?: "primary" | "secondary" | "ghost" | "destructive" | "link";
+  size?: "sm" | "md" | "lg" | "icon";
+};
 export function Button({
-  className,
-  variant,
-  size,
+  variant = "primary",
+  size = "md",
   type = "button",
+  className,
   ...props
 }: ButtonProps) {
   return (
-    <Primitive
+    <SharedButton
       {...props}
       type={type}
-      className={cn(buttonVariants({ variant, size }), className)}
+      variant={variant === "primary" ? "default" : variant}
+      size={size === "md" ? "default" : size}
+      className={cn(
+        "wk-button",
+        `wk-button-${variant}`,
+        `wk-button-${size}`,
+        className,
+      )}
     />
   );
 }

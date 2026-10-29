@@ -1,26 +1,13 @@
+import { Table as SharedTable } from "@want-foundation/desyst-react";
 import type { ComponentProps } from "react";
-
+export { TableHead, TableCell } from "@want-foundation/desyst-react";
 export function Table({
   label,
-  children,
   ...props
-}: ComponentProps<"table"> & { label: string }) {
+}: ComponentProps<typeof SharedTable> & { label: string }) {
   return (
-    <div
-      role="region"
-      aria-label={label}
-      tabIndex={0}
-      className="wk-table-region"
-    >
-      <table className="wk-table" {...props}>
-        {children}
-      </table>
-    </div>
+    <section className="wk-table-region" aria-label={label}>
+      <SharedTable aria-label={label} className="wk-table" {...props} />
+    </section>
   );
-}
-export function TableHead(props: ComponentProps<"th">) {
-  return <th scope="col" {...props} />;
-}
-export function TableCell(props: ComponentProps<"td">) {
-  return <td {...props} />;
 }
