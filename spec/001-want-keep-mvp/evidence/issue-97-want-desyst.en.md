@@ -14,4 +14,6 @@ The owner confirmed manual scenarios in macOS Chrome and Arc: RU/English, Tab an
 
 Review found two adaptation defects: clearing an invalid date draft and restoring focus from a triggerless leave warning. An invalid draft stays distinct from empty and canonical picker values, including pasted ISO-shaped text; LeaveGuard captures and restores the previous focus. Checks cover Clear and day selection after ISO-shaped invalid input in RU/EN, Stay and Escape.
 
-Exact monetary strings, calendar dates, APIs, authority, CSRF and command-outcome recovery remain with their existing owners. Backend/database schema are unchanged. Full backend/banking suites, live bank portals, Touch ID, push delivery and production were not checked. New screens and event triggers in #62 remain separate work. SDD Ready for development does not establish operational readiness.
+The access/design-system web jobs use Ubuntu 22.04, matching the collector runner with a verified Chromium sandbox. On ubuntu-latest, startup failed with No usable sandbox. Sandboxing remains enabled; current CI outcomes are recorded on the PR.
+
+Exact monetary strings, calendar dates, APIs, authority, CSRF and command-outcome recovery remain with their existing owners. Backend/database schema are unchanged. Full backend/banking suites were not repeated locally. Live bank portals, Touch ID, push delivery and production were not checked. New screens and event triggers in #62 remain separate work. SDD Ready for development does not establish operational readiness.
