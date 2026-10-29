@@ -262,3 +262,19 @@ flowchart LR
   Q --> F[Free text and distinct answer revision]
   F --> C
 ```
+
+## Receipt pipeline (task-5.3)
+
+```mermaid
+flowchart LR
+  A[Accepted attachment and account] --> P[Safe raster pages]
+  P --> C[Frozen page context]
+  C --> B[Count and shared budget reserve]
+  B --> O[Persisted provider outcome]
+  O --> V[Versioned page validation]
+  V --> Q[Clarification or skip]
+  V --> L[One journal payment or confirmed link]
+  Q --> U[Authorized versioned answer]
+  U --> L
+  L --> R[Audit, review request and outbox]
+```
