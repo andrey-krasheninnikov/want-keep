@@ -747,3 +747,40 @@ func TestReceiptRechecksCategoriesBeforePosting(t *testing.T) {
 		})
 	}
 }
+
+func TestReceiptDatePrecisionAcrossMidnightGap(t *testing.T) {
+	for _, clock := range []string{"", "00:00:00", "01:00:00"} {
+		t.Run("time="+clock, func(t *testing.T) {
+			f := newFixture(t)
+			if _, err := f.admin.Exec(ctx, `UPDATE want_keep.households SET timezone='America/Havana' WHERE id=$1`, f.a.HouseholdID()); err != nil {
+				t.Fatal(err)
+			}
+			output := strings.Replace(extracted, `"date":"2026-08-31"`, `"date":"2026-03-08"`, 1)
+			replacement := `"time":null`
+			if clock != "" {
+				replacement = `"time":"` + clock + `"`
+			}
+			output = strings.Replace(output, `"time":"14:30:00"`, replacement, 1)
+			id := f.start(f.upload(f.a, 39), f.ta)
+			f.process(f.provider(output, 200))
+			r := f.read(id)
+			if clock == "00:00:00" {
+				if r.State != receipt.Clarification || r.TransactionID != "" {
+					t.Fatal("nonexistent explicit time accepted")
+				}
+				return
+			}
+			if r.State != receipt.Recorded {
+				t.Fatal("valid local date not recorded")
+			}
+			current, found, err := f.store.CurrentLedgerRevision(ctx, f.a, r.TransactionID)
+			precision := "second"
+			if clock == "" {
+				precision = "day"
+			}
+			if err != nil || !found || current.OccurredAt.String() != "2026-03-08T05:00:00Z" || current.OccurredPrecision != precision || current.CashDate.String() != "2026-03-08" {
+				t.Fatal("local boundary or precision lost", err)
+			}
+		})
+	}
+}

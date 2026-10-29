@@ -274,25 +274,29 @@ func (s *Service) finish(ctx context.Context, p household.Principal, r receipt.R
 	if err != nil {
 		return err
 	}
-	localClock := f.Time
 	precision := "second"
-	if localClock == "" {
-		localClock = "00:00:00"
+	var at calendar.Instant
+	if f.Time == "" {
 		precision = "day"
+		at, err = f.Date.StartIn(zone)
+	} else {
+		location, locationErr := time.LoadLocation(zone.String())
+		if locationErr != nil {
+			return locationErr
+		}
+		local, parseErr := time.ParseInLocation("2006-01-02T15:04:05", f.Date.String()+"T"+f.Time, location)
+		err = parseErr
+		if err == nil && local.Format("2006-01-02T15:04:05") != f.Date.String()+"T"+f.Time {
+			err = calendar.ErrInvalidTime
+		}
+		if err == nil {
+			at, err = calendar.ParseInstant(local.UTC().Format(time.RFC3339Nano))
+		}
 	}
-	location, err := time.LoadLocation(zone.String())
-	if err != nil {
-		return err
-	}
-	local, err := time.ParseInLocation("2006-01-02T15:04:05", f.Date.String()+"T"+localClock, location)
-	if err != nil || local.Format("2006-01-02T15:04:05") != f.Date.String()+"T"+localClock || local.After(s.now()) {
+	if err != nil || at.Time().After(s.now()) {
 		r.State = receipt.Clarification
 		r.Reason = "Confirm a valid payment date and local time."
 		return s.save(ctx, p, r, expected)
-	}
-	at, err := calendar.ParseInstant(local.UTC().Format(time.RFC3339Nano))
-	if err != nil {
-		return err
 	}
 	if answer.Purchase != nil {
 		if f.Kind != ledger.Refund || s.refunds == nil {

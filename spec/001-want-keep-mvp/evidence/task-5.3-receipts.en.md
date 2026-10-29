@@ -29,3 +29,5 @@ The shared USD 50 household cap, `gpt-5.6-terra`/`xhigh` and `production_admitte
 Additional regressions cover distinct equal refunds, another scan of a refund, corrected current totals, terminal validation failure, more than 20 candidates and a candidate change outside the visible page. The live cap journal rejects empty state, updates by atomic replacement under a separate stable lock and preserves concurrent history.
 
 Each page category is checked again against its frozen alias/revision at finalization. Renaming or archiving leaves classification empty without losing the confirmed payment; persisted extraction stays unchanged.
+
+Day-precision receipts share the opening-balance calculation of the first existing instant of a local date. A nonexistent explicitly supplied time still requires clarification.
