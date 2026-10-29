@@ -5,7 +5,7 @@
 
 Автоматически получать Funding USDT/USDC/ETH/BTC, используемый Easy Earn и P2P по D-36 без повторного финансового эффекта.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-0.4`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -13,7 +13,28 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Исследовательские контракты и общая инфраструктура импорта, collector и admission включены в базу. Они не подтверждают финансовый mapping или live-допуск конкретного провайдера.
+
+### Требуемое поведение
+
 Реализовать официальный read-only API для Funding USDT/USDC/ETH/BTC, используемого Flexible Easy Earn и P2P по D-36; финансовые create/pay/release/ads/transfer/stake/redeem запрещены allowlist. Route-specific provider IDs живут в отдельных product/log namespaces D-39. Связи Funding/Earn/P2P по amount/time — только кандидаты. Если hourly record ID отсутствует, fallback `(coin, productId, hourlyDate)` допустим только в hourly namespace; различающийся payload создаёт `source_ambiguous`, сохраняет обе evidence revisions и не проводит деньги. Сохранять 18-значные decimals, cursor даже на короткой странице, coverage, seconds/ms semantics, revisions, native P2P fiat/quantity/quote и unknown fee. Principal, yield и funding legs учитываются один раз. До provider deployment проверить RSA readOnly, lifetime/history gaps, precision reconciliation, два аккаунта, rotation/revocation и stale jobs. Collector допускается только при новом доказанном API-пробеле; Fixed/прочие продукты не требуются. Provider evidence публикуется admission service для точного D-43 binding; conformance до admission идёт в quarantine без source record/проводки, а смена binding снова закрывает sync.
+
+### Ключевые контракты
+
+Официальный read-only API Bybit, Funding/Easy Earn/P2P namespaces, точные native-суммы, cursor и admission.
+
+### Вне объёма
+
+Не добавлять изменяющие банковские или торговые действия, несогласованные продукты и обход admission. Не заменять автоматический импорт ручной выпиской или UI-сводкой.
+
+### Блокирующие зависимости
+
+- [#4](https://github.com/andrey-krasheninnikov/want-keep/issues/4) (`task-0.4`): выполнена.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): выполнена.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): выполнена.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): выполнена.
 
 ### Границы изменений
 
@@ -128,7 +149,7 @@ make test-contract PROVIDER=bybit && make test-integration AREA=bybit
 
 12 сценариев evidence/bybit.samples.json превращены в исполняемые contract fixtures с учётом BYBIT-E11–E18. Проверены replay/18-decimal/precision mismatch, два Convert движения и fee/yield один раз, нулевой yield, P2P rounding/bank linkage, missing hourly ID, cursor на короткой странице, partial/expired/forbidden, два владельца и stale jobs после отключения. Read-only live readback выбранных продуктов отделён от локальных тестов; исследовательский probe не заменяет работающий коннектор.
 
-Команды make созданы основой task-1.1; финансовые provider/integration/E2E suites ещё не реализованы. Для документации используется make docs-check. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат; наличие команды или UI-доступа не доказывает runtime.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -140,7 +161,7 @@ make test-contract PROVIDER=bybit && make test-integration AREA=bybit
 
 Automatically read Funding USDT/USDC/ETH/BTC, used Easy Earn and P2P under D-36 without duplicate financial effects.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-0.4`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -148,7 +169,28 @@ Automatically read Funding USDT/USDC/ETH/BTC, used Easy Earn and P2P under D-36 
 
 ### Change and contracts
 
+### Current behavior
+
+Research contracts and shared ingestion, collector and admission infrastructure are included in the base. They do not establish the provider-specific financial mapping or live admission.
+
+### Desired behavior
+
 Implement official read-only APIs for Funding USDT/USDC/ETH/BTC, used Flexible Easy Earn and P2P under D-36; the allowlist forbids financial create/pay/release/ads/transfer/stake/redeem operations. Route-specific provider IDs live in separate D-39 product/log namespaces. Amount/time matches across Funding/Earn/P2P are candidates only. When an hourly record ID is absent, fallback `(coin, productId, hourlyDate)` is allowed only in the hourly namespace; a different payload yields `source_ambiguous`, retains both evidence revisions and posts no money. Preserve 18-place decimals, cursors even on short pages, coverage, seconds/ms semantics, revisions, native P2P fiat/quantity/quote and unknown fees. Account for principal, yield and funding legs once. Before provider deployment verify RSA read-only access, lifetime/history gaps, precision reconciliation, two accounts, rotation/revocation and stale jobs. A collector is allowed only for a newly proven API gap; Fixed/other products are not required. Provider evidence is supplied to the admission service for the exact D-43 binding; pre-admission conformance runs in quarantine without source records/postings, and any binding change closes sync again.
+
+### Key interfaces
+
+Official Bybit read-only API, Funding/Easy Earn/P2P namespaces, exact native amounts, cursors and admission.
+
+### Out of scope
+
+Do not add bank or trading mutations, unapproved products or admission bypasses. Do not replace automated ingestion with manual statements or UI summaries.
+
+### Blocked by
+
+- [#4](https://github.com/andrey-krasheninnikov/want-keep/issues/4) (`task-0.4`): completed.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): completed.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): completed.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): completed.
 
 ### Change boundaries
 
@@ -263,7 +305,7 @@ make test-contract PROVIDER=bybit && make test-integration AREA=bybit
 
 Turn the 12 evidence/bybit.samples.json scenarios into executable contract fixtures using BYBIT-E11–E18. Check replay/18-decimal/precision mismatch, both Convert legs and fee/yield once, zero yield, P2P rounding/bank linkage, missing hourly ID, short-page cursor, partial/expired/forbidden, two owners and stale jobs after disconnect. Separate selected-product read-only live readback from local tests; the research probe is not a running connector.
 
-The task-1.1 foundation provides make commands; financial provider/integration/E2E suites are not implemented yet. Use make docs-check for documentation. Live/paid/manual checks separately record access and outcomes; an existing command or UI access is not runtime proof.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

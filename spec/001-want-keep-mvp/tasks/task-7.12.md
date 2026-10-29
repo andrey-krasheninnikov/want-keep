@@ -5,7 +5,7 @@
 
 Доказать понятность семи сценариев на ноутбуке.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-human. Приёмка требует участия пользователей и отдельных live/manual-доказательств. Начало зависит от незакрытых задач и условий ниже; SDD Ready не является блокером.
 
 **Зависимости:** `task-7.2`, `task-7.3`, `task-7.4`, `task-7.5`, `task-7.6`, `task-7.7`, `task-7.8`, `task-7.9`, `task-7.13`, `task-7.14`, `task-7.15`.
 
@@ -13,7 +13,35 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Desktop-оболочка, отдельный вход RU/EN, дизайн-система и backend семейных прав включены в базу. Их наличие не доказывает готовность всех экранов и сценариев этой карточки.
+
+### Требуемое поведение
+
 Проверить все SCR-001–SCR-035 и их состояния по screens.md, включая продуктовые варианты SCR-008. Chromium E2E дополнить реальными Chrome/Arc на macOS, RU/EN, 1280×720/1440×900 и zoom 200%, keyboard/reduced motion. Оба участника выполняют семь сценариев без подсказок разработчика. Фиксировать задания, правильные ожидаемые финансовые ответы, фактический результат, время, ошибки, браузер/OS/viewport и артефакты без личных данных. Исправления направлять владельцу UI/домена и повторять затронутые сценарии.
+
+### Ключевые контракты
+
+SCR-001–SCR-035, FORM/UISTATE, семь пользовательских заданий, автоматический Chromium E2E и отдельный ручной протокол Chrome/Arc.
+
+### Вне объёма
+
+Только desktop web на ноутбуке с macOS; мобильные экраны не добавлять. Финансовые расчёты и проверка полномочий остаются на сервере. Не расширять согласованный продуктовый объём.
+
+### Блокирующие зависимости
+
+- [#49](https://github.com/andrey-krasheninnikov/want-keep/issues/49) (`task-7.2`): открыта; блокирует выполнение.
+- [#50](https://github.com/andrey-krasheninnikov/want-keep/issues/50) (`task-7.3`): открыта; блокирует выполнение.
+- [#51](https://github.com/andrey-krasheninnikov/want-keep/issues/51) (`task-7.4`): открыта; блокирует выполнение.
+- [#52](https://github.com/andrey-krasheninnikov/want-keep/issues/52) (`task-7.5`): открыта; блокирует выполнение.
+- [#53](https://github.com/andrey-krasheninnikov/want-keep/issues/53) (`task-7.6`): открыта; блокирует выполнение.
+- [#54](https://github.com/andrey-krasheninnikov/want-keep/issues/54) (`task-7.7`): открыта; блокирует выполнение.
+- [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) (`task-7.8`): открыта; блокирует выполнение.
+- [#56](https://github.com/andrey-krasheninnikov/want-keep/issues/56) (`task-7.9`): открыта; блокирует выполнение.
+- [#60](https://github.com/andrey-krasheninnikov/want-keep/issues/60) (`task-7.13`): открыта; блокирует выполнение.
+- [#61](https://github.com/andrey-krasheninnikov/want-keep/issues/61) (`task-7.14`): открыта; блокирует выполнение.
+- [#62](https://github.com/andrey-krasheninnikov/want-keep/issues/62) (`task-7.15`): открыта; блокирует выполнение.
 
 ### Границы изменений
 
@@ -141,7 +169,7 @@ make e2e SCENARIO=desktop-ux
 
 Автоматический отчёт плюс отдельный ручной протокол Chrome/Arc и обоих пользователей; отсутствие реального браузера оставляет приёмку незавершённой.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -153,7 +181,7 @@ make e2e SCENARIO=desktop-ux
 
 Demonstrate seven understandable laptop flows.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-human. Acceptance requires user participation and separate live/manual evidence. Open prerequisites and the entry conditions below govern execution; SDD Ready is not a blocker.
 
 **Dependencies:** `task-7.2`, `task-7.3`, `task-7.4`, `task-7.5`, `task-7.6`, `task-7.7`, `task-7.8`, `task-7.9`, `task-7.13`, `task-7.14`, `task-7.15`.
 
@@ -161,7 +189,35 @@ Demonstrate seven understandable laptop flows.
 
 ### Change and contracts
 
+### Current behavior
+
+The desktop shell, separate RU/EN sign-in, design system and household-permission backend are included in the base. Their presence does not establish readiness of every screen and scenario in this task.
+
+### Desired behavior
+
 Verify all SCR-001–SCR-035 and their states from screens.en.md including SCR-008 product variants. Supplement Chromium E2E with actual Chrome/Arc on macOS, RU/EN, 1280×720/1440×900 and 200% zoom, keyboard/reduced motion. Both members complete seven flows without developer hints. Record tasks, correct expected financial answers, actual outcomes, time, mistakes, browser/OS/viewport and nonprivate artifacts. Route fixes to the UI/domain owner and repeat affected flows.
+
+### Key interfaces
+
+SCR-001–SCR-035, FORM/UISTATE, seven user tasks, automated Chromium E2E and a separate manual Chrome/Arc protocol.
+
+### Out of scope
+
+Desktop web on a macOS laptop only; do not add mobile screens. Financial calculations and authority checks remain server-side. Do not expand the agreed product scope.
+
+### Blocked by
+
+- [#49](https://github.com/andrey-krasheninnikov/want-keep/issues/49) (`task-7.2`): open; blocks execution.
+- [#50](https://github.com/andrey-krasheninnikov/want-keep/issues/50) (`task-7.3`): open; blocks execution.
+- [#51](https://github.com/andrey-krasheninnikov/want-keep/issues/51) (`task-7.4`): open; blocks execution.
+- [#52](https://github.com/andrey-krasheninnikov/want-keep/issues/52) (`task-7.5`): open; blocks execution.
+- [#53](https://github.com/andrey-krasheninnikov/want-keep/issues/53) (`task-7.6`): open; blocks execution.
+- [#54](https://github.com/andrey-krasheninnikov/want-keep/issues/54) (`task-7.7`): open; blocks execution.
+- [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) (`task-7.8`): open; blocks execution.
+- [#56](https://github.com/andrey-krasheninnikov/want-keep/issues/56) (`task-7.9`): open; blocks execution.
+- [#60](https://github.com/andrey-krasheninnikov/want-keep/issues/60) (`task-7.13`): open; blocks execution.
+- [#61](https://github.com/andrey-krasheninnikov/want-keep/issues/61) (`task-7.14`): open; blocks execution.
+- [#62](https://github.com/andrey-krasheninnikov/want-keep/issues/62) (`task-7.15`): open; blocks execution.
 
 ### Change boundaries
 
@@ -289,7 +345,7 @@ make e2e SCENARIO=desktop-ux
 
 Automation report plus separate actual Chrome/Arc and both-user protocol; unavailable real browsers leave acceptance incomplete.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

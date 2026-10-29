@@ -5,7 +5,7 @@
 
 Получать согласованный результат по криптопродуктам без двойных начислений.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-6.1`, `task-2.4`.
 
@@ -13,7 +13,26 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Точные денежные типы, журнал, исправления, распределения и валютная оценка включены в базу. Полнота внешних данных и приёмка расчётов этой задачи проверяются отдельно.
+
+### Требуемое поведение
+
 Через доменные контракты разделить gross/net realized P&L, unrealized P&L, fees, funding и rewards. Учитывать общие IDs нескольких журналов, transfers Funding/Spot/Earn/mining и капитализацию; нереализованный результат не считать наличным доходом. Не добавлять торговый терминал или управление майнингом. EMCD по D-34 не является источником торговли/майнинга и не блокирует эту задачу; его Grow обрабатывается в накоплениях. Bybit по D-36 также не является источником торговли/майнинга для текущего MVP и не блокирует эту задачу. Общие функции остаются; проверяются синтетическими доменными сценариями, а новое платформенное покрытие требует отдельного решения и контрактов. Funding и Easy Earn обслуживают task-4.4 и накопления.
+
+### Ключевые контракты
+
+Экономические компоненты журнала: realized/unrealized P&L, gross/net, fees, funding и rewards; отдельная валютная оценка.
+
+### Вне объёма
+
+Не исполнять банковские платежи, обмены или сделки. Не подменять неизвестные данные нулём и не переносить финансовые расчёты в UI; платформенное покрытие расширяется отдельным решением.
+
+### Блокирующие зависимости
+
+- [#40](https://github.com/andrey-krasheninnikov/want-keep/issues/40) (`task-6.1`): выполнена.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): выполнена.
 
 ### Границы изменений
 
@@ -68,7 +87,7 @@ make test-integration AREA=crypto-results
 
 Контрактные cases gross/net, funding, mining→wallet и капитализация дают единственный экономический эффект.
 
-Команды make созданы основой task-1.1; финансовые provider/integration/E2E suites ещё не реализованы. Для документации используется make docs-check. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат; наличие команды или UI-доступа не доказывает runtime.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -80,7 +99,7 @@ make test-integration AREA=crypto-results
 
 Produce consistent crypto-product results without double accruals.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-6.1`, `task-2.4`.
 
@@ -88,7 +107,26 @@ Produce consistent crypto-product results without double accruals.
 
 ### Change and contracts
 
+### Current behavior
+
+Exact money types, the ledger, corrections, allocations and currency valuation are included in the base. External-data coverage and acceptance of this task's calculations require separate verification.
+
+### Desired behavior
+
 Use domain contracts to separate gross/net realized P&L, unrealized P&L, fees, funding and rewards. Account for shared IDs across logs, transfers among Funding/Spot/Earn/mining and compounding; unrealized P&L is not cash income. Do not add a trading terminal or mining control. EMCD under D-34 is not a trading/mining source and does not block this task; its Grow is handled by savings. Bybit under D-36 is also not a trading/mining source for the current MVP and does not block this task. Shared functions remain and use synthetic domain scenarios; new platform coverage requires a separate decision and contracts. Funding and Easy Earn belong to task-4.4 and savings.
+
+### Key interfaces
+
+Ledger economic components: realized/unrealized P&L, gross/net, fees, funding and rewards; separate currency valuation.
+
+### Out of scope
+
+Do not execute bank payments, exchanges or trades. Do not replace unknown data with zero or move financial calculations into the UI; platform coverage requires a separate decision.
+
+### Blocked by
+
+- [#40](https://github.com/andrey-krasheninnikov/want-keep/issues/40) (`task-6.1`): completed.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): completed.
 
 ### Change boundaries
 
@@ -143,7 +181,7 @@ make test-integration AREA=crypto-results
 
 Contract cases for gross/net, funding, mining→wallet and compounding produce one economic effect.
 
-The task-1.1 foundation provides make commands; financial provider/integration/E2E suites are not implemented yet. Use make docs-check for documentation. Live/paid/manual checks separately record access and outcomes; an existing command or UI access is not runtime proof.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

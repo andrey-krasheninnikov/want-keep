@@ -5,7 +5,7 @@
 
 Запускать сервисы в согласованном бюджете с наблюдаемыми отказами.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-0.9`, `task-3.3`, `task-5.1`, `task-7.8`.
 
@@ -13,7 +13,28 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Согласованы исследовательские решения по инфраструктуре и резервированию; доступны модульные контракты хранения и фоновой обработки. Развёртывание, получение копии и измеренное восстановление требуют собственных доказательств.
+
+### Требуемое поведение
+
 По evidence task-0.9 подготовить VPS в Германии 2 vCPU/4 ГБ/50 ГБ и managed PostgreSQL 1 vCPU/2 ГБ/20 ГБ в одной private VPC без публичного DB IP. Docker Compose запускает Go API/worker, web/reverse proxy и изолированный sequential collector; PostgreSQL входит только в локальные/integration окружения. До данных: key-only non-root SSH, provider+host firewall, закрытый/защищённый Zabbix, TLS/private DB endpoint и разделённые DB roles, секреты вне Git, redacted logs, pinned images, cgroups/pids/network allowlist. Миграции выполняются до consumers. Измерить RAM/CPU/disk/collector, health/degradation, deployment/rollback и прочитать итоговую смету с налогом/IP; provisioning требует отдельной авторизации владельца. Каждый provider deployment выключен по умолчанию до успешного read allowlist/permission/structured-fixture/identity/history/reauth conformance gate. Alfa route/DNS/TLS с целевого хоста входит в этот runtime readback. Эти проверки допускают эксплуатацию, но не меняют статус Ready SDD. Host evidence для точного D-43 binding передаётся admission service; только совместный pass provider+host переводит его в `admitted`, а deploy/config/allowlist/permission mismatch атомарно возвращает `pending|blocked` до нового sync.
+
+### Ключевые контракты
+
+Deployment/health, роли БД и миграции, private VPC/TLS, resource limits и host evidence для admission.
+
+### Вне объёма
+
+Не менять production, не создавать платные ресурсы и не удалять пользовательские данные без отдельной действующей авторизации. Не считать синтетический прогон доказательством live-допуска.
+
+### Блокирующие зависимости
+
+- [#9](https://github.com/andrey-krasheninnikov/want-keep/issues/9) (`task-0.9`): выполнена.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): выполнена.
+- [#35](https://github.com/andrey-krasheninnikov/want-keep/issues/35) (`task-5.1`): выполнена.
+- [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) (`task-7.8`): открыта; блокирует выполнение.
 
 ### Границы изменений
 
@@ -134,7 +155,7 @@ make check-deploy && make test-integration AREA=health
 
 Контейнеры и ограничения проверены; отказ коннектора/AI не останавливает учёт; нет публичной БД или секретов в логах.
 
-Основа task-1.1 уже предоставляет `make check-deploy` и `make test-integration` как fail-fast интерфейсы. До реализации task-8.1 эти suites обязаны завершаться понятной ошибкой; наличие команды не доказывает deployment, hardening, managed DB или runtime health.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -146,7 +167,7 @@ make check-deploy && make test-integration AREA=health
 
 Run services within the agreed budget with observable failures.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-0.9`, `task-3.3`, `task-5.1`, `task-7.8`.
 
@@ -154,7 +175,28 @@ Run services within the agreed budget with observable failures.
 
 ### Change and contracts
 
+### Current behavior
+
+Infrastructure and backup research decisions are recorded; storage and background-processing contracts are available. Deployment, backup collection and measured recovery require their own evidence.
+
+### Desired behavior
+
 Using task-0.9 evidence, prepare a German 2 vCPU/4 GB/50 GB VPS and 1 vCPU/2 GB/20 GB managed PostgreSQL in one private VPC with no public DB IP. Docker Compose runs Go API/worker, web/reverse proxy and an isolated sequential collector; PostgreSQL remains containerized only in development/integration environments. Before data: key-only non-root SSH, provider and host firewalls, closed/protected Zabbix, TLS/private DB endpoint with separate DB roles, secrets outside Git, redacted logs, pinned images and cgroup/pid/network allowlists. Run migrations before consumers. Measure RAM/CPU/disk/collector, health/degradation and deployment/rollback, and read back the tax/IP-inclusive cost; provisioning requires separate owner authorization. Every provider deployment is disabled by default until its read allowlist, permission, structured-fixture, identity, history and reauthentication conformance gate passes. Alfa route/DNS/TLS from the target host belongs to this runtime readback. These checks authorize operation but do not change SDD Ready status. Host evidence for the exact D-43 binding is supplied to the admission service; only a combined provider+host pass sets `admitted`, while a deployment/configuration/allowlist/permission mismatch atomically returns it to `pending|blocked` before another sync.
+
+### Key interfaces
+
+Deployment/health, database roles and migrations, private VPC/TLS, resource limits and host evidence for admission.
+
+### Out of scope
+
+Do not change production, provision paid resources or delete user data without separate current authorization. A synthetic run does not establish live admission.
+
+### Blocked by
+
+- [#9](https://github.com/andrey-krasheninnikov/want-keep/issues/9) (`task-0.9`): completed.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): completed.
+- [#35](https://github.com/andrey-krasheninnikov/want-keep/issues/35) (`task-5.1`): completed.
+- [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) (`task-7.8`): open; blocks execution.
 
 ### Change boundaries
 
@@ -275,7 +317,7 @@ make check-deploy && make test-integration AREA=health
 
 Containers/limits are verified; connector/AI failure does not stop accounting; no public DB or logged secrets.
 
-The task-1.1 foundation already provides `make check-deploy` and `make test-integration` as fail-fast interfaces. Until task-8.1 implements them, these suites must fail clearly; command presence does not establish deployment, hardening, managed DB or runtime health.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

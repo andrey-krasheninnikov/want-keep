@@ -5,7 +5,7 @@
 
 Получать согласованные независимые от сервера копии при доступном Mac.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-8.1`, `task-1.5`.
 
@@ -13,7 +13,26 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Согласованы исследовательские решения по инфраструктуре и резервированию; доступны модульные контракты хранения и фоновой обработки. Развёртывание, получение копии и измеренное восстановление требуют собственных доказательств.
+
+### Требуемое поведение
+
 Реализовать через launchd инициируемый Mac hourly pull без входящего порта: restricted non-root export principal, согласованный cutoff, потоковый logical pg_dump managed PostgreSQL через VPS/private VPC, immutable attachment inventory и manifest с checksum/version/timestamps. Шифровать на стороне получателя; recovery key хранить в Mac Keychain с независимой аварийной копией. Набор завершать атомарно после проверки. Retention: 48 hourly/30 daily/8 weekly/12 monthly; cap 20 GiB, warning 15 GiB или <25 GiB свободно, последний complete set не удалять. Проверять volume encryption/capacity и показывать fresh/stale/failed, age и условный RPO; документы RU/EN.
+
+### Ключевые контракты
+
+Mac launchd pull, restricted export principal, согласованный cutoff, encrypted backup manifest/inventory и retention.
+
+### Вне объёма
+
+Не менять production, не создавать платные ресурсы и не удалять пользовательские данные без отдельной действующей авторизации. Не считать синтетический прогон доказательством live-допуска.
+
+### Блокирующие зависимости
+
+- [#63](https://github.com/andrey-krasheninnikov/want-keep/issues/63) (`task-8.1`): открыта; блокирует выполнение.
+- [#15](https://github.com/andrey-krasheninnikov/want-keep/issues/15) (`task-1.5`): выполнена.
 
 ### Границы изменений
 
@@ -85,7 +104,7 @@ make test-integration AREA=backup && make backup-check MODE=synthetic
 
 Недоступный Mac, оборванный download и повреждённый manifest не дают ложный successful backup; полноценный набор проверяется.
 
-Основа task-1.1 уже предоставляет `make test-integration` и `make backup-check` как fail-fast интерфейсы. До реализации task-8.2 эти suites обязаны завершаться понятной ошибкой; исследовательский retention/flow не доказывает созданную или восстановимую копию.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -97,7 +116,7 @@ make test-integration AREA=backup && make backup-check MODE=synthetic
 
 Obtain consistent server-independent copies while the Mac is reachable.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-8.1`, `task-1.5`.
 
@@ -105,7 +124,26 @@ Obtain consistent server-independent copies while the Mac is reachable.
 
 ### Change and contracts
 
+### Current behavior
+
+Infrastructure and backup research decisions are recorded; storage and background-processing contracts are available. Deployment, backup collection and measured recovery require their own evidence.
+
+### Desired behavior
+
 Implement a launchd-driven hourly Mac pull with no inbound Mac port: restricted non-root export principal, consistent cutoff, streaming logical pg_dump of managed PostgreSQL through VPS/private VPC, immutable attachment inventory and checksum/version/timestamp manifest. Encrypt on the recipient; keep the recovery key in Mac Keychain with an independent emergency copy. Complete a set atomically after verification. Retention: 48 hourly/30 daily/8 weekly/12 monthly; 20 GiB cap, warning at 15 GiB or <25 GiB free, never delete the last complete set. Preflight volume encryption/capacity and show fresh/stale/failed, age and conditional RPO; document RU/EN.
+
+### Key interfaces
+
+Mac launchd pull, restricted export principal, consistent cutoff, encrypted backup manifest/inventory and retention.
+
+### Out of scope
+
+Do not change production, provision paid resources or delete user data without separate current authorization. A synthetic run does not establish live admission.
+
+### Blocked by
+
+- [#63](https://github.com/andrey-krasheninnikov/want-keep/issues/63) (`task-8.1`): open; blocks execution.
+- [#15](https://github.com/andrey-krasheninnikov/want-keep/issues/15) (`task-1.5`): completed.
 
 ### Change boundaries
 
@@ -177,7 +215,7 @@ make test-integration AREA=backup && make backup-check MODE=synthetic
 
 Unreachable Mac, interrupted download and corrupt manifest never produce false success; complete sets verify.
 
-The task-1.1 foundation already provides `make test-integration` and `make backup-check` as fail-fast interfaces. Until task-8.2 implements them, these suites must fail clearly; the researched retention/flow does not establish an existing or recoverable backup.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

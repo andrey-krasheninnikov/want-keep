@@ -5,7 +5,7 @@
 
 Давать проверяемые объяснения расходов, доходов и выполнения плана.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-5.1`, `task-6.8`.
 
@@ -13,7 +13,26 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Приватные вложения, журнал операций, проверка версий и gateway с контролем расходов включены в базу. Обработка чеков, общий чат и продуктовые инсайты имеют отдельные критерии приёмки.
+
+### Требуемое поведение
+
 Передавать AI рассчитанные доменом срезы, coverage и ссылки на операции; суммы/выводы валидировать против этих данных. Генерировать дневные/месячные сводки и ответы по запросу, помечать прогнозы и неполноту. Предложение нового бюджета остаётся proposal до решения владельца. Перегенерация учитывает версии данных и бюджет API, не запускается на каждый render. Применить лимиты/модель из evidence/openai.md; объяснения проверять на противоречия источникам, forecast/partial и релевантность следующего действия. Числовой score eval не доказывает качество объяснения; добавить ручной протокол проверки. Исследование task-0.8 завершено: использовать gpt-5.6-terra xhigh и финальную strict-схему из evidence/openai.prompts.json; Luna/Sol/MiniMax/DeepSeek автоматически не подключать. Финальный xhigh eval 206/206 не заменяет runtime/locale проверки. reasoning.effort=xhigh; никаких автоматических downgrade при лимите $50. Статус записи формирует приложение, не объяснение модели.
+
+### Ключевые контракты
+
+Доменные срезы отчётов и прогнозов с coverage, ссылки на операции, budget-controlled gateway и предложения плана без автоматического утверждения.
+
+### Вне объёма
+
+Не менять согласованную модель и лимит расходов, не предоставлять модели секреты или платёжные инструменты. Пользовательские экраны и соседние сценарии реализуются своими задачами.
+
+### Блокирующие зависимости
+
+- [#35](https://github.com/andrey-krasheninnikov/want-keep/issues/35) (`task-5.1`): выполнена.
+- [#47](https://github.com/andrey-krasheninnikov/want-keep/issues/47) (`task-6.8`): открыта; блокирует выполнение.
 
 ### Границы изменений
 
@@ -125,7 +144,7 @@ make eval-ai SUITE=insights && make test-integration AREA=insights
 
 Числа и ссылки воспроизводимы; недоказанные выводы не представлены как факт, plan changes требуют решения.
 
-Основа task-1.1 уже предоставляет make. make docs-check проверяет документацию и исследовательский инструмент; production AI integration/E2E suites ещё не реализованы. Модельный eval и приёмка приложения фиксируются раздельно.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -137,7 +156,7 @@ make eval-ai SUITE=insights && make test-integration AREA=insights
 
 Provide verifiable explanations of spending, income and plan progress.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-5.1`, `task-6.8`.
 
@@ -145,7 +164,26 @@ Provide verifiable explanations of spending, income and plan progress.
 
 ### Change and contracts
 
+### Current behavior
+
+Private attachments, the transaction ledger, revision checks and the budget-controlled gateway are included in the base. Receipt processing, shared chat and product insights have separate acceptance criteria.
+
+### Desired behavior
+
 Provide AI with domain-calculated aggregates, coverage and transaction references; validate figures/claims against those inputs. Generate daily/monthly and on-demand explanations with forecast/incompleteness markers. A suggested budget stays a proposal until the owner decides. Regeneration uses data revisions and API budget, not each render. Apply model/limits from evidence/openai.en.md; check explanations for source contradictions, forecast/partial labeling and useful next actions. Numeric evaluation scores do not establish explanation quality; include a manual review protocol. task-0.8 research is complete: use gpt-5.6-terra xhigh and the final strict schema in evidence/openai.prompts.json; do not automatically enable Luna/Sol/MiniMax/DeepSeek. The final xhigh evaluation 206/206 does not replace runtime/locale checks. reasoning.effort=xhigh; no automatic downgrade at the USD 50 cap. The application supplies persistence status, not the model explanation.
+
+### Key interfaces
+
+Domain report and forecast slices with coverage, transaction references, budget-controlled gateway and plan proposals without automatic approval.
+
+### Out of scope
+
+Do not change the agreed model or spending cap, or expose secrets or payment tools to the model. Product screens and adjacent workflows remain with their owning tasks.
+
+### Blocked by
+
+- [#35](https://github.com/andrey-krasheninnikov/want-keep/issues/35) (`task-5.1`): completed.
+- [#47](https://github.com/andrey-krasheninnikov/want-keep/issues/47) (`task-6.8`): open; blocks execution.
 
 ### Change boundaries
 
@@ -257,7 +295,7 @@ make eval-ai SUITE=insights && make test-integration AREA=insights
 
 Figures and references reproduce; unsupported conclusions are not facts and plan changes require an owner decision.
 
-The task-1.1 foundation already provides make. make docs-check validates documentation and research tooling; production AI integration/E2E suites are not implemented. Model evaluation and application acceptance are recorded separately.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

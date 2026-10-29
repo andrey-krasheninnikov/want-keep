@@ -5,7 +5,7 @@
 
 Показывать прогресс и доступные деньги без повторных резервов.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-6.6`, `task-2.1`.
 
@@ -13,7 +13,26 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Точные денежные типы, журнал, исправления, распределения и валютная оценка включены в базу. Полнота внешних данных и приёмка расчётов этой задачи проверяются отдельно.
+
+### Требуемое поведение
+
 Реализовать goal amount/currency/deadline, virtual allocation и dedicated-account modes. Сохранять связь reserve→funding account; исключить cross-currency funding без реального обмена и allocation выше свободной суммы. Переключение способа атомарно переносит резерв, а не дублирует его. Изменение утверждённой цели AI требует решения владельца. Личные цели изменяет владелец, совместные — любой; общей цели не создавать персональные половины. Резерв явный, проверка семейной доступности и запись атомарны при параллельных запросах.
+
+### Ключевые контракты
+
+Goal/reservation, funding account и подтверждённая доступность; virtual/dedicated режимы, версии и права владельца.
+
+### Вне объёма
+
+Не исполнять банковские платежи, обмены или сделки. Не подменять неизвестные данные нулём и не переносить финансовые расчёты в UI; платформенное покрытие расширяется отдельным решением.
+
+### Блокирующие зависимости
+
+- [#45](https://github.com/andrey-krasheninnikov/want-keep/issues/45) (`task-6.6`): открыта; блокирует выполнение.
+- [#17](https://github.com/andrey-krasheninnikov/want-keep/issues/17) (`task-2.1`): выполнена.
 
 ### Границы изменений
 
@@ -115,7 +134,7 @@ make test-go PKG=./internal/goals/... && make test-integration AREA=goals
 
 Конкурентные резервы, смена режима, отказ/отмена и перевод на накопительный счёт не дублируют прогресс или удержание.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -127,7 +146,7 @@ make test-go PKG=./internal/goals/... && make test-integration AREA=goals
 
 Show progress and spendable money without repeated reservations.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-6.6`, `task-2.1`.
 
@@ -135,7 +154,26 @@ Show progress and spendable money without repeated reservations.
 
 ### Change and contracts
 
+### Current behavior
+
+Exact money types, the ledger, corrections, allocations and currency valuation are included in the base. External-data coverage and acceptance of this task's calculations require separate verification.
+
+### Desired behavior
+
 Implement goal amount/currency/deadline, virtual allocation and dedicated-account modes. Retain reserve→funding-account links; reject cross-currency funding without an actual exchange and allocations above free funds. Switching modes atomically moves, rather than duplicates, reservation. AI changes to approved goals require owner decisions. Personal goals are owner-editable, joint goals editable by either member; do not create personal halves of joint goals. Reservations are explicit and household availability checks and writes are atomic under concurrency.
+
+### Key interfaces
+
+Goal/reservation, funding account and confirmed availability; virtual/dedicated modes, revisions and owner permissions.
+
+### Out of scope
+
+Do not execute bank payments, exchanges or trades. Do not replace unknown data with zero or move financial calculations into the UI; platform coverage requires a separate decision.
+
+### Blocked by
+
+- [#45](https://github.com/andrey-krasheninnikov/want-keep/issues/45) (`task-6.6`): open; blocks execution.
+- [#17](https://github.com/andrey-krasheninnikov/want-keep/issues/17) (`task-2.1`): completed.
 
 ### Change boundaries
 
@@ -237,7 +275,7 @@ make test-go PKG=./internal/goals/... && make test-integration AREA=goals
 
 Concurrent reservations, mode switches, cancellation and transfers to savings do not duplicate progress or withholding.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

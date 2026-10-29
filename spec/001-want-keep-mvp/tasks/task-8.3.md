@@ -5,7 +5,7 @@
 
 Доказать восстановление согласованного учёта и файлов до четырёх часов.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-8.2`.
 
@@ -13,7 +13,25 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Согласованы исследовательские решения по инфраструктуре и резервированию; доступны модульные контракты хранения и фоновой обработки. Развёртывание, получение копии и измеренное восстановление требуют собственных доказательств.
+
+### Требуемое поведение
+
 В изолированном окружении создать чистый managed PostgreSQL совместимой major-версии и восстановить только выбранный полный Mac-набор. Проверить manifest/checksums, версии схемы, необходимые keys и attachments; сравнить ledger balances, audit и незавершённые jobs. Не восстанавливать старые browser/auth sessions как активные без безопасной реавторизации; не повторять платные AI-запросы с неизвестной оплатой. Измерить RTO ≤4 часов на целевом профиле и сформировать RU/EN runbook с действиями при недоступном provider restore.
+
+### Ключевые контракты
+
+Полный backup set, manifest/schema/key versions, восстановление БД и файлов, сверка ledger/audit/jobs и измеренный RTO.
+
+### Вне объёма
+
+Не менять production, не создавать платные ресурсы и не удалять пользовательские данные без отдельной действующей авторизации. Не считать синтетический прогон доказательством live-допуска.
+
+### Блокирующие зависимости
+
+- [#64](https://github.com/andrey-krasheninnikov/want-keep/issues/64) (`task-8.2`): открыта; блокирует выполнение.
 
 ### Границы изменений
 
@@ -116,7 +134,7 @@ make restore-check MODE=synthetic
 
 Восстановление укладывается в четыре часа на целевом профиле, данные/файлы согласованы; реальный доступ владельца проверяется отдельно.
 
-Основа task-1.1 уже предоставляет `make restore-check` как fail-fast интерфейс. До реализации task-8.3 suite обязана завершаться понятной ошибкой; RTO ≤4 часов подтверждается только измеренным восстановлением полного набора в чистую среду.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -128,7 +146,7 @@ make restore-check MODE=synthetic
 
 Demonstrate consistent accounting/file recovery within four hours.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-8.2`.
 
@@ -136,7 +154,25 @@ Demonstrate consistent accounting/file recovery within four hours.
 
 ### Change and contracts
 
+### Current behavior
+
+Infrastructure and backup research decisions are recorded; storage and background-processing contracts are available. Deployment, backup collection and measured recovery require their own evidence.
+
+### Desired behavior
+
 In an isolated environment create a clean managed PostgreSQL instance on a compatible major and restore only a selected complete Mac set. Verify manifest/checksums, schema versions, required keys and attachments; compare ledger balances, audit and pending jobs. Do not revive old browser/auth sessions without safe reauthorization or replay AI calls with unknown charges. Measure RTO ≤4 hours on the target profile and write an RU/EN runbook including provider-restore unavailability.
+
+### Key interfaces
+
+Complete backup set, manifest/schema/key versions, database and file restore, ledger/audit/jobs reconciliation and measured RTO.
+
+### Out of scope
+
+Do not change production, provision paid resources or delete user data without separate current authorization. A synthetic run does not establish live admission.
+
+### Blocked by
+
+- [#64](https://github.com/andrey-krasheninnikov/want-keep/issues/64) (`task-8.2`): open; blocks execution.
 
 ### Change boundaries
 
@@ -239,7 +275,7 @@ make restore-check MODE=synthetic
 
 Recovery completes within four hours on the target profile with consistent data/files; real owner access is checked separately.
 
-The task-1.1 foundation already provides `make restore-check` as a fail-fast interface. Until task-8.3 implements it, the suite must fail clearly; RTO ≤4 hours is established only by a measured restore of a complete set into a clean environment.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

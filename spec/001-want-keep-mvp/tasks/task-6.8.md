@@ -5,7 +5,7 @@
 
 Дать объяснимую доступную и прогнозную сумму по каждой валюте.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-6.6`, `task-6.7`, `task-6.3`, `task-2.5`.
 
@@ -13,7 +13,28 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Точные денежные типы, журнал, исправления, распределения и валютная оценка включены в базу. Полнота внешних данных и приёмка расчётов этой задачи проверяются отдельно.
+
+### Требуемое поведение
+
 Применить формулы и day-by-day forecast из contracts.md: native spendable owned funds, обязательства/минимальные платежи, unique goals reserve, flexible remaining plan и даты доходов. Не включать чужую валюту, кредитный лимит, lock и неполученный доход в available. Категорийные лимиты делят общий предел; no-AI/uncategorized и incomplete sources явно влияют на покрытие. Рассчитывать K один раз для семьи в валюте; распределять его по положительным остаткам ячеек участник×категория. Персональные и категорийные итоги — маргинальные суммы одной матрицы, не независимое размножение K; общий доход и цели не удваиваются.
+
+### Ключевые контракты
+
+Семейный денежный пул по активам, обязательства, goal reserves, dated income и единая матрица участник×категория для дневных лимитов.
+
+### Вне объёма
+
+Не исполнять банковские платежи, обмены или сделки. Не подменять неизвестные данные нулём и не переносить финансовые расчёты в UI; платформенное покрытие расширяется отдельным решением.
+
+### Блокирующие зависимости
+
+- [#45](https://github.com/andrey-krasheninnikov/want-keep/issues/45) (`task-6.6`): открыта; блокирует выполнение.
+- [#46](https://github.com/andrey-krasheninnikov/want-keep/issues/46) (`task-6.7`): открыта; блокирует выполнение.
+- [#42](https://github.com/andrey-krasheninnikov/want-keep/issues/42) (`task-6.3`): открыта; блокирует выполнение.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): выполнена.
 
 ### Границы изменений
 
@@ -141,7 +162,7 @@ make test-go PKG=./internal/forecast/...
 
 Дефицит до зарплаты, несколько валют, дата оплаты, goal reserve и последняя дата месяца дают объяснимые воспроизводимые лимиты.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -153,7 +174,7 @@ make test-go PKG=./internal/forecast/...
 
 Provide explainable available/forecast allowance for each currency.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-6.6`, `task-6.7`, `task-6.3`, `task-2.5`.
 
@@ -161,7 +182,28 @@ Provide explainable available/forecast allowance for each currency.
 
 ### Change and contracts
 
+### Current behavior
+
+Exact money types, the ledger, corrections, allocations and currency valuation are included in the base. External-data coverage and acceptance of this task's calculations require separate verification.
+
+### Desired behavior
+
 Apply contracts.md formulas/day-by-day forecast using native spendable owned funds, obligations/minimum payments, unique goal reservation, flexible remaining plan and income dates. Available excludes other currencies, credit limits, locks and unreceived income. Category limits share the overall cap; no-AI/uncategorized and incomplete sources affect coverage explicitly. Compute K once per household and currency; allocate it across positive member×category cell remainders. Individual and category totals are margins of one matrix, never independent duplication of K; pooled income and goals are not doubled.
+
+### Key interfaces
+
+Household funds by asset, obligations, goal reserves, dated income and a single member-by-category matrix for daily allowances.
+
+### Out of scope
+
+Do not execute bank payments, exchanges or trades. Do not replace unknown data with zero or move financial calculations into the UI; platform coverage requires a separate decision.
+
+### Blocked by
+
+- [#45](https://github.com/andrey-krasheninnikov/want-keep/issues/45) (`task-6.6`): open; blocks execution.
+- [#46](https://github.com/andrey-krasheninnikov/want-keep/issues/46) (`task-6.7`): open; blocks execution.
+- [#42](https://github.com/andrey-krasheninnikov/want-keep/issues/42) (`task-6.3`): open; blocks execution.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): completed.
 
 ### Change boundaries
 
@@ -289,7 +331,7 @@ make test-go PKG=./internal/forecast/...
 
 Pre-salary shortfall, multiple currencies, payment dates, goal reservations and month end yield explainable reproducible limits.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

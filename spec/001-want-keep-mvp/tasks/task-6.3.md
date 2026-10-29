@@ -5,7 +5,7 @@
 
 Показывать доход накопительных продуктов на проверенных условиях.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.6`, `task-6.1`.
 
@@ -13,7 +13,30 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Точные денежные типы, журнал, исправления, распределения и валютная оценка включены в базу. Полнота внешних данных и приёмка расчётов этой задачи проверяются отдельно.
+
+### Требуемое поведение
+
 Сохранить тип продукта, дату действия ставки, basis/day-count, payout/compounding, срок/lock, пополнения и выводы из подтверждённого контракта. Рассчитывать прогноз с воспроизводимыми предпосылками и отдельно фактические начисления; future income не зачислять в ledger. Ограниченные/неизвестные условия показывать как таковые.
+
+### Ключевые контракты
+
+Условия продукта и dated cash flows, rate/basis/day-count, payout/compounding; отдельные actual и forecast с предпосылками.
+
+### Вне объёма
+
+Не исполнять банковские платежи, обмены или сделки. Не подменять неизвестные данные нулём и не переносить финансовые расчёты в UI; платформенное покрытие расширяется отдельным решением.
+
+### Блокирующие зависимости
+
+- [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) (`task-4.1`): выполнена.
+- [#30](https://github.com/andrey-krasheninnikov/want-keep/issues/30) (`task-4.2`): выполнена.
+- [#31](https://github.com/andrey-krasheninnikov/want-keep/issues/31) (`task-4.3`): открыта; блокирует выполнение.
+- [#32](https://github.com/andrey-krasheninnikov/want-keep/issues/32) (`task-4.4`): открыта; блокирует выполнение.
+- [#34](https://github.com/andrey-krasheninnikov/want-keep/issues/34) (`task-4.6`): открыта; блокирует выполнение.
+- [#40](https://github.com/andrey-krasheninnikov/want-keep/issues/40) (`task-6.1`): выполнена.
 
 ### Границы изменений
 
@@ -85,7 +108,7 @@ make test-go PKG=./internal/savings/... && make test-contract PROVIDER=savings
 
 Смена ставки, капитализация, досрочный вывод, неполные условия и границы периода имеют ожидаемый факт/прогноз.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -97,7 +120,7 @@ make test-go PKG=./internal/savings/... && make test-contract PROVIDER=savings
 
 Show savings-product income under verified terms.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.6`, `task-6.1`.
 
@@ -105,7 +128,30 @@ Show savings-product income under verified terms.
 
 ### Change and contracts
 
+### Current behavior
+
+Exact money types, the ledger, corrections, allocations and currency valuation are included in the base. External-data coverage and acceptance of this task's calculations require separate verification.
+
+### Desired behavior
+
 Retain product type, effective rate date, basis/day-count, payout/compounding, term/lock, top-ups and withdrawals from verified contracts. Calculate forecasts with reproducible assumptions separately from actual accruals; never post future income to the ledger. Expose constrained/unknown terms explicitly.
+
+### Key interfaces
+
+Product terms and dated cash flows, rate/basis/day-count, payout/compounding; separate actual and forecast values with assumptions.
+
+### Out of scope
+
+Do not execute bank payments, exchanges or trades. Do not replace unknown data with zero or move financial calculations into the UI; platform coverage requires a separate decision.
+
+### Blocked by
+
+- [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) (`task-4.1`): completed.
+- [#30](https://github.com/andrey-krasheninnikov/want-keep/issues/30) (`task-4.2`): completed.
+- [#31](https://github.com/andrey-krasheninnikov/want-keep/issues/31) (`task-4.3`): open; blocks execution.
+- [#32](https://github.com/andrey-krasheninnikov/want-keep/issues/32) (`task-4.4`): open; blocks execution.
+- [#34](https://github.com/andrey-krasheninnikov/want-keep/issues/34) (`task-4.6`): open; blocks execution.
+- [#40](https://github.com/andrey-krasheninnikov/want-keep/issues/40) (`task-6.1`): completed.
 
 ### Change boundaries
 
@@ -177,7 +223,7 @@ make test-go PKG=./internal/savings/... && make test-contract PROVIDER=savings
 
 Rate changes, compounding, early withdrawal, incomplete terms and period boundaries yield expected actuals/forecasts.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

@@ -5,13 +5,19 @@
 
 Подтвердить финансовый mapping, историю, кэшбэк и deployment binding Alfa.
 
-**Состояние:** Открыта #94: требуется квалификация источника и второй live-аккаунт. Блокирует production admission Alfa.
+**Состояние:** Открыта; needs-info. Для финансового mapping и live-допуска нужны подтверждённые данные источника, второй аккаунт и разрешённая проверка точного deployment binding. Read-коннектор #29 завершён; production admission остаётся закрытым.
 
 **Зависимости:** `task-4.1`.
 
 **Тип:** `implementation`.
 
 ### Изменение и контракты
+
+### Текущее поведение
+
+Read-коннектор #29 включён в базу: счета, карточные алиасы, unknown source records и зашифрованные evidence. Денежные проводки и подтверждённые банковские остатки не формируются; второй live-аккаунт ещё требуется.
+
+### Требуемое поведение
 
 Завершить финансовую нормализацию и live-приёмку Alfa после реализации read-коннектора в #29. По решению владельца эти проверки выделены в отдельную задачу и не останавливают реализацию транспорта. Production admission остаётся закрытым.
 
@@ -34,6 +40,18 @@
 До завершения этой задачи текущий read-коннектор сохраняет счета и алиасы, source records со статусом unknown и зашифрованные evidence. Банковские операции не создают денежного эффекта, баланс не объявляется подтверждённым и production admission не включается.
 
 Связи: task-4.7; зависит от task-4.1 / #29. REQ-039/041/042/048/065/073/076/088; AC-041/042/048/079/087/090/106. Общая приёмка task-9.1 зависит от завершения этой задачи.
+
+### Ключевые контракты
+
+Существующий Alfa read-коннектор, финансовая нормализация, source snapshots и lifecycle, provider/host evidence для D-43 binding.
+
+### Вне объёма
+
+Накопительные счета, вклады и кредитные продукты Alfa исключены по D-47. Не включать production admission и не проводить неподтверждённые денежные факты до закрытия live-gates.
+
+### Блокирующие зависимости
+
+- [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) (`task-4.1`): выполнена.
 
 ### Границы изменений
 
@@ -152,7 +170,7 @@ make test-contract PROVIDER=alfa && make test-integration AREA=alfa
 
 Вопросы #94 закрыты раздельными synthetic/live доказательствами; два аккаунта изолированы, денежные эффекты подтверждены, D-43 binding проверен.
 
-Требуется разрешённое живое чтение; второй аккаунт будет доступен позже.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно. Требуется разрешённое живое чтение; второй аккаунт пока недоступен.
 
 ### Передача следующему агенту
 
@@ -164,13 +182,19 @@ make test-contract PROVIDER=alfa && make test-integration AREA=alfa
 
 Verify Alfa financial mapping, history, cashback and deployment binding.
 
-**Status:** Open #94: source qualification and a second live account required. Blocks Alfa production admission.
+**Status:** Open; needs-info. Financial mapping and live admission require verified source data, a second account and an authorized check of the exact deployment binding. Read connector #29 is complete; production admission remains disabled.
 
 **Dependencies:** `task-4.1`.
 
 **Kind:** `implementation`.
 
 ### Change and contracts
+
+### Current behavior
+
+The read connector from #29 is included in the base: accounts, card aliases, unknown source records and encrypted evidence. It creates no monetary postings or confirmed bank balances; a second live account is still required.
+
+### Desired behavior
 
 Complete Alfa financial normalization and live acceptance after the read connector in #29. The owner moved these checks into a separate task so transport implementation can proceed. Production admission remains disabled.
 
@@ -193,6 +217,18 @@ Retain sanitized RU/EN evidence and synthetic fixtures. Update normalization, co
 Until this task is complete, the read connector retains accounts and aliases, unknown source records and encrypted evidence. Bank transactions have no monetary effect, balances remain unconfirmed and production admission stays disabled.
 
 Links: task-4.7; depends on task-4.1 / #29. REQ-039/041/042/048/065/073/076/088; AC-041/042/048/079/087/090/106. Full task-9.1 acceptance depends on this task.
+
+### Key interfaces
+
+Existing Alfa read connector, financial normalization, source snapshots and lifecycle, provider/host evidence for the D-43 binding.
+
+### Out of scope
+
+Alfa savings accounts, deposits and credit products are excluded under D-47. Do not enable production admission or post unqualified monetary facts before the live gates pass.
+
+### Blocked by
+
+- [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) (`task-4.1`): completed.
 
 ### Change boundaries
 
@@ -311,7 +347,7 @@ make test-contract PROVIDER=alfa && make test-integration AREA=alfa
 
 Separate synthetic/live evidence resolves #94; two accounts are isolated, monetary effects confirmed and the D-43 binding verified.
 
-Authorized live reads required; the second account will be available later.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately. Authorized live reading is required; the second account is not yet available.
 
 ### Handoff to the next agent
 

@@ -36,41 +36,41 @@
 | [task-3.3](tasks/task-3.3.md) | Создать изолированный браузерный сборщик | task-3.2, task-1.5 | [#28](https://github.com/pchkauu/want-keep/issues/28) |
 | [task-4.1](tasks/task-4.1.md) | Реализовать коннектор Альфа-Банк | task-0.1, task-3.3, task-2.4, task-2.5 | [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) |
 | [task-4.2](tasks/task-4.2.md) | Реализовать коннектор Райффайзенбанк РФ | task-0.2, task-3.3, task-2.4, task-2.5 | [#30](https://github.com/pchkauu/want-keep/issues/30) |
-| [task-4.3](tasks/task-4.3.md) | Реализовать коннектор Ozon Банк | task-0.3, task-3.3, task-2.4, task-2.5 | [#31](https://github.com/pchkauu/want-keep/issues/31) |
-| [task-4.4](tasks/task-4.4.md) | Реализовать коннектор Bybit | task-0.4, task-3.3, task-2.4, task-2.5 | [#32](https://github.com/pchkauu/want-keep/issues/32) |
-| [task-4.5](tasks/task-4.5.md) | Реализовать коннектор Aifory Pro | task-0.5, task-3.3, task-2.4, task-2.5 | [#33](https://github.com/pchkauu/want-keep/issues/33) |
-| [task-4.6](tasks/task-4.6.md) | Реализовать коннектор EMCD | task-0.6, task-3.3, task-2.4, task-2.5 | [#34](https://github.com/pchkauu/want-keep/issues/34) |
+| [task-4.3](tasks/task-4.3.md) | Реализовать коннектор Ozon Банк | task-0.3, task-3.3, task-2.4, task-2.5 | [#31](https://github.com/andrey-krasheninnikov/want-keep/issues/31) |
+| [task-4.4](tasks/task-4.4.md) | Реализовать коннектор Bybit | task-0.4, task-3.3, task-2.4, task-2.5 | [#32](https://github.com/andrey-krasheninnikov/want-keep/issues/32) |
+| [task-4.5](tasks/task-4.5.md) | Реализовать коннектор Aifory Pro | task-0.5, task-3.3, task-2.4, task-2.5 | [#33](https://github.com/andrey-krasheninnikov/want-keep/issues/33) |
+| [task-4.6](tasks/task-4.6.md) | Реализовать коннектор EMCD | task-0.6, task-3.3, task-2.4, task-2.5 | [#34](https://github.com/andrey-krasheninnikov/want-keep/issues/34) |
 | [task-4.7](tasks/task-4.7.md) | Подтвердить финансовый mapping и live-допуск Alfa | task-4.1 | [#94](https://github.com/andrey-krasheninnikov/want-keep/issues/94) |
 | [task-5.1](tasks/task-5.1.md) | Создать OpenAI gateway и контроль расходов | task-0.8, task-3.1, task-1.5 | [#35](https://github.com/pchkauu/want-keep/issues/35) |
 | [task-5.2](tasks/task-5.2.md) | Проверять каждую операцию через AI-команды | task-5.1, task-2.4, task-2.6, task-2.8, task-2.9 | [#36](https://github.com/andrey-krasheninnikov/want-keep/issues/36) |
-| [task-5.3](tasks/task-5.3.md) | Обрабатывать чеки и позиции | task-5.2, task-1.5, task-2.7 | [#37](https://github.com/pchkauu/want-keep/issues/37) |
-| [task-5.4](tasks/task-5.4.md) | Реализовать чат и очередь уточнений | task-5.3, task-5.2 | [#38](https://github.com/pchkauu/want-keep/issues/38) |
-| [task-5.5](tasks/task-5.5.md) | Формировать обоснованные AI-инсайты | task-5.1, task-6.8 | [#39](https://github.com/pchkauu/want-keep/issues/39) |
+| [task-5.3](tasks/task-5.3.md) | Обрабатывать чеки и позиции | task-5.2, task-1.5, task-2.7 | [#37](https://github.com/andrey-krasheninnikov/want-keep/issues/37) |
+| [task-5.4](tasks/task-5.4.md) | Реализовать чат и очередь уточнений | task-5.3, task-5.2 | [#38](https://github.com/andrey-krasheninnikov/want-keep/issues/38) |
+| [task-5.5](tasks/task-5.5.md) | Формировать обоснованные AI-инсайты | task-5.1, task-6.8 | [#39](https://github.com/andrey-krasheninnikov/want-keep/issues/39) |
 | [task-6.1](tasks/task-6.1.md) | Реализовать курсы и валютную оценку | task-0.7, task-2.2, task-3.2 | [#40](https://github.com/pchkauu/want-keep/issues/40) |
-| [task-6.2](tasks/task-6.2.md) | Учитывать кредитки и грейс-период | task-4.1, task-4.2, task-4.3, task-2.2 | [#41](https://github.com/pchkauu/want-keep/issues/41) |
-| [task-6.3](tasks/task-6.3.md) | Считать начисления и прогноз накоплений | task-4.1, task-4.2, task-4.3, task-4.4, task-4.6, task-6.1 | [#42](https://github.com/pchkauu/want-keep/issues/42) |
-| [task-6.4](tasks/task-6.4.md) | Сравнивать доходность денежных потоков | task-6.3 | [#43](https://github.com/pchkauu/want-keep/issues/43) |
-| [task-6.5](tasks/task-6.5.md) | Сводить торговый результат и майнинг | task-6.1, task-2.4 | [#44](https://github.com/pchkauu/want-keep/issues/44) |
-| [task-6.6](tasks/task-6.6.md) | Планировать месячный бюджет и доходы | task-2.7, task-2.6, task-6.1, task-6.2, task-2.8 | [#45](https://github.com/pchkauu/want-keep/issues/45) |
-| [task-6.7](tasks/task-6.7.md) | Резервировать деньги на цели | task-6.6, task-2.1 | [#46](https://github.com/pchkauu/want-keep/issues/46) |
-| [task-6.8](tasks/task-6.8.md) | Считать дневные лимиты и прогноз ликвидности | task-6.6, task-6.7, task-6.3, task-2.5 | [#47](https://github.com/pchkauu/want-keep/issues/47) |
+| [task-6.2](tasks/task-6.2.md) | Учитывать кредитки и грейс-период | task-4.1, task-4.2, task-4.3, task-2.2 | [#41](https://github.com/andrey-krasheninnikov/want-keep/issues/41) |
+| [task-6.3](tasks/task-6.3.md) | Считать начисления и прогноз накоплений | task-4.1, task-4.2, task-4.3, task-4.4, task-4.6, task-6.1 | [#42](https://github.com/andrey-krasheninnikov/want-keep/issues/42) |
+| [task-6.4](tasks/task-6.4.md) | Сравнивать доходность денежных потоков | task-6.3 | [#43](https://github.com/andrey-krasheninnikov/want-keep/issues/43) |
+| [task-6.5](tasks/task-6.5.md) | Сводить торговый результат и майнинг | task-6.1, task-2.4 | [#44](https://github.com/andrey-krasheninnikov/want-keep/issues/44) |
+| [task-6.6](tasks/task-6.6.md) | Планировать месячный бюджет и доходы | task-2.7, task-2.6, task-6.1, task-6.2, task-2.8 | [#45](https://github.com/andrey-krasheninnikov/want-keep/issues/45) |
+| [task-6.7](tasks/task-6.7.md) | Резервировать деньги на цели | task-6.6, task-2.1 | [#46](https://github.com/andrey-krasheninnikov/want-keep/issues/46) |
+| [task-6.8](tasks/task-6.8.md) | Считать дневные лимиты и прогноз ликвидности | task-6.6, task-6.7, task-6.3, task-2.5 | [#47](https://github.com/andrey-krasheninnikov/want-keep/issues/47) |
 | [task-7.1](tasks/task-7.1.md) | Создать desktop-оболочку и вход RU/EN | task-1.4, task-1.2, task-7.11, task-1.6, task-2.1 | [#48](https://github.com/pchkauu/want-keep/issues/48) |
-| [task-7.2](tasks/task-7.2.md) | Показать счета, операции и исправления | task-7.1, task-2.5, task-2.6, task-2.7, task-5.2, task-7.9, task-2.9 | [#49](https://github.com/pchkauu/want-keep/issues/49) |
-| [task-7.3](tasks/task-7.3.md) | Создать чат с выбором счёта и файлами | task-7.1, task-5.4, task-7.9 | [#50](https://github.com/pchkauu/want-keep/issues/50) |
-| [task-7.4](tasks/task-7.4.md) | Создать редактор месячного бюджета | task-7.1, task-6.6, task-7.9 | [#51](https://github.com/pchkauu/want-keep/issues/51) |
-| [task-7.5](tasks/task-7.5.md) | Показать цели и резервирование | task-7.1, task-6.7, task-7.9 | [#52](https://github.com/pchkauu/want-keep/issues/52) |
-| [task-7.6](tasks/task-7.6.md) | Собрать дашборд, лимиты и инсайты | task-7.2, task-7.4, task-7.5, task-6.8, task-5.5, task-7.9 | [#53](https://github.com/pchkauu/want-keep/issues/53) |
-| [task-7.7](tasks/task-7.7.md) | Показать кредитки, накопления и доходность | task-7.2, task-6.2, task-6.3, task-6.4, task-6.5, task-7.9 | [#54](https://github.com/pchkauu/want-keep/issues/54) |
-| [task-7.8](tasks/task-7.8.md) | Добавить уведомления и web-push | task-7.1, task-6.8, task-5.5, task-1.4, task-3.1, task-7.9 | [#55](https://github.com/pchkauu/want-keep/issues/55) |
-| [task-7.9](tasks/task-7.9.md) | Добавить семейный контекст и принадлежность в интерфейс | task-7.1, task-1.6 | [#56](https://github.com/pchkauu/want-keep/issues/56) |
+| [task-7.2](tasks/task-7.2.md) | Показать счета, операции и исправления | task-7.1, task-2.5, task-2.6, task-2.7, task-5.2, task-7.9, task-2.9 | [#49](https://github.com/andrey-krasheninnikov/want-keep/issues/49) |
+| [task-7.3](tasks/task-7.3.md) | Создать чат с выбором счёта и файлами | task-7.1, task-5.4, task-7.9 | [#50](https://github.com/andrey-krasheninnikov/want-keep/issues/50) |
+| [task-7.4](tasks/task-7.4.md) | Создать редактор месячного бюджета | task-7.1, task-6.6, task-7.9 | [#51](https://github.com/andrey-krasheninnikov/want-keep/issues/51) |
+| [task-7.5](tasks/task-7.5.md) | Показать цели и резервирование | task-7.1, task-6.7, task-7.9 | [#52](https://github.com/andrey-krasheninnikov/want-keep/issues/52) |
+| [task-7.6](tasks/task-7.6.md) | Собрать дашборд, лимиты и инсайты | task-7.2, task-7.4, task-7.5, task-6.8, task-5.5, task-7.9 | [#53](https://github.com/andrey-krasheninnikov/want-keep/issues/53) |
+| [task-7.7](tasks/task-7.7.md) | Показать кредитки, накопления и доходность | task-7.2, task-6.2, task-6.3, task-6.4, task-6.5, task-7.9 | [#54](https://github.com/andrey-krasheninnikov/want-keep/issues/54) |
+| [task-7.8](tasks/task-7.8.md) | Добавить уведомления и web-push | task-7.1, task-6.8, task-5.5, task-1.4, task-3.1, task-7.9 | [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) |
+| [task-7.9](tasks/task-7.9.md) | Добавить семейный контекст и принадлежность в интерфейс | task-7.1, task-1.6 | [#56](https://github.com/andrey-krasheninnikov/want-keep/issues/56) |
 | [task-7.10](tasks/task-7.10.md) | Создать токены, типографику и брендовые ресурсы | task-1.1 | [#57](https://github.com/pchkauu/want-keep/issues/57) |
 | [task-7.11](tasks/task-7.11.md) | Создать каталог компонентов на Base UI | task-7.10 | [#58](https://github.com/pchkauu/want-keep/issues/58) |
-| [task-7.12](tasks/task-7.12.md) | Проверить desktop UX и визуальную приёмку | task-7.2, task-7.3, task-7.4, task-7.5, task-7.6, task-7.7, task-7.8, task-7.9, task-7.13, task-7.14, task-7.15 | [#59](https://github.com/pchkauu/want-keep/issues/59) |
-| [task-7.13](tasks/task-7.13.md) | Создать экраны подключений и повторного входа | task-7.1, task-7.9, task-3.3, task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6 | [#60](https://github.com/pchkauu/want-keep/issues/60) |
-| [task-7.14](tasks/task-7.14.md) | Создать настройки и состояние учёта | task-7.9, task-7.8, task-8.2, task-2.6 | [#61](https://github.com/pchkauu/want-keep/issues/61) |
-| [task-7.15](tasks/task-7.15.md) | Добавить контекстные анимации финансовых событий | task-7.11, task-7.2, task-7.4, task-7.5, task-7.14 | [#62](https://github.com/pchkauu/want-keep/issues/62) |
-| [task-8.1](tasks/task-8.1.md) | Подготовить развёртывание и состояние системы | task-0.9, task-3.3, task-5.1, task-7.8 | [#63](https://github.com/pchkauu/want-keep/issues/63) |
-| [task-8.2](tasks/task-8.2.md) | Выгружать зашифрованные копии на MacBook | task-8.1, task-1.5 | [#64](https://github.com/pchkauu/want-keep/issues/64) |
-| [task-8.3](tasks/task-8.3.md) | Проверить восстановление из локальной копии | task-8.2 | [#65](https://github.com/pchkauu/want-keep/issues/65) |
-| [task-9.1](tasks/task-9.1.md) | Провести сквозную приёмку полного MVP | task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6, task-7.3, task-7.6, task-7.7, task-7.8, task-8.3, task-7.12, task-4.7 | [#66](https://github.com/pchkauu/want-keep/issues/66) |
-| [task-9.2](tasks/task-9.2.md) | Провести итоговую независимую проверку и передать MVP | task-9.1 | [#67](https://github.com/pchkauu/want-keep/issues/67) |
+| [task-7.12](tasks/task-7.12.md) | Проверить desktop UX и визуальную приёмку | task-7.2, task-7.3, task-7.4, task-7.5, task-7.6, task-7.7, task-7.8, task-7.9, task-7.13, task-7.14, task-7.15 | [#59](https://github.com/andrey-krasheninnikov/want-keep/issues/59) |
+| [task-7.13](tasks/task-7.13.md) | Создать экраны подключений и повторного входа | task-7.1, task-7.9, task-3.3, task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6 | [#60](https://github.com/andrey-krasheninnikov/want-keep/issues/60) |
+| [task-7.14](tasks/task-7.14.md) | Создать настройки и состояние учёта | task-7.9, task-7.8, task-8.2, task-2.6 | [#61](https://github.com/andrey-krasheninnikov/want-keep/issues/61) |
+| [task-7.15](tasks/task-7.15.md) | Добавить контекстные анимации финансовых событий | task-7.11, task-7.2, task-7.4, task-7.5, task-7.14 | [#62](https://github.com/andrey-krasheninnikov/want-keep/issues/62) |
+| [task-8.1](tasks/task-8.1.md) | Подготовить развёртывание и состояние системы | task-0.9, task-3.3, task-5.1, task-7.8 | [#63](https://github.com/andrey-krasheninnikov/want-keep/issues/63) |
+| [task-8.2](tasks/task-8.2.md) | Выгружать зашифрованные копии на MacBook | task-8.1, task-1.5 | [#64](https://github.com/andrey-krasheninnikov/want-keep/issues/64) |
+| [task-8.3](tasks/task-8.3.md) | Проверить восстановление из локальной копии | task-8.2 | [#65](https://github.com/andrey-krasheninnikov/want-keep/issues/65) |
+| [task-9.1](tasks/task-9.1.md) | Провести сквозную приёмку полного MVP | task-4.1, task-4.2, task-4.3, task-4.4, task-4.5, task-4.6, task-7.3, task-7.6, task-7.7, task-7.8, task-8.3, task-7.12, task-4.7 | [#66](https://github.com/andrey-krasheninnikov/want-keep/issues/66) |
+| [task-9.2](tasks/task-9.2.md) | Провести итоговую независимую проверку и передать MVP | task-9.1 | [#67](https://github.com/andrey-krasheninnikov/want-keep/issues/67) |
