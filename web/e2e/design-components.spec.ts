@@ -307,10 +307,11 @@ test("locale switches reformat a valid date and retain an invalid draft", async 
 });
 
 for (const locale of ["ru", "en"] as const) {
-  test(`calendar clears an invalid date draft in ${locale}`, async ({
+  test(`calendar clears and normalizes invalid date drafts in ${locale}`, async ({
     page,
   }) => {
     const ru = locale === "ru";
+    await page.clock.setFixedTime(new Date("2026-02-01T12:00:00Z"));
     if (!ru)
       await page.getByRole("button", { name: "English", exact: true }).click();
     const date = page.getByRole("textbox", {
@@ -333,6 +334,20 @@ for (const locale of ["ru", "en"] as const) {
     await expect(date).toHaveValue("");
     await expect(date).toHaveAttribute("aria-invalid", "false");
     await expect(page.locator('[data-slot="date-popover"]')).not.toBeVisible();
+    await date.fill("2026-02-01");
+    await page
+      .getByRole("button", {
+        name: ru
+          ? "Открыть календарь: Дата операции"
+          : "Open calendar: Transaction date",
+        exact: true,
+      })
+      .click();
+    await page
+      .locator('[data-slot="date-popover"] [data-day="2026-02-01"]')
+      .click();
+    await expect(date).toHaveValue(ru ? "01.02.2026" : "02/01/2026");
+    await expect(date).toHaveAttribute("aria-invalid", "false");
   });
 }
 
