@@ -149,22 +149,9 @@ func (s *Service) Prepare(_ context.Context, x jobapp.Execution) (jobapp.Result,
 		if v.State == "completed" {
 			e, err := receiptcontract.Decode(v.Output)
 			if err == nil {
-				refs, refErr := s.repository.ReceiptPageReferences(ctx, p, v.PageID)
-				if refErr != nil {
-					return refErr
-				}
-				for index, item := range e.Items {
-					if item.CategoryAlias == nil {
-						continue
-					}
-					ref, exists := refs[*item.CategoryAlias]
-					if !exists {
-						continue
-					}
-					current, lookupErr := s.repository.Category(ctx, p, ref.ID)
-					if lookupErr == nil && current.State == category.Active && current.Revision == ref.Revision {
-						e.Items[index].CategoryID = current.ID
-					}
+				e, err = s.withCurrentCategories(ctx, p, v.PageID, e)
+				if err != nil {
+					return err
 				}
 				extracted = &e
 			} else {
@@ -207,7 +194,11 @@ func (s *Service) finish(ctx context.Context, p household.Principal, r receipt.R
 				r.Reason = "A receipt page could not be read. Confirm the payment facts."
 				return s.save(ctx, p, r, expected)
 			}
-			pages = append(pages, *page.Extraction)
+			current, err := s.withCurrentCategories(ctx, p, page.ID, *page.Extraction)
+			if err != nil {
+				return err
+			}
+			pages = append(pages, current)
 		}
 	}
 	f, err := receipt.Build(pages, string(a.Asset), r.ID)
@@ -461,4 +452,30 @@ func (s *Service) confirmDistinct(ctx context.Context, p household.Principal, id
 		return s.matching.Separate(ctx, p, group.ID, group.Revision, group.Members, "receipt_confirmed_distinct")
 	}
 	return result, nil
+}
+
+func (s *Service) withCurrentCategories(ctx context.Context, p household.Principal, pageID string, extracted receipt.Extraction) (receipt.Extraction, error) {
+	refs, err := s.repository.ReceiptPageReferences(ctx, p, pageID)
+	if err != nil {
+		return receipt.Extraction{}, err
+	}
+	extracted.Items = append([]receipt.Item(nil), extracted.Items...)
+	for index, item := range extracted.Items {
+		extracted.Items[index].CategoryID = ""
+		if item.CategoryAlias == nil {
+			continue
+		}
+		ref, exists := refs[*item.CategoryAlias]
+		if !exists {
+			continue
+		}
+		current, err := s.repository.Category(ctx, p, ref.ID)
+		if err != nil {
+			return receipt.Extraction{}, err
+		}
+		if current.State == category.Active && current.Revision == ref.Revision {
+			extracted.Items[index].CategoryID = current.ID
+		}
+	}
+	return extracted, nil
 }

@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	aiapp "github.com/pchkauu/want-keep/backend/internal/ai/application"
+	categories "github.com/pchkauu/want-keep/backend/internal/categories/application"
+	category "github.com/pchkauu/want-keep/backend/internal/categories/domain"
 	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
 	expense "github.com/pchkauu/want-keep/backend/internal/expenses/domain"
 	jobapp "github.com/pchkauu/want-keep/backend/internal/jobs/application"
@@ -660,5 +662,88 @@ func TestDistinctReceiptRefundIsReleasedFromManualCandidate(t *testing.T) {
 	details, found, err := f.store.Refund(ctx, f.a, second.TransactionID)
 	if err != nil || !found || details.State != "applied" {
 		t.Fatal("refund effects not rebuilt after separation", err)
+	}
+}
+
+func TestReceiptRechecksCategoriesBeforePosting(t *testing.T) {
+	for _, change := range []string{"unchanged", "rename", "archive"} {
+		t.Run(change, func(t *testing.T) {
+			f := newFixture(t)
+			catalog := categories.NewService(f.store, uuid.NewString)
+			var classification command.Result
+			err := f.store.WithinHousehold(ctx, f.a, func(ctx context.Context) error {
+				var err error
+				classification, err = catalog.CreateCategory(ctx, f.a, categories.CategoryInput{Name: "Synthetic receipt category"})
+				if err != nil {
+					return err
+				}
+				at, _ := calendar.ParseInstant("2026-08-31T11:30:00Z")
+				amount, _ := money.NewMoney("900", money.RUB)
+				_, err = f.ledger.Create(ctx, f.a, journal.CreateInput{Type: ledger.Expense, AccountID: f.account, At: at, Amount: amount, PayerState: "unknown", Allocation: ledger.AllocationInput{Mode: ledger.AllocationUnknown, Reason: "unresolved"}})
+				return err
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			id := f.start(f.upload(f.a, 38), f.ta)
+			r := f.read(id)
+			var alias string
+			err = f.store.WithinHousehold(ctx, f.a, func(ctx context.Context) error {
+				if _, err := f.store.ReceiptPageProjection(ctx, f.a, r, 1); err != nil {
+					return err
+				}
+				refs, err := f.store.ReceiptPageReferences(ctx, f.a, r.Pages[0].ID)
+				for key, ref := range refs {
+					if ref.ID == classification.ResourceID {
+						alias = key
+					}
+				}
+				return err
+			})
+			if err != nil || alias == "" {
+				t.Fatal("missing frozen category", err)
+			}
+			output := strings.Replace(extracted, `"category":null`, `"category":"`+alias+`"`, 1)
+			f.process(f.provider(output, 200))
+			r = f.read(id)
+			if r.State != receipt.Clarification || r.Pages[0].Extraction.Items[0].CategoryID != classification.ResourceID {
+				t.Fatal("missing classified clarification")
+			}
+			if change != "unchanged" {
+				err = f.store.WithinHousehold(ctx, f.b, func(ctx context.Context) error {
+					update := category.Change{}
+					if change == "rename" {
+						name := "Renamed receipt category"
+						update.NameAction, update.Name = "set", name
+					} else {
+						state := category.Archived
+						update.State = state
+					}
+					_, err := catalog.ChangeCategory(ctx, f.b, classification.ResourceID, classification.Revision, update)
+					return err
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			w := f.request(f.tb, "POST", "/receipts/"+id+"/answers", uuid.NewString(), map[string]any{"expectedRevision": r.Revision, "distinct": true})
+			if w.Code != 202 {
+				t.Fatalf("finalize classified receipt: %d %s", w.Code, w.Body.String())
+			}
+			current := f.read(id)
+			if current.State != receipt.Recorded || len(current.Facts.Items) != 2 {
+				t.Fatal("payment facts lost")
+			}
+			expected := ""
+			if change == "unchanged" {
+				expected = classification.ResourceID
+			}
+			if current.Facts.Items[0].CategoryID != expected {
+				t.Fatal("stale category applied to payment")
+			}
+			if current.Pages[0].Extraction.Items[0].CategoryID != classification.ResourceID {
+				t.Fatal("saved extraction was rewritten")
+			}
+		})
 	}
 }

@@ -27,3 +27,5 @@ Backend portions of AC-015/016/017/022/050/060/068/081/091/093 are covered. Shar
 The shared USD 50 household cap, `gpt-5.6-terra`/`xhigh` and `production_admitted=false` remain. There is no automatic model downgrade. SDD remains **Ready for development**. Root `VERSION` 0.0.1 does not grant operational admission.
 
 Additional regressions cover distinct equal refunds, another scan of a refund, corrected current totals, terminal validation failure, more than 20 candidates and a candidate change outside the visible page. The live cap journal rejects empty state, updates by atomic replacement under a separate stable lock and preserves concurrent history.
+
+Each page category is checked again against its frozen alias/revision at finalization. Renaming or archiving leaves classification empty without losing the confirmed payment; persisted extraction stays unchanged.
