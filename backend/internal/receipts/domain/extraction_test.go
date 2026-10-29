@@ -115,8 +115,35 @@ func TestItemDiscountsWithoutPrintedGlobalDiscount(t *testing.T) {
 	first, last := page(), page()
 	first.Items = nil
 	first.Total = text("900.00")
+	first.Reference = text("receipt-123")
+	last.Reference = text("receipt-123")
 	last.Items = nil
 	if _, err = receipt.Build([]receipt.Extraction{first, last}, "RUB", "same-total"); err != nil {
 		t.Fatal("equal monetary values treated as conflict", err)
+	}
+}
+
+func TestCompletePaymentsNeedSharedIdentity(t *testing.T) {
+	for _, refs := range [][2]string{{"", ""}, {"receipt-1", ""}, {"receipt-1", "receipt-2"}, {"receipt-1", "receipt-1"}} {
+		t.Run(refs[0]+"/"+refs[1], func(t *testing.T) {
+			first, last := page(), page()
+			for index, item := range []*receipt.Extraction{&first, &last} {
+				item.Items = nil
+				item.Time = nil
+				item.Total = text("100")
+				item.Discount = text("0")
+				if refs[index] != "" {
+					item.Reference = text(refs[index])
+				}
+			}
+			_, err := receipt.Build([]receipt.Extraction{first, last}, "RUB", "multiple-payments")
+			if refs[0] != "" && refs[0] == refs[1] {
+				if err != nil {
+					t.Fatal("common receipt identity rejected", err)
+				}
+			} else if !errors.Is(err, receipt.ErrClarification) {
+				t.Fatal("independent or ambiguous payments merged", err)
+			}
+		})
 	}
 }

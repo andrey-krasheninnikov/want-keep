@@ -49,6 +49,7 @@ func Build(pages []Extraction, asset, identity string) (Facts, error) {
 	var paid *bool
 	inputs := []ledger.ReceiptItemInput{}
 	irrelevant := 0
+	paymentPages, identifiedPayments := 0, 0
 	for page, e := range pages {
 		if e.Document == "irrelevant" {
 			irrelevant++
@@ -56,6 +57,12 @@ func Build(pages []Extraction, asset, identity string) (Facts, error) {
 		}
 		if e.Document != "receipt" || e.Kind != "expense" && e.Kind != "refund" && e.Kind != "unknown" || len(e.Items) > 1000 || len(e.Reason) > 8000 {
 			return out, ErrClarification
+		}
+		if e.Paid != nil && *e.Paid && e.Total != nil {
+			paymentPages++
+			if e.Reference != nil && strings.TrimSpace(*e.Reference) != "" {
+				identifiedPayments++
+			}
 		}
 		if e.Kind != "unknown" {
 			if kind != nil && *kind != e.Kind {
@@ -117,6 +124,9 @@ func Build(pages []Extraction, asset, identity string) (Facts, error) {
 	}
 	if irrelevant == len(pages) {
 		return out, ErrSkipped
+	}
+	if paymentPages > 1 && identifiedPayments != paymentPages {
+		return out, ErrClarification
 	}
 	if irrelevant > 0 {
 		return out, ErrClarification
