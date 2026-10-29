@@ -4,7 +4,7 @@
 
 Стек выбран пользователем (D-17). task-1.1 создаёт воспроизводимые manifests и buildable foundation без продуктового runtime/API. Остальная часть документа описывает целевую архитектуру.
 
-Закреплены Go 1.26.5 и Node.js 24.19.0 LTS. Web использует React 19.2.8, Vite 8.2.2, TypeScript 6.0.3, Base UI 1.8.0 и shadcn 4.21.0; collector использует Playwright 1.63.0. Прямые npm-зависимости закреплены точными версиями, каждый пакет имеет собственный lockfile.
+Закреплены Go 1.26.5 и Node.js 24.19.0 LTS. Web использует React 19.2.8, Vite 8.2.2, TypeScript 6.0.3, @want-foundation/desyst-foundation/react 0.2.1 на Radix; collector использует Playwright 1.63.0. Прямые npm-зависимости закреплены точными версиями, каждый пакет имеет собственный lockfile.
 
 ## Владельцы поведения и структура
 
@@ -91,7 +91,7 @@ CI, synthetic integration, live source readback, physical-device push и restore
 
 ## Desktop и представление
 
-Дизайн, экраны и навигация являются контрактами UI, дополняющими API: [design](design.md), [screens](screens.md), [navigation](navigation.md). Design system — узкий владелец токенов/примитивов/motion; features владеют задачами пользователя. Сервер возвращает суммы, объяснения и статусы, клиент не повторяет денежные формулы. Состояния и animation events не управляют финансовым журналом. Foundation закрепляет Base UI/shadcn и тёмные базовые токены; шрифты, компоненты и пользовательские экраны принадлежат последующим UI-задачам.
+Дизайн, экраны и навигация являются контрактами UI, дополняющими API: [design](design.md), [screens](screens.md), [navigation](navigation.md). Design system — узкий владелец токенов/примитивов/motion; features владеют задачами пользователя. Сервер возвращает суммы, объяснения и статусы, клиент не повторяет денежные формулы. Состояния и animation events не управляют финансовым журналом. D-49 закрепляет общую тёмную тему и локальные шрифты want-desyst целиком. Публичные exports и собранные CSS импортируются без исходных алиасов и Tailwind-сканирования пакета. Продуктовые композиции, данные, маршруты и состояния остаются в Want Keep.
 
 ## PostgreSQL task-1.3
 

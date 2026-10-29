@@ -1,27 +1,35 @@
-import { AlertDialog as Primitive } from "@base-ui/react/alert-dialog";
-
-export const AlertDialog = Primitive.Root;
-export const AlertDialogTrigger = Primitive.Trigger;
-export const AlertDialogClose = Primitive.Close;
+import {
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@want-foundation/desyst-react";
+import type { ComponentProps } from "react";
+export {
+  Dialog as AlertDialog,
+  DialogTrigger as AlertDialogTrigger,
+  DialogClose as AlertDialogClose,
+} from "@want-foundation/desyst-react";
 export function AlertDialogContent({
   title,
   description,
   children,
   ...props
-}: Omit<Primitive.Popup.Props, "title" | "className"> & {
+}: Omit<ComponentProps<typeof DialogContent>, "title"> & {
   title: string;
   description: string;
 }) {
   return (
-    <Primitive.Portal>
-      <Primitive.Backdrop className="wk-backdrop" />
-      <Primitive.Popup {...props} className="wk-dialog">
-        <Primitive.Title className="wk-dialog-title">{title}</Primitive.Title>
-        <Primitive.Description className="wk-description">
-          {description}
-        </Primitive.Description>
-        {children}
-      </Primitive.Popup>
-    </Primitive.Portal>
+    <DialogContent
+      {...props}
+      role="alertdialog"
+      showCloseButton={false}
+      className="wk-dialog-composition"
+      onPointerDownOutside={(event) => event.preventDefault()}
+      onInteractOutside={(event) => event.preventDefault()}
+    >
+      <DialogTitle>{title}</DialogTitle>
+      <DialogDescription>{description}</DialogDescription>
+      {children}
+    </DialogContent>
   );
 }

@@ -302,21 +302,21 @@ REQ/AC/task/evidence, полный кандидат, все шесть инте�
 
 - **Дано:** Обзор, вход, форма и таблица используют одну дизайн-систему.
 - **Когда:** Проверяются фон, поверхности, акценты и состояния.
-- **Тогда:** Фон #1A1A1A, рабочие поверхности #202020–#262626, бренд #5F4EF5; нет светлой темы. Брендовые плоскости #111114/#18171E, редкие песочные акценты #C7AF8F. Нет обводок карточек/полей; группировка заливкой, пространством и типографикой. Фокус заметен инверсией заливки; статусы имеют текст/значок.
+- **Тогда:** Фон #141414, поверхности #1C1C1C/#252525 и акцент #5962F0 берутся из закреплённого foundation. Статусы, радиусы, клавиатурный фокус и motion следуют общей теме. data-theme=dark и dark установлены до первого кадра. Название и логотип Want Keep сохраняются; светлой темы нет.
 - **Уровень:** `manual+e2e`.
 
 #### AC-095
 
 - **Дано:** Есть RU/EN строки, RUB/USD/USDT/USDC/BTC/ETH и длинные точные суммы.
 - **Когда:** Проверяются загруженные и недоступные шрифты.
-- **Тогда:** Шрифты размещены локально с лицензиями; кириллица и валютные символы читаемы, fallback не теряет символы или разряды. Таблицы и формы используют Manrope, крупные суммы могут использовать Pixelify Sans.
+- **Тогда:** Шрифты foundation обслуживаются локально с лицензиями. Кириллица, валютные символы и fallback остаются читаемыми. Таблицы и сопоставляемые суммы используют Manrope с табличными цифрами. Pixelify Sans и прежние локальные font-face удалены; суммы остаются точными строками.
 - **Уровень:** `manual+e2e`.
 
 #### AC-096
 
 - **Дано:** Каталог содержит кнопки, поля, диалоги, панели, таблицы и состояния данных.
 - **Когда:** Проверяются состояния и реализация примитивов.
-- **Тогда:** Зафиксированы версии и Base UI; компоненты не сохраняют стандартное оформление shadcn, не дублируют бизнес-логику и поддерживают клавиатуру, подписи и фокус.
+- **Тогда:** Foundation/react закреплены одной версией 0.2.1 с lockfile. Используются публичные exports и собранные CSS/шрифты. Base UI/shadcn и дубли примитивов удалены. Сохранены клавиатура, подписи, ref, controlled state, порталы, черновики, ошибки и восстановление фокуса. Финансовые правила и API не входят в общую библиотеку.
 - **Уровень:** `manual+e2e`.
 
 #### AC-097
@@ -706,21 +706,21 @@ A link establishes coverage but does not prove the whole criterion; verification
 
 - **Given:** Overview, sign-in, form and table use one design system.
 - **When:** Backgrounds, surfaces, accents and states are inspected.
-- **Then:** Base #1A1A1A, working surfaces #202020–#262626, brand #5F4EF5; no light theme. Brand planes #111114/#18171E, sparse sand accents #C7AF8F. No card/field outlines; group through fills, space and typography. Focus uses visible inverted fill; statuses have text/icons.
+- **Then:** Background #141414, surfaces #1C1C1C/#252525 and primary #5962F0 come from the pinned foundation. Status roles, radii, keyboard focus and motion follow the shared theme. Set data-theme=dark and dark before first paint. Keep the Want Keep name and logo; no light theme.
 - **Level:** `manual+e2e`.
 
 #### AC-095
 
 - **Given:** RU/EN strings, RUB/USD/USDT/USDC/BTC/ETH and long precise amounts exist.
 - **When:** Loaded and unavailable fonts are tested.
-- **Then:** Fonts are hosted locally with licenses; Cyrillic and currency symbols remain legible and fallback loses no glyphs or digits. Tables/forms use Manrope; large amounts may use Pixelify Sans.
+- **Then:** Foundation fonts are served locally with their licenses. Cyrillic, currency glyphs and fallback remain legible. Tables and comparable amounts use Manrope tabular figures. Remove Pixelify Sans and the previous local font-face definitions; monetary values remain exact strings.
 - **Level:** `manual+e2e`.
 
 #### AC-096
 
 - **Given:** A catalog contains buttons, fields, dialogs, panels, tables and data states.
 - **When:** States and primitive implementations are inspected.
-- **Then:** Versions and Base UI are pinned; components replace stock shadcn styling, contain no duplicated business rules and support keyboard, labels and focus.
+- **Then:** Pin foundation/react to matching 0.2.1 with a lockfile. Use public exports and compiled CSS/fonts. Remove Base UI/shadcn and duplicate primitives. Preserve keyboard access, labels, refs, controlled state, portals, drafts, errors and focus restoration. Shared packages contain no financial rules or product APIs.
 - **Level:** `manual+e2e`.
 
 #### AC-097

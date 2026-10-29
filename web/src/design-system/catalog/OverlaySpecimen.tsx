@@ -19,7 +19,6 @@ import { useToastManager } from "../components/toast-manager";
 import { Alert } from "../components/alert";
 import { FormSpecimen } from "./FormSpecimen";
 import type { CatalogLocale } from "./catalog-locale";
-
 export function OverlaySpecimen({ locale }: { locale: CatalogLocale }) {
   const ru = locale === "ru";
   const [cancelled, setCancelled] = useState(false);
@@ -36,8 +35,8 @@ export function OverlaySpecimen({ locale }: { locale: CatalogLocale }) {
       </div>
       <div className="catalog-controls">
         <Dialog>
-          <DialogTrigger render={<Button />}>
-            {ru ? "Открыть форму" : "Open form"}
+          <DialogTrigger asChild>
+            <Button>{ru ? "Открыть форму" : "Open form"}</Button>
           </DialogTrigger>
           <DialogContent
             title={ru ? "Новая запись · образец" : "New entry · sample"}
@@ -52,8 +51,10 @@ export function OverlaySpecimen({ locale }: { locale: CatalogLocale }) {
           </DialogContent>
         </Dialog>
         <Sheet>
-          <SheetTrigger render={<Button variant="secondary" />}>
-            {ru ? "Открыть детали" : "Open details"}
+          <SheetTrigger asChild>
+            <Button variant="secondary">
+              {ru ? "Открыть детали" : "Open details"}
+            </Button>
           </SheetTrigger>
           <SheetContent
             title={ru ? "Как получена сумма" : "How the amount was calculated"}
@@ -76,8 +77,10 @@ export function OverlaySpecimen({ locale }: { locale: CatalogLocale }) {
           </SheetContent>
         </Sheet>
         <AlertDialog>
-          <AlertDialogTrigger render={<Button variant="destructive" />}>
-            {ru ? "Отменить образец" : "Cancel sample"}
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive">
+              {ru ? "Отменить образец" : "Cancel sample"}
+            </Button>
           </AlertDialogTrigger>
           <AlertDialogContent
             title={
@@ -92,21 +95,22 @@ export function OverlaySpecimen({ locale }: { locale: CatalogLocale }) {
             }
           >
             <div className="catalog-controls">
-              <AlertDialogClose render={<Button variant="secondary" />}>
-                {ru ? "Сохранить" : "Keep"}
+              <AlertDialogClose asChild>
+                <Button variant="secondary">{ru ? "Сохранить" : "Keep"}</Button>
               </AlertDialogClose>
-              <AlertDialogClose
-                render={<Button variant="destructive" />}
-                onClick={() => setCancelled(true)}
-              >
-                {ru ? "Да, отменить" : "Yes, cancel"}
+              <AlertDialogClose onClick={() => setCancelled(true)} asChild>
+                <Button variant="destructive">
+                  {ru ? "Да, отменить" : "Yes, cancel"}
+                </Button>
               </AlertDialogClose>
             </div>
           </AlertDialogContent>
         </AlertDialog>
         <Popover>
-          <PopoverTrigger render={<Button variant="secondary" />}>
-            {ru ? "Быстрая подсказка" : "Quick explanation"}
+          <PopoverTrigger asChild>
+            <Button variant="secondary">
+              {ru ? "Быстрая подсказка" : "Quick explanation"}
+            </Button>
           </PopoverTrigger>
           <PopoverContent>
             <PopoverTitle className="wk-label">

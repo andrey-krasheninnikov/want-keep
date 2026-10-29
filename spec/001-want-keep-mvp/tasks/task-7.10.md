@@ -13,7 +13,7 @@
 
 ### Изменение и контракты
 
-Единый источник CSS-токенов: графит, обсидиановые брендовые плоскости, фиолетовый и песочный акцент по референсам пользователя. Без обводок; видимый фокус через инверсию. Сохранить shadcn/Tailwind-алиасы, logo_512px.svg побайтно, полные локальные variable Pixelify Sans/Manrope с OFL, закреплёнными источниками и SHA-256. Точные суммы остаются строками; табличные цифры — Manrope. Длительности и reduced motion без финансовых триггеров. /__design/tokens не входит в production bundle.
+Историческая основа task-7.10 сохранена. D-49 и issue #97 переводят текущую тему на опубликованные foundation/react 0.2.1 целиком, включая Days One, Manrope, цвета, фокус и motion. Продуктовые layout-алиасы ссылаются на общие роли, не заменяя их. Логотип, точные строки сумм, табличные цифры, reduced motion и исключение dev-каталога из production сохраняются. Текущий контракт: design.md; прежние доказательства остаются историческими.
 
 ### Границы изменений
 
@@ -25,8 +25,8 @@
 
 ### Связанные требования
 
-- **REQ-077:** Тёмные токены Want Keep: сдержанный киберпанк и архитектурный ритм Ближнего Востока.
-- **REQ-078:** Pixelify Sans используется для бренда и крупных акцентов, Manrope — для повседневного интерфейса.
+- **REQ-077:** Полная тёмная тема want-desyst используется без локальной замены палитры, геометрии или фокуса.
+- **REQ-078:** Days One используется для display, Manrope для повседневного интерфейса; шрифты поставляет want-desyst.
 
 ### Критерии приёмки
 
@@ -36,14 +36,14 @@
 
 - **Дано:** Обзор, вход, форма и таблица используют одну дизайн-систему.
 - **Когда:** Проверяются фон, поверхности, акценты и состояния.
-- **Тогда:** Фон #1A1A1A, рабочие поверхности #202020–#262626, бренд #5F4EF5; нет светлой темы. Брендовые плоскости #111114/#18171E, редкие песочные акценты #C7AF8F. Нет обводок карточек/полей; группировка заливкой, пространством и типографикой. Фокус заметен инверсией заливки; статусы имеют текст/значок.
+- **Тогда:** Фон #141414, поверхности #1C1C1C/#252525 и акцент #5962F0 берутся из закреплённого foundation. Статусы, радиусы, клавиатурный фокус и motion следуют общей теме. data-theme=dark и dark установлены до первого кадра. Название и логотип Want Keep сохраняются; светлой темы нет.
 - **Уровень:** `manual+e2e`.
 
 #### AC-095
 
 - **Дано:** Есть RU/EN строки, RUB/USD/USDT/USDC/BTC/ETH и длинные точные суммы.
 - **Когда:** Проверяются загруженные и недоступные шрифты.
-- **Тогда:** Шрифты размещены локально с лицензиями; кириллица и валютные символы читаемы, fallback не теряет символы или разряды. Таблицы и формы используют Manrope, крупные суммы могут использовать Pixelify Sans.
+- **Тогда:** Шрифты foundation обслуживаются локально с лицензиями. Кириллица, валютные символы и fallback остаются читаемыми. Таблицы и сопоставляемые суммы используют Manrope с табличными цифрами. Pixelify Sans и прежние локальные font-face удалены; суммы остаются точными строками.
 - **Уровень:** `manual+e2e`.
 
 ### Проверка результата
@@ -74,7 +74,7 @@ A consistent desktop Want Keep visual foundation.
 
 ### Change and contracts
 
-One CSS token source: graphite, obsidian brand planes, violet and sand accent following user references. No outlines; visible focus through inversion. Preserve shadcn/Tailwind aliases, byte-identical logo_512px.svg, full local variable Pixelify Sans/Manrope with OFL, pinned sources and SHA-256. Exact amounts remain strings; tabular figures use Manrope. Durations/reduced motion without financial triggers. /__design/tokens stays outside the production bundle.
+Retain the historical task-7.10 foundation. D-49 and issue #97 move the current theme entirely to published foundation/react 0.2.1, including Days One, Manrope, colors, focus and motion. Product layout aliases reference shared roles without replacing them. Preserve the logo, exact monetary strings, tabular figures, reduced motion and production exclusion of the development catalog. Current contract: design.en.md; earlier evidence remains historical.
 
 ### Change boundaries
 
@@ -86,8 +86,8 @@ Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.
 
 ### Linked requirements
 
-- **REQ-077:** Dark Want Keep tokens: restrained cyberpunk and Middle Eastern architectural rhythm.
-- **REQ-078:** Pixelify Sans serves branding and large accents; Manrope serves everyday UI.
+- **REQ-077:** Use the complete want-desyst dark theme without local palette, geometry or focus replacements.
+- **REQ-078:** Use Days One for display and Manrope for everyday UI, supplied by want-desyst.
 
 ### Acceptance criteria
 
@@ -97,14 +97,14 @@ A link establishes coverage but does not prove the whole criterion; verification
 
 - **Given:** Overview, sign-in, form and table use one design system.
 - **When:** Backgrounds, surfaces, accents and states are inspected.
-- **Then:** Base #1A1A1A, working surfaces #202020–#262626, brand #5F4EF5; no light theme. Brand planes #111114/#18171E, sparse sand accents #C7AF8F. No card/field outlines; group through fills, space and typography. Focus uses visible inverted fill; statuses have text/icons.
+- **Then:** Background #141414, surfaces #1C1C1C/#252525 and primary #5962F0 come from the pinned foundation. Status roles, radii, keyboard focus and motion follow the shared theme. Set data-theme=dark and dark before first paint. Keep the Want Keep name and logo; no light theme.
 - **Level:** `manual+e2e`.
 
 #### AC-095
 
 - **Given:** RU/EN strings, RUB/USD/USDT/USDC/BTC/ETH and long precise amounts exist.
 - **When:** Loaded and unavailable fonts are tested.
-- **Then:** Fonts are hosted locally with licenses; Cyrillic and currency symbols remain legible and fallback loses no glyphs or digits. Tables/forms use Manrope; large amounts may use Pixelify Sans.
+- **Then:** Foundation fonts are served locally with their licenses. Cyrillic, currency glyphs and fallback remain legible. Tables and comparable amounts use Manrope tabular figures. Remove Pixelify Sans and the previous local font-face definitions; monetary values remain exact strings.
 - **Level:** `manual+e2e`.
 
 ### Verification

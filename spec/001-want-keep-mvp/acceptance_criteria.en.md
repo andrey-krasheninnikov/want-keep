@@ -933,35 +933,35 @@ REQ: `REQ-076`.
 
 ## AC-094
 
-Dark Want Keep tokens: restrained cyberpunk and Middle Eastern architectural rhythm.
+Use the complete want-desyst dark theme without local palette, geometry or focus replacements.
 
 REQ: `REQ-077`.
 
 - **Given:** Overview, sign-in, form and table use one design system.
 - **When:** Backgrounds, surfaces, accents and states are inspected.
-- **Then:** Base #1A1A1A, working surfaces #202020–#262626, brand #5F4EF5; no light theme. Brand planes #111114/#18171E, sparse sand accents #C7AF8F. No card/field outlines; group through fills, space and typography. Focus uses visible inverted fill; statuses have text/icons.
+- **Then:** Background #141414, surfaces #1C1C1C/#252525 and primary #5962F0 come from the pinned foundation. Status roles, radii, keyboard focus and motion follow the shared theme. Set data-theme=dark and dark before first paint. Keep the Want Keep name and logo; no light theme.
 - **Level:** `manual+e2e`.
 
 ## AC-095
 
-Pixelify Sans serves branding and large accents; Manrope serves everyday UI.
+Use Days One for display and Manrope for everyday UI, supplied by want-desyst.
 
 REQ: `REQ-078`.
 
 - **Given:** RU/EN strings, RUB/USD/USDT/USDC/BTC/ETH and long precise amounts exist.
 - **When:** Loaded and unavailable fonts are tested.
-- **Then:** Fonts are hosted locally with licenses; Cyrillic and currency symbols remain legible and fallback loses no glyphs or digits. Tables/forms use Manrope; large amounts may use Pixelify Sans.
+- **Then:** Foundation fonts are served locally with their licenses. Cyrillic, currency glyphs and fallback remain legible. Tables and comparable amounts use Manrope tabular figures. Remove Pixelify Sans and the previous local font-face definitions; monetary values remain exact strings.
 - **Level:** `manual+e2e`.
 
 ## AC-096
 
-Project-owned shadcn/ui components on Base UI use custom semantic tokens.
+Public want-desyst components implement primitives; Want Keep owns product compositions and state.
 
 REQ: `REQ-079`.
 
 - **Given:** A catalog contains buttons, fields, dialogs, panels, tables and data states.
 - **When:** States and primitive implementations are inspected.
-- **Then:** Versions and Base UI are pinned; components replace stock shadcn styling, contain no duplicated business rules and support keyboard, labels and focus.
+- **Then:** Pin foundation/react to matching 0.2.1 with a lockfile. Use public exports and compiled CSS/fonts. Remove Base UI/shadcn and duplicate primitives. Preserve keyboard access, labels, refs, controlled state, portals, drafts, errors and focus restoration. Shared packages contain no financial rules or product APIs.
 - **Level:** `manual+e2e`.
 
 ## AC-097

@@ -1,3 +1,5 @@
+import { Button } from "../components/button";
+import { Input } from "../components/input";
 import { useState } from "react";
 
 import { BrandSpecimen } from "./BrandSpecimen";
@@ -33,12 +35,9 @@ export function TokenPreview() {
         </div>
         <span className="token-preview__wordmark wk-type-brand">Want Keep</span>
         <span className="token-preview__edition">DESIGN FOUNDATION / 01</span>
-        <button
-          className="token-preview__control"
-          onClick={() => setLocale(ru ? "en" : "ru")}
-        >
+        <Button variant="secondary" onClick={() => setLocale(ru ? "en" : "ru")}>
           {ru ? "English" : "Русский"}
-        </button>
+        </Button>
       </header>
       <BrandSpecimen locale={locale} />
       <section
@@ -95,22 +94,16 @@ export function TokenPreview() {
             : "These are style specimens, not the component library."}
         </p>
         <div className="token-preview__states">
-          <button className="token-preview__control token-preview__control--primary">
-            Normal / Hover / Active
-          </button>
-          <button
-            className="token-preview__control token-preview__control--selected"
-            aria-pressed="true"
-          >
+          <Button variant="primary">Normal / Hover / Active</Button>
+          <Button variant="secondary" aria-pressed="true">
             ✓ Selected
-          </button>
-          <button className="token-preview__control" disabled>
+          </Button>
+          <Button variant="secondary" disabled>
             Disabled
-          </button>
+          </Button>
           <label>
             {ru ? "Название" : "Name"}
-            <input
-              className="token-preview__control"
+            <Input
               placeholder={ru ? "Например, наличные" : "For example, cash"}
             />
           </label>

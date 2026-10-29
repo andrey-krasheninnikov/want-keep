@@ -1,30 +1,12 @@
-@font-face {
-  font-family: "Pixelify Sans";
-  src: url("/fonts/pixelifysans/PixelifySans-Variable.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Manrope";
-  src: url("/fonts/manrope/Manrope-Variable.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 200 800;
-  font-display: swap;
-}
-
 .wk-type-brand {
-  font-family: var(--wk-font-brand);
-  font-weight: var(--wk-weight-heading);
-  line-height: var(--wk-leading-heading);
+  font-family: var(--want-font-display);
+  font-weight: var(--type-h2-weight);
+  line-height: var(--type-h2-leading);
 }
-
 .wk-type-numeric {
-  font-family: var(--wk-font-interface);
+  font-family: var(--want-font-sans);
   font-variant-numeric: lining-nums tabular-nums;
 }
-
 .wk-exact-amount {
   overflow-wrap: anywhere;
   white-space: normal;

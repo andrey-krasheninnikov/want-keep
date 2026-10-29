@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
 import {
   AlertDialog,
@@ -9,6 +9,7 @@ import { useLocale } from "@/locales/locale";
 
 export function LeaveGuard({ dirty }: { dirty: boolean | (() => boolean) }) {
   const { t } = useLocale();
+  const returnFocus = useRef<HTMLElement | null>(null);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       (typeof dirty === "function" ? dirty() : dirty) &&
@@ -35,6 +36,16 @@ export function LeaveGuard({ dirty }: { dirty: boolean | (() => boolean) }) {
       <AlertDialogContent
         title={t("leaveTitle")}
         description={t("leaveDescription")}
+        onOpenAutoFocus={() => {
+          returnFocus.current =
+            document.activeElement instanceof HTMLElement
+              ? document.activeElement
+              : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          returnFocus.current?.focus();
+        }}
       >
         <div className="access-actions">
           <Button

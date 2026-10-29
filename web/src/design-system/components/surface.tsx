@@ -1,17 +1,17 @@
+import { Card } from "@want-foundation/desyst-react";
 import type { ComponentProps } from "react";
 import { cn } from "../class-names";
-
 export function Surface({
   variant = "default",
   prominent = false,
   className,
   ...props
-}: ComponentProps<"div"> & {
+}: ComponentProps<typeof Card> & {
   variant?: "default" | "raised" | "accent";
   prominent?: boolean;
 }) {
   return (
-    <div
+    <Card
       {...props}
       className={cn("wk-surface", className)}
       data-variant={variant}

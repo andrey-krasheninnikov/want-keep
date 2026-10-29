@@ -1,16 +1,14 @@
-import { Checkbox as Primitive } from "@base-ui/react/checkbox";
-import { CheckIcon, MinusIcon } from "lucide-react";
-
-export function Checkbox(props: Primitive.Root.Props) {
+import { Checkbox as SharedCheckbox } from "@want-foundation/desyst-react";
+import type { ComponentProps } from "react";
+export function Checkbox(
+  props: Omit<ComponentProps<typeof SharedCheckbox>, "onCheckedChange"> & {
+    onCheckedChange?: (checked: boolean) => void;
+  },
+) {
   return (
-    <Primitive.Root className="wk-checkbox" {...props}>
-      <Primitive.Indicator>
-        {props.indeterminate ? (
-          <MinusIcon aria-hidden="true" />
-        ) : (
-          <CheckIcon aria-hidden="true" />
-        )}
-      </Primitive.Indicator>
-    </Primitive.Root>
+    <SharedCheckbox
+      {...props}
+      onCheckedChange={(checked) => props.onCheckedChange?.(checked === true)}
+    />
   );
 }

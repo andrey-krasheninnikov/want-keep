@@ -24,16 +24,18 @@ describe("application foundation", () => {
     expect(markup).toContain("Log in with Passkeys");
   });
 
-  it("configures shadcn for Base UI", async () => {
-    const contents = await readFile(
-      new URL("../components.json", import.meta.url),
-      "utf8",
+  it("pins the shared design packages without the previous primitive stack", async () => {
+    const manifest = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
     );
-    const configuration = JSON.parse(contents) as {
-      style?: string;
-      rsc?: boolean;
-    };
-
-    expect(configuration).toMatchObject({ style: "base-nova", rsc: false });
+    expect(manifest.dependencies["@want-foundation/desyst-foundation"]).toBe(
+      "0.2.1",
+    );
+    expect(manifest.dependencies["@want-foundation/desyst-react"]).toBe(
+      "0.2.1",
+    );
+    expect(manifest.dependencies["@base-ui/react"]).toBeUndefined();
+    expect(manifest.dependencies["@daypicker/react"]).toBeUndefined();
+    expect(manifest.devDependencies.shadcn).toBeUndefined();
   });
 });

@@ -1,9 +1,26 @@
-import { Input as Primitive } from "@base-ui/react/input";
+import { Input as SharedInput } from "@want-foundation/desyst-react";
+import type { ComponentProps } from "react";
+import { useFieldControl } from "./field-context";
 import { cn } from "../class-names";
 
-export type InputProps = Omit<Primitive.Props, "className"> & {
-  className?: string;
+export type InputProps = ComponentProps<typeof SharedInput> & {
+  onValueChange?: (value: string) => void;
 };
-export function Input({ className, ...props }: InputProps) {
-  return <Primitive {...props} className={cn("wk-input", className)} />;
+export function Input({
+  className,
+  onValueChange,
+  onChange,
+  ...props
+}: InputProps) {
+  return (
+    <SharedInput
+      {...useFieldControl()}
+      {...props}
+      className={cn("wk-input", "text-foreground", className)}
+      onChange={(event) => {
+        onValueChange?.(event.currentTarget.value);
+        onChange?.(event);
+      }}
+    />
+  );
 }

@@ -1,49 +1,48 @@
 # Want Keep components
 
-[Русский](design-components.md) · [Design](design.en.md) · [task-7.11](tasks/task-7.11.md)
+[Русский](design-components.md) · [Design](design.en.md) · [task-7.16](tasks/task-7.16.md)
 
 ## Purpose and ownership
 
-`web/src/design-system/components/` owns visual component sources. They are adapted from inspected shadcn 4.21.0 `base-nova` templates using Base UI 1.8.0. This is project-owned code, not files to overwrite through generation. Before updating, use CLI `add --dry-run`/`--view` and inspect contract and dependency changes.
+D-49 pins `@want-foundation/desyst-foundation` and `@want-foundation/desyst-react` to 0.2.1. The shared library owns Radix primitives, CSS, fonts, focus and motion. Want Keep uses public exports and compiled assets without copying or scanning library sources. The project-local `want-design` comes from the same package.
 
-The interactive `/__design/components` catalog uses synthetic data only. Its code, compositions and styles are absent from the production bundle. Reusable components are available to product features; demonstration handlers are not. The catalog does not call financial APIs, persist browser storage, implement accounting or recover access.
+The local design-system retains product compositions, safe defaults and public-prop adaptation. Features own APIs, routes, financial calculations, persistence and localization. Base UI, DayPicker, shadcn and the independent calendar are removed. There is one interactive primitive implementation.
 
-User refinement for #58: shapes and composition from the new reference, with the Want Keep palette. A prominent accent surface, side action tiles, inset rows and a profile surface are adapted for desktop. Radii: fields/regular buttons 12 px, panels 24 px, prominent surfaces 32 px, pill badges. This replaces the previous 2/4/8 px while retaining original colors and fonts. Outlines, mobile bottom navigation and payment actions from the reference are excluded.
+## Migration map and interfaces
 
-Adapted shadcn portions retain the MIT notice in `web/src/design-system/components/LICENSE.shadcn`. Registry previews were inspected before adaptation; committed project sources are authoritative.
-
-## Public interfaces
-
-| Family | Contract |
+| Local interface | Shared component / retained product behavior |
 | --- | --- |
-| Button / ActionTile | Events go to the caller. Ordinary Button defaults to `type=button`; submit is explicit. `disabled` and `aria-busy` are separate. Links use Base UI `render`/`nativeButton=false`. |
-| Input / Textarea / MoneyField | Controlled string; MoneyField uses no Number/float/rounding or length truncation. `assetLabel` is a label. The consuming form owns validity and errors. An expandable specimen exposes the entire long amount. |
-| Field / Form | Base UI associates label, description, error and control. Textarea uses explicit `htmlFor/id`. Submission state and application validation belong to the consuming form. |
-| DateField | `value` is `YYYY-MM-DD` or null; optional `draft` retains original text. `onChange` returns `{draft, value}`: undefined means invalid text, null means empty, a string means an existing date. The consumer retains draft and never submits undefined. RU `DD.MM.YYYY`, EN `MM/DD/YYYY`; Gregorian, Monday first. |
-| Calendar | DayPicker wrapper. CalendarDate owns JS Date to calendar-string conversion without `toISOString` or timezone shifting. Popover date selection restores focus to its trigger. |
-| Select / Combobox | String ID, explicit options, labels and callback. Combobox searches supplied options; network search belongs to a feature. |
-| Checkbox / Radio / Switch / Toggle | Base UI state and keyboard behavior; consuming labels are required. Focus does not replace selected/checked semantics. |
-| Dialog / AlertDialog / Sheet | Required title and description. Modal focus trap, Escape and focus restoration; sheet shares the dialog boundary. The consumer implements confirmation behavior. |
-| Popover / Tooltip / Toast | Brief contextual information. Tooltip never replaces a label. Base UI toast, maximum three, 8 seconds; important results remain persistent. Dismiss labels are supplied in the selected locale. |
-| Sidebar / Tabs | Desktop navigation; Sidebar receives explicit links/currentId. It does not determine users, permissions or data access. Tabs uses Base UI roving focus. |
-| Table / Pagination | Semantic table in a labelled scroll region. Pagination receives direction availability, summary and callbacks; it does not infer server row counts or sort financial values. |
-| Surface / Avatar / ListItem | Filled surfaces, initials fallback, inset rows. Images and data are supplied by consumers. No built-in profile or external-source access. |
-| Badge / Alert / Empty / Skeleton | Text explains status independently of color. Alert announces only with explicit `announce`; skeletons never display zero amounts. |
-| Progress / ChartLegend | Progress receives a computed percentage or null. Legends receive formatted value labels and visibility callbacks; markers differ in shape. Calculations and charts belong to analytics. |
-| ChatResult | Author, status, explanation, details/actions are explicit presentation props. It neither interprets AI output nor assigns a financial outcome or executes commands. |
+| Button | Shared Button maps primary/md to default/default. Default type is button; submit is explicit. Links use asChild with one child. Ref, disabled, loading and callbacks use public props. |
+| ActionTile | Button composition with an icon and text; href supplies a link. The library does not own routes or financial commands. |
+| Input / Textarea / MoneyField | Shared Input/Textarea. onValueChange receives the original string. MoneyField adds the asset and decimal inputMode without Number conversion, truncation or hidden normalization. |
+| Form / Field / FieldLabel / FieldDescription / FieldError | Native form and shared Field controls. Product composition connects labels, controls and rendered descriptions/errors with unique IDs. Required validation remains native; callers own monetary and domain validation. |
+| FieldGroup / FieldSet / FieldLegend | Direct public exports. |
+| Select | Shared Select/Trigger/Value/Content/Item. Options, disabled state, null/placeholder and localized names remain props; Radix owns portals and keyboard behavior. |
+| Combobox | Shared controlled Combobox with explicit label/options/emptyLabel; nullable selection maps to an empty string. The catalog does not assign a financial category. |
+| DateField / CalendarDate | Shared DateField 0.2.1 selects a day. Local composition preserves manual RU/EN input, empty/invalid/valid drafts and errors. CalendarDate converts calendar strings without shifting the day. No independent calendar or DayPicker remains. |
+| Checkbox / RadioGroup / RadioItem / Switch / Tabs | Shared controls; RadioItem names the public RadioGroupItem. Callers own state. |
+| ToggleGroup / ToggleItem | Small shared-Button composition for budget-view selection: aria-pressed, one Tab stop, arrows/Home/End and controlled selection. It is not a second library primitive. |
+| Dialog / Sheet | Public dialogs, titles, descriptions and localized closeLabel. Product composition supplies content without a separate focus trap or portal. |
+| AlertDialog | Confirmation built on shared Dialog: role=alertdialog, no outside dismissal or extra X button; the safe action comes first. |
+| Popover / Tooltip | Shared overlays and triggers; local composition connects Popover headings to accessible names. Locale changes update the document language, including portals. |
+| Table / TableHead / TableCell | Shared semantic table in a scrollable region. Consumers own prepared values and server filters. |
+| Pagination | Two shared Buttons with summary and direction availability. Preserve keyset behavior without inventing a total or final page. |
+| Surface / Badge / Alert | Shared Card/Badge/Alert with product content and semantic status roles. Alert announces only when announce is set; color never replaces text. |
+| Toast / Toaster | Shared ToastProvider and Toast controls. The local queue holds at most three messages for eight seconds; dismissal, pause and accessibility remain intact. Important outcomes stay on screen. |
+| Skeleton / Progress | Shared indicators. Progress receives a prepared value or null and a localized explanation. It neither calculates money nor turns unknown into zero. |
+| Avatar / Empty / ListItem / Sidebar | Product content/navigation compositions. Avatar keeps its name and initials after image failure; Sidebar receives prepared links and currentId. |
+| ChartLegend / ChatResult | Shared Checkbox/Badge compositions with prepared content. They do not calculate yield, apply proposals or alter principal. |
 
 ## States and accessibility
 
-The catalog demonstrates UISTATE-01–17. Applicable states are covered at their owners: action disabled/loading, field invalid, selection selected, demo-form error/unknown/conflict. Primitives do not introduce a universal financial state machine.
+`/__design/components` presents synthetic UISTATE-01–17. Loading, disabled, saving, unknown-result, conflict, session-expired and confirmed keep their meaning. Unknown prevents another effect and retains drafts; conflicts preserve input; expired sessions hide sensitive data. Shared controls make no financial decisions.
 
-Unknown retains the draft and prevents duplicate submission; an explicit simulated original-command check moves the specimen to confirmed. Conflict compares saved and entered versions. Session expiry hides the synthetic draft. These examples verify presentation behavior; server guarantees remain in task-1.3 and feature tasks.
+Preserve labels, helper/error association, native form semantics, controlled state, refs, keyboard, focus trap/restoration, nested overlays and non-submit defaults. Use the shared contrasting focus outline rather than former inversion. Status text stays on allowed surfaces. Reduced-motion/transparency behavior and cleanup belong to shared implementations and product effects.
 
-Component boundaries contain no generated DTOs, API clients or feature code. Keyboard focus inverts fill and text, including error/selected/hover combinations. Fonts are local. Reduced motion zeroes ordinary transitions; MOT-01–05 remain task-7.15. The catalog does not prove full WCAG compliance or AC-102.
-
-The supported calendar interval is 0001-01-01…9999-12-31. Navigation, selection and CalendarDate.fromDate enforce its bounds; conversion rejects BC/out-of-range/invalid dates. Avatar exposes its supplied name with image semantics even when its image fails. Unknown progress uses a static neutral pattern without a completed fill; description supplies its localized accessible value. The catalog locale owner sets document language for portals and restores the prior value on unmount.
+Dates support 0001-01-01 through 9999-12-31. Locale changes reformat valid days and retain invalid text for correction. All six assets and long fractional amounts remain strings. Sources, server roles and command actors are independent of the selected view.
 
 ## Verification and handoff
 
-`make test-web FILTER=design-components`, `make e2e SCENARIO=design-components`, `design-tokens` regression, `make check`, `git diff --check`. Actual Chrome is checked separately from Chromium; per user decision Arc remains later acceptance. Reference viewports are 1280×720/1440×900 at 100%/200% zoom.
+Evidence distinguishes web unit/typecheck/lint/build, design-tokens/design-components/access browser suites and docs-check. Chromium alone does not prove Chrome or Arc acceptance. Store screenshots and traces outside the repository; use no personal data or live bank secrets. Both development catalogs stay outside the production bundle.
 
-Task-7.1 and other screen tasks consume these primitives and own their view models, application states and command recovery. When switching locale, the consuming form reformats a valid calendar value and preserves an invalid draft for correction. Task-7.12 covers desktop UX and visual acceptance; task-7.13 owns connection screens; task-7.14 owns settings and accounting health screens; task-7.15 owns event animations. [Implementation evidence](evidence/task-7.11-components.en.md).
+See [migration results and limits](evidence/issue-97-want-desyst.en.md). Historical task-7.10/task-7.11 evidence remains. New screens, whole-family UX, OpenAI, banking, notification delivery and event effects in #62 stay with their owning tasks.

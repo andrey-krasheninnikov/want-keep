@@ -1,5 +1,3 @@
-import { Avatar as Primitive } from "@base-ui/react/avatar";
-
 export function Avatar({
   name,
   initials,
@@ -10,9 +8,18 @@ export function Avatar({
   src?: string;
 }) {
   return (
-    <Primitive.Root className="wk-avatar" role="img" aria-label={name}>
-      {src && <Primitive.Image src={src} alt="" />}
-      <Primitive.Fallback aria-hidden="true">{initials}</Primitive.Fallback>
-    </Primitive.Root>
+    <span className="wk-avatar" role="img" aria-label={name}>
+      <span aria-hidden="true">{initials}</span>
+      {src && (
+        <img
+          key={src}
+          src={src}
+          alt=""
+          onError={(event) => {
+            event.currentTarget.hidden = true;
+          }}
+        />
+      )}
+    </span>
   );
 }

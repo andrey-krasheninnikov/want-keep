@@ -10,7 +10,6 @@ const surfaces = [
   "background",
   "card",
   "popover",
-  "accent",
   "wk-surface-warm",
   "wk-obsidian",
   "wk-surface-architecture",
@@ -47,8 +46,7 @@ export const contrastPairs: readonly ContrastPair[] = [
       foreground: `--${indicator}`,
       background: `--${surface}`,
       minimum: 3,
-      purpose:
-        "Compatibility indicator colors; no rendered outline / Совместимые цвета индикаторов; без обводки",
+      purpose: "Control and focus indicators / Индикаторы элементов и фокуса",
     })),
   ),
   {
@@ -71,16 +69,7 @@ export const contrastPairs: readonly ContrastPair[] = [
     foreground: "--wk-focus-foreground",
     background: "--wk-focus-fill",
     minimum: 4.5,
-    purpose:
-      "Inverted keyboard focus, no outline / Инверсный клавиатурный фокус без обводки",
-  },
-  {
-    id: "keyboard-focus-change",
-    foreground: "--wk-focus-fill",
-    background: "--primary-hover",
-    minimum: 3,
-    purpose:
-      "Visible focus fill change / Заметное изменение заливки при фокусе",
+    purpose: "Focused field text / Текст поля с фокусом",
   },
   {
     id: "disabled-label",

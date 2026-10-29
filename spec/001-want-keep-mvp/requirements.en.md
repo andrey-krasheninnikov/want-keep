@@ -462,21 +462,21 @@ Source: `D-18`. Acceptance: [AC-090](acceptance_criteria.en.md#ac-090).
 
 ## REQ-077
 
-Dark Want Keep tokens: restrained cyberpunk and Middle Eastern architectural rhythm.
+Use the complete want-desyst dark theme without local palette, geometry or focus replacements.
 
-Source: `D-30`. Acceptance: [AC-094](acceptance_criteria.en.md#ac-094).
+Source: `D-49`. Acceptance: [AC-094](acceptance_criteria.en.md#ac-094).
 
 ## REQ-078
 
-Pixelify Sans serves branding and large accents; Manrope serves everyday UI.
+Use Days One for display and Manrope for everyday UI, supplied by want-desyst.
 
-Source: `D-30`. Acceptance: [AC-095](acceptance_criteria.en.md#ac-095).
+Source: `D-49`. Acceptance: [AC-095](acceptance_criteria.en.md#ac-095).
 
 ## REQ-079
 
-Project-owned shadcn/ui components on Base UI use custom semantic tokens.
+Public want-desyst components implement primitives; Want Keep owns product compositions and state.
 
-Source: `D-30`. Acceptance: [AC-096](acceptance_criteria.en.md#ac-096).
+Source: `D-49`. Acceptance: [AC-096](acceptance_criteria.en.md#ac-096).
 
 ## REQ-080
 
