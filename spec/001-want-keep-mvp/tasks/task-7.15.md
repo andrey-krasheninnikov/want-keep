@@ -5,7 +5,7 @@
 
 Понятная эмоциональная обратная связь без потери контроля и точности.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-7.11`, `task-7.2`, `task-7.4`, `task-7.5`, `task-7.14`.
 
@@ -13,7 +13,29 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Desktop-оболочка, отдельный вход RU/EN, дизайн-система и backend семейных прав включены в базу. Их наличие не доказывает готовность всех экранов и сценариев этой карточки.
+
+### Требуемое поведение
+
 По design.md реализовать MOT-01–MOT-05: запуск ракеты при добавлении счёта в учёт, огоньки при подтверждённом пополнении накопления, конфетти при достигнутой цели, короткое мягкое диско как вариант крупного совместного достижения, спокойный сигнал превышения лимита. Только confirmed domain event, no inference from render/forecast/AI text. Дедуп по household event + user с подтверждением показа; sync/retry/history/backfill не запускают повтор. Отключение эффектов персонально; prefers-reduced-motion всегда убирает декоративное движение. CSS/SVG предпочтительны, без новых тяжёлых библиотек; один эффект за раз, не перекрывает формы, Escape завершает, без вспышек, звука и анимации финансового числа.
+
+### Ключевые контракты
+
+MOT-01–MOT-05, подтверждённые domain events, персональное подтверждение показа и reduced-motion/preferences.
+
+### Вне объёма
+
+Только desktop web на ноутбуке с macOS; мобильные экраны не добавлять. Финансовые расчёты и проверка полномочий остаются на сервере. Не расширять согласованный продуктовый объём.
+
+### Блокирующие зависимости
+
+- [#58](https://github.com/andrey-krasheninnikov/want-keep/issues/58) (`task-7.11`): выполнена.
+- [#49](https://github.com/andrey-krasheninnikov/want-keep/issues/49) (`task-7.2`): открыта; блокирует выполнение.
+- [#51](https://github.com/andrey-krasheninnikov/want-keep/issues/51) (`task-7.4`): открыта; блокирует выполнение.
+- [#52](https://github.com/andrey-krasheninnikov/want-keep/issues/52) (`task-7.5`): открыта; блокирует выполнение.
+- [#61](https://github.com/andrey-krasheninnikov/want-keep/issues/61) (`task-7.14`): открыта; блокирует выполнение.
 
 ### Границы изменений
 
@@ -245,7 +267,7 @@ make e2e SCENARIO=event-motion
 
 Для каждого MOT проверены событие/повтор/отмена факта/refresh, оба участника, настройка off и reduced motion, Chrome/Arc. Нет повторной награды за импорт/обновление и празднования перерасхода; статичный результат всегда доступен.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -257,7 +279,7 @@ make e2e SCENARIO=event-motion
 
 Understandable expressive feedback without losing control or accuracy.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-7.11`, `task-7.2`, `task-7.4`, `task-7.5`, `task-7.14`.
 
@@ -265,7 +287,29 @@ Understandable expressive feedback without losing control or accuracy.
 
 ### Change and contracts
 
+### Current behavior
+
+The desktop shell, separate RU/EN sign-in, design system and household-permission backend are included in the base. Their presence does not establish readiness of every screen and scenario in this task.
+
+### Desired behavior
+
 Implement MOT-01–MOT-05 from design.en.md: rocket for adding an accounting account, sparkles for confirmed savings top-up, confetti for goal reached, short soft disco as a large joint-achievement variant, calm limit-breach signal. Only confirmed domain events, never render/forecast/AI-text inference. Deduplicate by household event + user with presentation acknowledgement; sync/retry/history/backfill never replay. Effects preference is personal; prefers-reduced-motion always removes decorative movement. Prefer CSS/SVG without new heavy libraries; one effect at a time, no form obstruction, Escape ends it, no flashing, sound or financial-number animation.
+
+### Key interfaces
+
+MOT-01–MOT-05, confirmed domain events, personal display acknowledgement and reduced-motion/preferences.
+
+### Out of scope
+
+Desktop web on a macOS laptop only; do not add mobile screens. Financial calculations and authority checks remain server-side. Do not expand the agreed product scope.
+
+### Blocked by
+
+- [#58](https://github.com/andrey-krasheninnikov/want-keep/issues/58) (`task-7.11`): completed.
+- [#49](https://github.com/andrey-krasheninnikov/want-keep/issues/49) (`task-7.2`): open; blocks execution.
+- [#51](https://github.com/andrey-krasheninnikov/want-keep/issues/51) (`task-7.4`): open; blocks execution.
+- [#52](https://github.com/andrey-krasheninnikov/want-keep/issues/52) (`task-7.5`): open; blocks execution.
+- [#61](https://github.com/andrey-krasheninnikov/want-keep/issues/61) (`task-7.14`): open; blocks execution.
 
 ### Change boundaries
 
@@ -497,7 +541,7 @@ make e2e SCENARIO=event-motion
 
 Every MOT covers trigger/repeat/fact correction/refresh, both members, off preference and reduced motion in Chrome/Arc. No replay reward on import/refresh or celebration of overspending; static outcome always available.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

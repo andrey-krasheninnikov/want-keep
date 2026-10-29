@@ -5,7 +5,7 @@
 
 Добавить семейный контекст и принадлежность в интерфейс.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-7.1`, `task-1.6`.
 
@@ -13,7 +13,26 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Desktop-оболочка, отдельный вход RU/EN, дизайн-система и backend семейных прав включены в базу. Их наличие не доказывает готовность всех экранов и сценариев этой карточки.
+
+### Требуемое поведение
+
 Показать текущего участника, отдельный вход/приглашение, принадлежность личное/семейное и переключение семейного/индивидуального вида. Персональный фильтр меняет представление, не права и не principal. Рендерить права сервера; запрещённые действия защищены backend. Одно семейное пространство и общий чат; состояние уведомлений персональное.
+
+### Ключевые контракты
+
+Me/Household, приглашение и passkey, Ownership, семейный/индивидуальный фильтр; текущий principal не меняется вместе с фильтром.
+
+### Вне объёма
+
+Только desktop web на ноутбуке с macOS; мобильные экраны не добавлять. Финансовые расчёты и проверка полномочий остаются на сервере. Не расширять согласованный продуктовый объём.
+
+### Блокирующие зависимости
+
+- [#48](https://github.com/andrey-krasheninnikov/want-keep/issues/48) (`task-7.1`): выполнена.
+- [#16](https://github.com/andrey-krasheninnikov/want-keep/issues/16) (`task-1.6`): выполнена.
 
 ### Границы изменений
 
@@ -140,7 +159,7 @@ make e2e SCENARIO=family-access
 
 RU/EN и desktop-вид различают текущего автора и выбранный разрез; попытка изменить роль через фильтр не даёт доступа; приглашение не допускает постороннего.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -152,7 +171,7 @@ RU/EN и desktop-вид различают текущего автора и вы
 
 Add household context and ownership to the interface.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-7.1`, `task-1.6`.
 
@@ -160,7 +179,26 @@ Add household context and ownership to the interface.
 
 ### Change and contracts
 
+### Current behavior
+
+The desktop shell, separate RU/EN sign-in, design system and household-permission backend are included in the base. Their presence does not establish readiness of every screen and scenario in this task.
+
+### Desired behavior
+
 Show the current member, separate sign-in/invitation, personal/household ownership and household/individual view selection. A person filter changes presentation, never permissions or principal. Render server capabilities; backend protects denied actions. One household workspace and shared chat; notification read state is personal.
+
+### Key interfaces
+
+Me/Household, invitation and passkey, Ownership, household/individual filters; filtering does not change the current principal.
+
+### Out of scope
+
+Desktop web on a macOS laptop only; do not add mobile screens. Financial calculations and authority checks remain server-side. Do not expand the agreed product scope.
+
+### Blocked by
+
+- [#48](https://github.com/andrey-krasheninnikov/want-keep/issues/48) (`task-7.1`): completed.
+- [#16](https://github.com/andrey-krasheninnikov/want-keep/issues/16) (`task-1.6`): completed.
 
 ### Change boundaries
 
@@ -287,7 +325,7 @@ make e2e SCENARIO=family-access
 
 RU/EN and desktop views distinguish current actor from selected view; changing the filter grants no authority and invitations do not admit outsiders.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

@@ -5,7 +5,7 @@
 
 Закрыть подтверждённые дефекты и передать проверяемый результат.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-9.1`.
 
@@ -13,7 +13,25 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+SDD имеет статус Ready for development; завершённые задачи содержат отдельные доказательства. Это не подтверждает сквозную приёмку полного MVP или эксплуатационную готовность.
+
+### Требуемое поведение
+
 Провести независимую read-only проверку полного зафиксированного кандидата по нескольким ролям с перепроверкой фактов. В рамках SDD исправить подтверждённые замечания, повторить затронутые проверки и финальную проверку по ограниченному бюджету раундов. Сопоставить REQ/AC/task/evidence и фактическую готовность; коммиты, push и deployment выполнять только при отдельной действующей авторизации.
+
+### Ключевые контракты
+
+Зафиксированный кандидат и target, доказательства приёмки, независимая проверка замечаний и итоговая передача с ограничениями.
+
+### Вне объёма
+
+Не расширять MVP и не заменять live/manual-доказательства моками. Исправления выполняются у владельцев поведения; закрытие тикета не заменяет подтверждённый результат приёмки.
+
+### Блокирующие зависимости
+
+- [#66](https://github.com/andrey-krasheninnikov/want-keep/issues/66) (`task-9.1`): открыта; блокирует выполнение.
 
 ### Границы изменений
 
@@ -195,7 +213,7 @@ make check && python3 spec/001-want-keep-mvp/tools/spec_tool.py check
 
 Финальный fingerprint соответствует доказательствам и независимому review; нет скрытых blocker или заявлений о непройденных проверках.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -207,7 +225,7 @@ make check && python3 spec/001-want-keep-mvp/tools/spec_tool.py check
 
 Resolve confirmed defects and hand off a verifiable result.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-9.1`.
 
@@ -215,7 +233,25 @@ Resolve confirmed defects and hand off a verifiable result.
 
 ### Change and contracts
 
+### Current behavior
+
+The SDD is Ready for development and completed tasks carry separate evidence. This does not establish full-MVP end-to-end acceptance or production readiness.
+
+### Desired behavior
+
 Run an independent read-only review of the complete frozen candidate across multiple roles with fact-checking. Under SDD ownership fix confirmed findings, rerun affected checks and the final review within the bounded round policy. Reconcile REQ/AC/task/evidence and actual readiness; commits, push and deployment require separate current authorization.
+
+### Key interfaces
+
+Pinned candidate and target, acceptance evidence, independent finding verification and final handoff with limitations.
+
+### Out of scope
+
+Do not expand the MVP or substitute mocks for live/manual evidence. Fixes belong to their behavior owners; closing an issue does not replace a confirmed acceptance outcome.
+
+### Blocked by
+
+- [#66](https://github.com/andrey-krasheninnikov/want-keep/issues/66) (`task-9.1`): open; blocks execution.
 
 ### Change boundaries
 
@@ -397,7 +433,7 @@ make check && python3 spec/001-want-keep-mvp/tools/spec_tool.py check
 
 Final fingerprint matches evidence and independent review; no hidden blockers or claims about unrun checks.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

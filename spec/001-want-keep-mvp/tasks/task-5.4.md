@@ -5,7 +5,7 @@
 
 Сохранять диалог до однозначного результата учёта.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-5.3`, `task-5.2`.
 
@@ -13,7 +13,26 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Приватные вложения, журнал операций, проверка версий и gateway с контролем расходов включены в базу. Обработка чеков, общий чат и продуктовые инсайты имеют отдельные критерии приёмки.
+
+### Требуемое поведение
+
 Связать сообщения, выбранный счёт, вложения, draft/proposal/operation и уточнения. Полная новая операция создаётся либо связывается с подтверждённым совпадением; недостаточные данные запрашиваются адресно. Ответ на уточнение применяет текущую версию один раз. Сохранять понятные состояния processing/waiting/skipped/recorded, возможность исправления и независимость обычного учёта от AI. Один общий чат, account picker включает личные счета обоих и семейные. Подтверждение принадлежит вошедшему участнику, а не названному в тексте; личные планы/цели подтверждает владелец. Ответы на одно уточнение версионны.
+
+### Ключевые контракты
+
+Общий чат, сообщения и вложения, proposal/draft/operation, версионное уточнение, idempotent команды и серверная проверка инициатора.
+
+### Вне объёма
+
+Не менять согласованную модель и лимит расходов, не предоставлять модели секреты или платёжные инструменты. Пользовательские экраны и соседние сценарии реализуются своими задачами.
+
+### Блокирующие зависимости
+
+- [#37](https://github.com/andrey-krasheninnikov/want-keep/issues/37) (`task-5.3`): открыта; блокирует выполнение.
+- [#36](https://github.com/andrey-krasheninnikov/want-keep/issues/36) (`task-5.2`): выполнена.
 
 ### Границы изменений
 
@@ -126,7 +145,7 @@ make test-integration AREA=chat
 
 Повтор отправки/ответа и обновление банковской операции во время диалога не создают дубль; каждое сообщение имеет объяснимый результат.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -138,7 +157,7 @@ make test-integration AREA=chat
 
 Retain a conversation until it reaches an unambiguous accounting outcome.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-5.3`, `task-5.2`.
 
@@ -146,7 +165,26 @@ Retain a conversation until it reaches an unambiguous accounting outcome.
 
 ### Change and contracts
 
+### Current behavior
+
+Private attachments, the transaction ledger, revision checks and the budget-controlled gateway are included in the base. Receipt processing, shared chat and product insights have separate acceptance criteria.
+
+### Desired behavior
+
 Link messages, selected account, attachments, draft/proposal/operation and clarifications. A complete new transaction is created or linked to a substantiated match; missing fields trigger targeted questions. Clarification replies apply the current version once. Expose understandable processing/waiting/skipped/recorded states, correction and ordinary-accounting independence from AI. One shared chat; the account picker includes both members’ personal and household accounts. Confirmation belongs to the signed-in member, not a person named in text; personal plans/goals require their owner. Answers to one clarification are versioned.
+
+### Key interfaces
+
+Shared chat, messages and attachments, proposal/draft/operation, revision-aware clarification, idempotent commands and server-side initiator checks.
+
+### Out of scope
+
+Do not change the agreed model or spending cap, or expose secrets or payment tools to the model. Product screens and adjacent workflows remain with their owning tasks.
+
+### Blocked by
+
+- [#37](https://github.com/andrey-krasheninnikov/want-keep/issues/37) (`task-5.3`): open; blocks execution.
+- [#36](https://github.com/andrey-krasheninnikov/want-keep/issues/36) (`task-5.2`): completed.
 
 ### Change boundaries
 
@@ -259,7 +297,7 @@ make test-integration AREA=chat
 
 Resubmitting/replying and bank updates during a conversation create no duplicate; every message has an explainable outcome.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

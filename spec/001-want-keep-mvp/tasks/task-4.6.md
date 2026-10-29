@@ -5,7 +5,7 @@
 
 Автоматически читать кошелёк USDT, используемые Grow/криптокарты и архив P2P EMCD по D-34.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-0.6`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -13,7 +13,28 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Исследовательские контракты и общая инфраструктура импорта, collector и admission включены в базу. Они не подтверждают финансовый mapping или live-допуск конкретного провайдера.
+
+### Требуемое поведение
+
 Реализовать D-34: кошелёк USDT, Grow, используемые криптокарты и историю P2P. До provider deployment получить разрешённые структурированные fixtures каждого журнала, read allowlist, стабильную D-39 identity, pagination/coverage, revisions/statuses/fees, card/Grow/P2P lifecycle, reauth и два аккаунта. UI-текст не создаёт проводку. Разделить aggregate, wallet, Grow, card owned/available/reserve; reward/capitalization/payout и card authorization/clearing/refund/reversal связывать без двойного эффекта. USDT funding, USD card и приблизительная оценка EUR-покупки — разные факты. Unknown fee/owner side/legs и history gaps остаются явными; коллизия даёт `source_ambiguous` без проводки. Stale job после disconnect не применяется. Майнинг и другие неиспользуемые продукты отложены без блокировки. Provider evidence публикуется admission service для точного D-43 binding; conformance до admission идёт в quarantine без source record/проводки, а смена binding снова закрывает sync.
+
+### Ключевые контракты
+
+Read-контракты EMCD wallet/Grow/card/P2P, source revisions, нормализация сумм и admission.
+
+### Вне объёма
+
+Не добавлять изменяющие банковские или торговые действия, несогласованные продукты и обход admission. Не заменять автоматический импорт ручной выпиской или UI-сводкой.
+
+### Блокирующие зависимости
+
+- [#6](https://github.com/andrey-krasheninnikov/want-keep/issues/6) (`task-0.6`): выполнена.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): выполнена.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): выполнена.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): выполнена.
 
 ### Границы изменений
 
@@ -123,7 +144,7 @@ make test-contract PROVIDER=emcd && make test-integration AREA=emcd
 
 кошелёк USDT, Grow, используемые криптокарты и P2P проходят синтетические fixtures и отдельный разрешённый live readback; доказаны identity, полный обход страниц, revisions, reauth, два аккаунта и deployment gate. Unknown и коллизии не проводят деньги.
 
-Команды make созданы основой task-1.1; финансовые provider/integration/E2E suites ещё не реализованы. Для документации используется make docs-check. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат; наличие команды или UI-доступа не доказывает runtime.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -135,7 +156,7 @@ make test-contract PROVIDER=emcd && make test-integration AREA=emcd
 
 Automatically read the EMCD USDT wallet, used Grow/crypto cards and P2P archive under D-34.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-0.6`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -143,7 +164,28 @@ Automatically read the EMCD USDT wallet, used Grow/crypto cards and P2P archive 
 
 ### Change and contracts
 
+### Current behavior
+
+Research contracts and shared ingestion, collector and admission infrastructure are included in the base. They do not establish the provider-specific financial mapping or live admission.
+
+### Desired behavior
+
 Implement D-34: the USDT wallet, Grow, existing crypto cards and P2P history. Before provider deployment obtain authorized structured fixtures for every log, a read allowlist, stable D-39 identity, pagination/coverage, revisions/statuses/fees, card/Grow/P2P lifecycle, reauthentication and two accounts. UI text never creates a posting. Separate aggregate, wallet, Grow and card owned/available/reserve; link reward/capitalization/payout and card authorization/clearing/refund/reversal without duplicate effects. USDT funding, the USD card and an approximate valuation of an EUR purchase are separate facts. Unknown fee/owner side/legs and history gaps stay explicit; a collision yields `source_ambiguous` without posting. A stale job cannot apply after disconnect. Mining and other unused products are deferred without blocking. Provider evidence is supplied to the admission service for the exact D-43 binding; pre-admission conformance runs in quarantine without source records/postings, and any binding change closes sync again.
+
+### Key interfaces
+
+EMCD wallet/Grow/card/P2P read contracts, source revisions, amount normalization and admission.
+
+### Out of scope
+
+Do not add bank or trading mutations, unapproved products or admission bypasses. Do not replace automated ingestion with manual statements or UI summaries.
+
+### Blocked by
+
+- [#6](https://github.com/andrey-krasheninnikov/want-keep/issues/6) (`task-0.6`): completed.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): completed.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): completed.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): completed.
 
 ### Change boundaries
 
@@ -253,7 +295,7 @@ make test-contract PROVIDER=emcd && make test-integration AREA=emcd
 
 The USDT wallet, Grow, existing crypto cards and P2P pass synthetic fixtures and a separate authorized live readback; identity, complete pagination, revisions, reauthentication, two accounts and the deployment gate are proven. Unknown values and collisions do not post money.
 
-The task-1.1 foundation provides make commands; financial provider/integration/E2E suites are not implemented yet. Use make docs-check for documentation. Live/paid/manual checks separately record access and outcomes; an existing command or UI access is not runtime proof.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

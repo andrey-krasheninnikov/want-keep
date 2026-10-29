@@ -5,7 +5,7 @@
 
 Автоматически получать согласованные данные дебетовой карты Ozon и связанного основного счёта без двойного остатка.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-0.3`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -13,7 +13,28 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Исследовательские контракты и общая инфраструктура импорта, collector и admission включены в базу. Они не подтверждают финансовый mapping или live-допуск конкретного провайдера.
+
+### Требуемое поведение
+
 Реализовать текущий контракт Ozon по D-32: дебетовая карта и связанный основной счёт, их остатки и операции. Кредитки, накопления и вклады — будущее расширение; их отсутствие не блокирует этот коннектор. Не подменять банковские операции заказами маркетплейса, UI-сводку «Доходы» семейным доходом или округлённый агрегат точной суммой. Использовать синтетическую проекцию готовых HAR из evidence/ozon и реализовать только доказанный read allowlist, mappers и contract fixtures. Source identity следует D-39: accountToken и connection ID не являются account identity; route-specific record ID живёт в product/log namespace. Проверить повторы, поздние изменения, истечение сессии, часовой refresh и историю с выбранной даты. До provider deployment проверить разрешение на session transport, lifecycle сессии, второй аккаунт и полный live readback; collector используется только при подтверждённой необходимости браузера. Два аккаунта участников изолированы; повторное подключение одного реального аккаунта связывается с существующим источником. Старый результат после отключения не применяется. Поля и синтетические проекции: evidence/ozon.md и evidence/ozon.samples.json. Валюта RUR преобразуется в RUB; cents обрабатываются точно. Не использовать меняющийся accountToken или один groupID как ключ дедупликации: перевод и комиссия могут разделять groupID. lastOperationId — кандидат source ID, parentOperationId связывает комиссию; жизненный цикл сверяется отдельно. Учитывать status вместе с типом и meta, не проводить canceled или неизвестное сочетание. Отсутствие available/locked и исходной покупки возврата остаётся явным. Каждый next обрабатывается с сохранением coverage; конец HAR не означает конец истории. Provider evidence публикуется admission service для точного D-43 binding; conformance до admission идёт в quarantine без source record/проводки, а смена binding снова закрывает sync.
+
+### Ключевые контракты
+
+Read-контракт Ozon, RawGateway и нормализация в ingestion, D-39 identity, D-43 admission, страницы операций и quality/coverage.
+
+### Вне объёма
+
+Не добавлять изменяющие банковские или торговые действия, несогласованные продукты и обход admission. Не заменять автоматический импорт ручной выпиской или UI-сводкой.
+
+### Блокирующие зависимости
+
+- [#3](https://github.com/andrey-krasheninnikov/want-keep/issues/3) (`task-0.3`): выполнена.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): выполнена.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): выполнена.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): выполнена.
 
 ### Границы изменений
 
@@ -121,7 +142,7 @@ make test-contract PROVIDER=ozon && make test-integration AREA=ozon
 
 Дебетовый контракт имеет пройденные синтетические сценарии и отдельный read-only live readback с безопасно подключённым аккаунтом. Карта не удваивает баланс, переводы/возвраты не становятся ложным доходом. Отсутствие других продуктов Ozon не блокирует приёмку по D-32; неизвестные обязательные поля и непроверенная полнота дебетовых данных не скрываются.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -133,7 +154,7 @@ make test-contract PROVIDER=ozon && make test-integration AREA=ozon
 
 Automatically retrieve consistent Ozon debit-card and linked main-account data without duplicating the balance.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-0.3`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -141,7 +162,28 @@ Automatically retrieve consistent Ozon debit-card and linked main-account data w
 
 ### Change and contracts
 
+### Current behavior
+
+Research contracts and shared ingestion, collector and admission infrastructure are included in the base. They do not establish the provider-specific financial mapping or live admission.
+
+### Desired behavior
+
 Implement the current Ozon contract under D-32: debit card and linked main account, their balances and transactions. Credit cards, savings and deposits are a future extension; their absence does not block this connector. Do not substitute marketplace orders for bank transactions, the UI Income summary for household income, or rounded aggregates for exact amounts. Use the synthetic projection of the completed HAR evidence and implement only the proven read allowlist, mappers and contract fixtures. Source identity follows D-39: accountToken and connection ID are not account identity; a route-specific record ID lives in the product/log namespace. Verify replay, late revisions, session expiry, hourly refresh and history from the selected date. Before provider deployment verify session-transport permission, session lifecycle, a second account and complete live readback; use the collector only when browser access is proven necessary. Member accounts remain isolated; reconnection of one real account links to the existing source. Stale results cannot apply after disconnect. Field shapes and synthetic projections: evidence/ozon.en.md and evidence/ozon.samples.json. Map RUR to RUB and process cents exactly. Never use rotating accountToken or groupID alone for deduplication: a transfer and its commission may share groupID. lastOperationId is a source-ID candidate and parentOperationId links the commission; reconcile lifecycle separately. Combine status with type/meta; never post canceled or unknown combinations. Missing available/locked fields and original refund purchase remain explicit. Process each next with persisted coverage; HAR completion is not history completion. Provider evidence is supplied to the admission service for the exact D-43 binding; pre-admission conformance runs in quarantine without source records/postings, and any binding change closes sync again.
+
+### Key interfaces
+
+Ozon read contract, RawGateway and ingestion normalization, D-39 identity, D-43 admission, transaction pages and quality/coverage.
+
+### Out of scope
+
+Do not add bank or trading mutations, unapproved products or admission bypasses. Do not replace automated ingestion with manual statements or UI summaries.
+
+### Blocked by
+
+- [#3](https://github.com/andrey-krasheninnikov/want-keep/issues/3) (`task-0.3`): completed.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): completed.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): completed.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): completed.
 
 ### Change boundaries
 
@@ -249,7 +291,7 @@ make test-contract PROVIDER=ozon && make test-integration AREA=ozon
 
 The debit contract has passing synthetic scenarios and separate read-only live readback with a securely connected account. The card does not duplicate balance; transfers/refunds do not become false income. Missing other Ozon products does not block acceptance under D-32; unknown mandatory fields and unverified debit-data completeness remain explicit.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

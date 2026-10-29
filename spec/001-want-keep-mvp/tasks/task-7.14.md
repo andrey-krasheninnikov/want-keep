@@ -5,7 +5,7 @@
 
 Настроить учёт и понять сохранность данных.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-7.9`, `task-7.8`, `task-8.2`, `task-2.6`.
 
@@ -13,7 +13,28 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Desktop-оболочка, отдельный вход RU/EN, дизайн-система и backend семейных прав включены в базу. Их наличие не доказывает готовность всех экранов и сценариев этой карточки.
+
+### Требуемое поведение
+
 SCR-031–SCR-035: личные язык/валюта/уведомления, семья/приглашение, собственные passkey/recovery/устройства, категории/продавцы/правила с preview, состояние AI/источников/курсов/лимитов затрат и возраст последней Mac-копии. Диагностика раскрывается отдельно. Экран не исполняет восстановление БД и не выдаёт партнёру чужие средства доступа; ссылки ведут к существующим действиям подключения/безопасности. В личных настройках отдельное отключение декоративных эффектов; системное reduced motion имеет приоритет.
+
+### Ключевые контракты
+
+Settings/Household/Security/Categories/Rules/SystemStatus; собственные средства доступа, персональные эффекты и возраст Mac-копии.
+
+### Вне объёма
+
+Только desktop web на ноутбуке с macOS; мобильные экраны не добавлять. Финансовые расчёты и проверка полномочий остаются на сервере. Не расширять согласованный продуктовый объём.
+
+### Блокирующие зависимости
+
+- [#56](https://github.com/andrey-krasheninnikov/want-keep/issues/56) (`task-7.9`): открыта; блокирует выполнение.
+- [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) (`task-7.8`): открыта; блокирует выполнение.
+- [#64](https://github.com/andrey-krasheninnikov/want-keep/issues/64) (`task-8.2`): открыта; блокирует выполнение.
+- [#22](https://github.com/andrey-krasheninnikov/want-keep/issues/22) (`task-2.6`): выполнена.
 
 ### Границы изменений
 
@@ -310,7 +331,7 @@ make e2e SCENARIO=settings-health
 
 Настройки персональны, правила имеют preview и историю, Mac offline показывает фактическую свежесть/RPO, неизвестные статусы не выглядят успехом.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -322,7 +343,7 @@ make e2e SCENARIO=settings-health
 
 Configure accounting and understand data preservation.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-7.9`, `task-7.8`, `task-8.2`, `task-2.6`.
 
@@ -330,7 +351,28 @@ Configure accounting and understand data preservation.
 
 ### Change and contracts
 
+### Current behavior
+
+The desktop shell, separate RU/EN sign-in, design system and household-permission backend are included in the base. Their presence does not establish readiness of every screen and scenario in this task.
+
+### Desired behavior
+
 SCR-031–SCR-035: personal language/currency/notifications, household/invite, own passkeys/recovery/devices, categories/merchants/rules with preview, AI/source/rate/spend-limit health and last Mac backup age. Diagnostics are expandable. The screen neither restores the database nor exposes partner credentials; links lead to existing connection/security actions. Personal settings include decorative effects off; system reduced motion takes precedence.
+
+### Key interfaces
+
+Settings/Household/Security/Categories/Rules/SystemStatus; personal access credentials, decorative-effect preferences and Mac-backup age.
+
+### Out of scope
+
+Desktop web on a macOS laptop only; do not add mobile screens. Financial calculations and authority checks remain server-side. Do not expand the agreed product scope.
+
+### Blocked by
+
+- [#56](https://github.com/andrey-krasheninnikov/want-keep/issues/56) (`task-7.9`): open; blocks execution.
+- [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) (`task-7.8`): open; blocks execution.
+- [#64](https://github.com/andrey-krasheninnikov/want-keep/issues/64) (`task-8.2`): open; blocks execution.
+- [#22](https://github.com/andrey-krasheninnikov/want-keep/issues/22) (`task-2.6`): completed.
 
 ### Change boundaries
 
@@ -627,7 +669,7 @@ make e2e SCENARIO=settings-health
 
 Settings are personal, rules have preview/history, offline Mac shows actual freshness/RPO and unknown states never appear successful.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

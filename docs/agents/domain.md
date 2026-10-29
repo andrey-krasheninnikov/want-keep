@@ -1,6 +1,14 @@
 # Domain docs
 
-Single-context layout. Read `spec/001-want-keep-mvp/glossary.md` (or
-`glossary.en.md`) and relevant SDD contracts and constraints before changing
-domain behavior. Read relevant `docs/adr/` records if present. Add an ADR
-only when a new architectural decision needs a durable record.
+Use one domain context. Start with GLOSSARY.md, which links to the
+canonical RU/EN glossary in spec/001-want-keep-mvp/.
+
+Read relevant SDD contracts, constraints and recorded D-* decisions.
+Use the glossary's terms in issues, specifications and implementation.
+
+Existing SDD decisions remain authoritative. Read relevant docs/adr/
+records when present; create new ADRs only for new durable decisions.
+Do not duplicate existing terms or decisions.
+
+Missing optional documents do not block work. Surface conflicts with
+recorded decisions instead of silently overriding them.

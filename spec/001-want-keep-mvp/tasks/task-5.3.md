@@ -5,7 +5,7 @@
 
 Извлекать подтверждаемые данные чека и связывать их с одной оплатой.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-5.2`, `task-1.5`, `task-2.7`.
 
@@ -13,7 +13,27 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Приватные вложения, журнал операций, проверка версий и gateway с контролем расходов включены в базу. Обработка чеков, общий чат и продуктовые инсайты имеют отдельные критерии приёмки.
+
+### Требуемое поведение
+
 Обработать фото и PDF через ограниченный pipeline с проверкой формата/размера/страниц до AI. Извлекать позиции, суммы, валюту, дату, продавца и скидки с provenance. Проверять итог арифметически, привязывать выбранный счёт, выявлять duplicate attachment и match candidates. Нерелевантное пропускать с причиной; неполное уточнять; не исполнять активный контент или URL документа. Сохранить лимиты 10 MiB/10 страниц, обрабатывать страницы с detail=high и ограниченным input/output; проверить максимум, мелкие/нечитаемые суммы, mixed receipts и injection отдельно от чистых синтетических assets/openai-eval. Inline PDF/изображения не создают долгоживущие Files objects; никакого перехода по ссылкам в документе. Исследование task-0.8 завершено: использовать gpt-5.6-terra xhigh и финальную strict-схему из evidence/openai.prompts.json; Luna/Sol/MiniMax/DeepSeek автоматически не подключать. Финальный xhigh eval 206/206 не заменяет runtime/locale проверки. reasoning.effort=xhigh; никаких автоматических downgrade при лимите $50. Статус записи формирует приложение, не объяснение модели.
+
+### Ключевые контракты
+
+Приватные attachments, выбранный account, receipt extraction schema, item set и correction/matching-контракты журнала; очередь уточнений и budget-controlled gateway.
+
+### Вне объёма
+
+Не менять согласованную модель и лимит расходов, не предоставлять модели секреты или платёжные инструменты. Пользовательские экраны и соседние сценарии реализуются своими задачами.
+
+### Блокирующие зависимости
+
+- [#36](https://github.com/andrey-krasheninnikov/want-keep/issues/36) (`task-5.2`): выполнена.
+- [#15](https://github.com/andrey-krasheninnikov/want-keep/issues/15) (`task-1.5`): выполнена.
+- [#23](https://github.com/andrey-krasheninnikov/want-keep/issues/23) (`task-2.7`): выполнена.
 
 ### Границы изменений
 
@@ -119,7 +139,7 @@ make test-integration AREA=receipts && make eval-ai SUITE=receipts
 
 Валидные, частичные, повторные и вредоносные документы проходят требуемые состояния; итог распределения равен оплате.
 
-Основа task-1.1 уже предоставляет make. make docs-check проверяет документацию и исследовательский инструмент; production AI integration/E2E suites ещё не реализованы. Модельный eval и приёмка приложения фиксируются раздельно.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -131,7 +151,7 @@ make test-integration AREA=receipts && make eval-ai SUITE=receipts
 
 Extract verifiable receipt data and link it to one payment.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-5.2`, `task-1.5`, `task-2.7`.
 
@@ -139,7 +159,27 @@ Extract verifiable receipt data and link it to one payment.
 
 ### Change and contracts
 
+### Current behavior
+
+Private attachments, the transaction ledger, revision checks and the budget-controlled gateway are included in the base. Receipt processing, shared chat and product insights have separate acceptance criteria.
+
+### Desired behavior
+
 Process photos and PDFs through a bounded pipeline validating format/size/pages before AI. Extract items, amounts, currency, date, merchant and discounts with provenance. Validate totals arithmetically, bind the selected account and detect duplicate attachments/match candidates. Skip irrelevant content with a reason, clarify incomplete data and never execute document content or URLs. Preserve the 10 MiB/10-page limits; process pages with detail=high and bounded input/output. Test boundaries, small/unreadable amounts, mixed receipts and injection beyond the clean assets/openai-eval fixtures. Inline PDF/images create no persistent Files objects; never follow document links. task-0.8 research is complete: use gpt-5.6-terra xhigh and the final strict schema in evidence/openai.prompts.json; do not automatically enable Luna/Sol/MiniMax/DeepSeek. The final xhigh evaluation 206/206 does not replace runtime/locale checks. reasoning.effort=xhigh; no automatic downgrade at the USD 50 cap. The application supplies persistence status, not the model explanation.
+
+### Key interfaces
+
+Private attachments, selected account, receipt extraction schema, ledger item-set and correction/matching contracts; clarification queue and budget-controlled gateway.
+
+### Out of scope
+
+Do not change the agreed model or spending cap, or expose secrets or payment tools to the model. Product screens and adjacent workflows remain with their owning tasks.
+
+### Blocked by
+
+- [#36](https://github.com/andrey-krasheninnikov/want-keep/issues/36) (`task-5.2`): completed.
+- [#15](https://github.com/andrey-krasheninnikov/want-keep/issues/15) (`task-1.5`): completed.
+- [#23](https://github.com/andrey-krasheninnikov/want-keep/issues/23) (`task-2.7`): completed.
 
 ### Change boundaries
 
@@ -245,7 +285,7 @@ make test-integration AREA=receipts && make eval-ai SUITE=receipts
 
 Valid, partial, repeated and malicious documents follow required states; allocation total equals payment.
 
-The task-1.1 foundation already provides make. make docs-check validates documentation and research tooling; production AI integration/E2E suites are not implemented. Model evaluation and application acceptance are recorded separately.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

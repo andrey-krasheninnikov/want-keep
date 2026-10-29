@@ -5,7 +5,7 @@
 
 Автоматически получать согласованные данные RUB-счетов, USDT, ETH и используемой карты Aifory по D-33.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-0.5`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -13,7 +13,28 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Исследовательские контракты и общая инфраструктура импорта, collector и admission включены в базу. Они не подтверждают финансовый mapping или live-допуск конкретного провайдера.
+
+### Требуемое поведение
+
 Реализовать D-33: RUB-счета, USDT, ETH и используемую карту. До provider deployment получить разрешённый структурированный fixture из сессии, read allowlist, стабильную D-39 account/source identity, pagination/coverage, revisions/statuses/fees, card authorization/clearing/refund lifecycle, reauth и два независимых аккаунта. Flutter/UI-текст, имя офиса, адрес и `/home/wallet` не являются финансовым контрактом или identity. USD-карта отделена от USDT; funding legs, gross/net, rate/fee basis сохраняются явно. Похожие pending/confirmed строки без доказанной связи дают `source_ambiguous` и не списываются дважды. Unknown и history gaps остаются явными. Stale job после disconnect не применяется. Остальные продукты D-33 отложены без блокировки. Provider evidence публикуется admission service для точного D-43 binding; conformance до admission идёт в quarantine без source record/проводки, а смена binding снова закрывает sync.
+
+### Ключевые контракты
+
+Read-контракт Aifory, разрешённые журналы RUB/USDT/ETH и карты, source identity, lifecycle, coverage и admission.
+
+### Вне объёма
+
+Не добавлять изменяющие банковские или торговые действия, несогласованные продукты и обход admission. Не заменять автоматический импорт ручной выпиской или UI-сводкой.
+
+### Блокирующие зависимости
+
+- [#5](https://github.com/andrey-krasheninnikov/want-keep/issues/5) (`task-0.5`): выполнена.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): выполнена.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): выполнена.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): выполнена.
 
 ### Границы изменений
 
@@ -120,7 +141,7 @@ make test-contract PROVIDER=aifory && make test-integration AREA=aifory
 
 RUB, USDT, ETH и используемая карта проходят синтетические fixtures и отдельный разрешённый live readback; доказаны identity, полный обход страниц, revisions, reauth, два аккаунта и deployment gate. Unknown и коллизии не проводят деньги.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -132,7 +153,7 @@ RUB, USDT, ETH и используемая карта проходят синт�
 
 Automatically retrieve consistent Aifory RUB-account, USDT, ETH and existing-card data under D-33.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-0.5`, `task-3.3`, `task-2.4`, `task-2.5`.
 
@@ -140,7 +161,28 @@ Automatically retrieve consistent Aifory RUB-account, USDT, ETH and existing-car
 
 ### Change and contracts
 
+### Current behavior
+
+Research contracts and shared ingestion, collector and admission infrastructure are included in the base. They do not establish the provider-specific financial mapping or live admission.
+
+### Desired behavior
+
 Implement D-33: RUB accounts, USDT, ETH and the existing card. Before provider deployment obtain an authorized structured fixture from the session, read allowlist, stable D-39 account/source identity, pagination/coverage, revisions/statuses/fees, card authorization/clearing/refund lifecycle, reauthentication and two independent accounts. Flutter/UI text, office name, address and `/home/wallet` are neither a financial contract nor identity. Keep the USD card separate from USDT and retain funding legs, gross/net and rate/fee basis explicitly. Similar pending/confirmed records without proven linkage yield `source_ambiguous` and are not charged twice. Unknown fields and history gaps stay explicit. A stale job cannot apply after disconnect. Other D-33 products are deferred without blocking. Provider evidence is supplied to the admission service for the exact D-43 binding; pre-admission conformance runs in quarantine without source records/postings, and any binding change closes sync again.
+
+### Key interfaces
+
+Aifory read contract, permitted RUB/USDT/ETH and card logs, source identity, lifecycle, coverage and admission.
+
+### Out of scope
+
+Do not add bank or trading mutations, unapproved products or admission bypasses. Do not replace automated ingestion with manual statements or UI summaries.
+
+### Blocked by
+
+- [#5](https://github.com/andrey-krasheninnikov/want-keep/issues/5) (`task-0.5`): completed.
+- [#28](https://github.com/andrey-krasheninnikov/want-keep/issues/28) (`task-3.3`): completed.
+- [#20](https://github.com/andrey-krasheninnikov/want-keep/issues/20) (`task-2.4`): completed.
+- [#21](https://github.com/andrey-krasheninnikov/want-keep/issues/21) (`task-2.5`): completed.
 
 ### Change boundaries
 
@@ -247,7 +289,7 @@ make test-contract PROVIDER=aifory && make test-integration AREA=aifory
 
 RUB, USDT, ETH and the existing card pass synthetic fixtures and a separate authorized live readback; identity, complete pagination, revisions, reauthentication, two accounts and the deployment gate are proven. Unknown values and collisions do not post money.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

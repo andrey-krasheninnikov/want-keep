@@ -5,7 +5,7 @@
 
 Внести расход из текста или чека через один объяснимый диалог.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
 
 **Зависимости:** `task-7.1`, `task-5.4`, `task-7.9`.
 
@@ -13,7 +13,27 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+Desktop-оболочка, отдельный вход RU/EN, дизайн-система и backend семейных прав включены в базу. Их наличие не доказывает готовность всех экранов и сценариев этой карточки.
+
+### Требуемое поведение
+
 Реализовать текст, attachment preview, обязательный dropdown счёта для чеков, состояния загрузки/AI/уточнения/пропуска и ссылку на результат операции. Для текстовой команды при неизвестном счёте требовать уточнение; обычный аналитический вопрос счёта не требует. Повтор отправки защищён idempotency, ввод не теряется при смене языка, бюджеты применяются отдельным подтверждением.
+
+### Ключевые контракты
+
+Общий chat API, приватные attachments, account picker, clarification/proposal и ссылка на итоговую операцию.
+
+### Вне объёма
+
+Только desktop web на ноутбуке с macOS; мобильные экраны не добавлять. Финансовые расчёты и проверка полномочий остаются на сервере. Не расширять согласованный продуктовый объём.
+
+### Блокирующие зависимости
+
+- [#48](https://github.com/andrey-krasheninnikov/want-keep/issues/48) (`task-7.1`): выполнена.
+- [#38](https://github.com/andrey-krasheninnikov/want-keep/issues/38) (`task-5.4`): открыта; блокирует выполнение.
+- [#56](https://github.com/andrey-krasheninnikov/want-keep/issues/56) (`task-7.9`): открыта; блокирует выполнение.
 
 ### Границы изменений
 
@@ -267,7 +287,7 @@ make test-web FILTER=chat && make e2e SCENARIO=receipt-chat
 
 Сценарии наличных, валидного/невалидного чека, позднего банковского совпадения и AI outage работают на RU/EN.
 
-Команды `make` — будущий контракт, создаваемый task-1.1; сейчас они не существуют. Live/paid/manual проверки отдельно фиксируют доступ и фактический результат. Исследования не обходят блокер отсутствующего доступа.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -279,7 +299,7 @@ make test-web FILTER=chat && make e2e SCENARIO=receipt-chat
 
 Record a text/receipt expense through one explainable conversation.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
 
 **Dependencies:** `task-7.1`, `task-5.4`, `task-7.9`.
 
@@ -287,7 +307,27 @@ Record a text/receipt expense through one explainable conversation.
 
 ### Change and contracts
 
+### Current behavior
+
+The desktop shell, separate RU/EN sign-in, design system and household-permission backend are included in the base. Their presence does not establish readiness of every screen and scenario in this task.
+
+### Desired behavior
+
 Implement text, attachment previews, mandatory receipt account dropdown, upload/AI/clarification/skip states and a result transaction link. Text commands with unknown accounts require clarification; ordinary analytical questions do not. Protect resubmission with idempotency, preserve input across language switching and confirm budget application separately.
+
+### Key interfaces
+
+Shared chat API, private attachments, account picker, clarification/proposal and a link to the resulting transaction.
+
+### Out of scope
+
+Desktop web on a macOS laptop only; do not add mobile screens. Financial calculations and authority checks remain server-side. Do not expand the agreed product scope.
+
+### Blocked by
+
+- [#48](https://github.com/andrey-krasheninnikov/want-keep/issues/48) (`task-7.1`): completed.
+- [#38](https://github.com/andrey-krasheninnikov/want-keep/issues/38) (`task-5.4`): open; blocks execution.
+- [#56](https://github.com/andrey-krasheninnikov/want-keep/issues/56) (`task-7.9`): open; blocks execution.
 
 ### Change boundaries
 
@@ -541,7 +581,7 @@ make test-web FILTER=chat && make e2e SCENARIO=receipt-chat
 
 Cash, valid/invalid receipt, late bank match and AI outage flows work in RU/EN.
 
-The `make` commands are a future contract established by task-1.1; they do not exist yet. Live/paid/manual checks separately record access and actual outcomes. Research does not bypass missing-access blockers.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 

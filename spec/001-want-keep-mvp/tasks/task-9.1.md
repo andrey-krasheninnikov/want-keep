@@ -5,7 +5,7 @@
 
 Собрать доказательства всех требований на полном кандидате.
 
-**Состояние:** Не начато; задача ожидает собственные зависимости и entry gates.
+**Состояние:** Открыта; ready-for-human. Приёмка требует участия пользователей и отдельных live/manual-доказательств. Начало зависит от незакрытых задач и условий ниже; SDD Ready не является блокером.
 
 **Зависимости:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`, `task-4.7`.
 
@@ -13,7 +13,37 @@
 
 ### Изменение и контракты
 
+### Текущее поведение
+
+SDD имеет статус Ready for development; завершённые задачи содержат отдельные доказательства. Это не подтверждает сквозную приёмку полного MVP или эксплуатационную готовность.
+
+### Требуемое поведение
+
 Пройти весь каталог AC: unit/integration/contract/E2E, AI eval и manual evidence шести платформ; проверить browser push, hourly sync, restore и стоимость. Для каждого AC записать статус/evidence; mock не является live proof. Исправления принадлежат владельцам модулей.
+
+### Ключевые контракты
+
+REQ/AC/task/evidence, полный кандидат, все шесть интеграций и task-4.7, desktop UX, push, restore и бюджет эксплуатации.
+
+### Вне объёма
+
+Не расширять MVP и не заменять live/manual-доказательства моками. Исправления выполняются у владельцев поведения; закрытие тикета не заменяет подтверждённый результат приёмки.
+
+### Блокирующие зависимости
+
+- [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) (`task-4.1`): выполнена.
+- [#30](https://github.com/andrey-krasheninnikov/want-keep/issues/30) (`task-4.2`): выполнена.
+- [#31](https://github.com/andrey-krasheninnikov/want-keep/issues/31) (`task-4.3`): открыта; блокирует выполнение.
+- [#32](https://github.com/andrey-krasheninnikov/want-keep/issues/32) (`task-4.4`): открыта; блокирует выполнение.
+- [#33](https://github.com/andrey-krasheninnikov/want-keep/issues/33) (`task-4.5`): открыта; блокирует выполнение.
+- [#34](https://github.com/andrey-krasheninnikov/want-keep/issues/34) (`task-4.6`): открыта; блокирует выполнение.
+- [#50](https://github.com/andrey-krasheninnikov/want-keep/issues/50) (`task-7.3`): открыта; блокирует выполнение.
+- [#53](https://github.com/andrey-krasheninnikov/want-keep/issues/53) (`task-7.6`): открыта; блокирует выполнение.
+- [#54](https://github.com/andrey-krasheninnikov/want-keep/issues/54) (`task-7.7`): открыта; блокирует выполнение.
+- [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) (`task-7.8`): открыта; блокирует выполнение.
+- [#65](https://github.com/andrey-krasheninnikov/want-keep/issues/65) (`task-8.3`): открыта; блокирует выполнение.
+- [#59](https://github.com/andrey-krasheninnikov/want-keep/issues/59) (`task-7.12`): открыта; блокирует выполнение.
+- [#94](https://github.com/andrey-krasheninnikov/want-keep/issues/94) (`task-4.7`): открыта; блокирует выполнение.
 
 ### Границы изменений
 
@@ -367,7 +397,7 @@ make check && make test-integration AREA=all && make e2e SCENARIO=all && make ev
 
 Каждый AC имеет свежий pass либо конкретный blocker; все функции/платформы нужны для полного MVP, время и стоимость измерены.
 
-До реализации suites использовать `make docs-check`; live/manual/runtime evidence фиксировать отдельно.
+Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
 
 ### Передача следующему агенту
 
@@ -379,7 +409,7 @@ make check && make test-integration AREA=all && make e2e SCENARIO=all && make ev
 
 Collect evidence for all requirements on the complete candidate.
 
-**Status:** Not started; the task awaits its own dependencies and entry gates.
+**Status:** Open; ready-for-human. Acceptance requires user participation and separate live/manual evidence. Open prerequisites and the entry conditions below govern execution; SDD Ready is not a blocker.
 
 **Dependencies:** `task-4.1`, `task-4.2`, `task-4.3`, `task-4.4`, `task-4.5`, `task-4.6`, `task-7.3`, `task-7.6`, `task-7.7`, `task-7.8`, `task-8.3`, `task-7.12`, `task-4.7`.
 
@@ -387,7 +417,37 @@ Collect evidence for all requirements on the complete candidate.
 
 ### Change and contracts
 
+### Current behavior
+
+The SDD is Ready for development and completed tasks carry separate evidence. This does not establish full-MVP end-to-end acceptance or production readiness.
+
+### Desired behavior
+
 Run the full AC catalog: unit/integration/contract/E2E, AI evaluation and manual evidence for six platforms; verify browser push, hourly sync, recovery and cost. Record status/evidence per AC; a mock is not live proof. Fixes belong to owning modules.
+
+### Key interfaces
+
+REQ/AC/task/evidence, the full candidate, all six integrations and task-4.7, desktop UX, push, restore and operating budget.
+
+### Out of scope
+
+Do not expand the MVP or substitute mocks for live/manual evidence. Fixes belong to their behavior owners; closing an issue does not replace a confirmed acceptance outcome.
+
+### Blocked by
+
+- [#29](https://github.com/andrey-krasheninnikov/want-keep/issues/29) (`task-4.1`): completed.
+- [#30](https://github.com/andrey-krasheninnikov/want-keep/issues/30) (`task-4.2`): completed.
+- [#31](https://github.com/andrey-krasheninnikov/want-keep/issues/31) (`task-4.3`): open; blocks execution.
+- [#32](https://github.com/andrey-krasheninnikov/want-keep/issues/32) (`task-4.4`): open; blocks execution.
+- [#33](https://github.com/andrey-krasheninnikov/want-keep/issues/33) (`task-4.5`): open; blocks execution.
+- [#34](https://github.com/andrey-krasheninnikov/want-keep/issues/34) (`task-4.6`): open; blocks execution.
+- [#50](https://github.com/andrey-krasheninnikov/want-keep/issues/50) (`task-7.3`): open; blocks execution.
+- [#53](https://github.com/andrey-krasheninnikov/want-keep/issues/53) (`task-7.6`): open; blocks execution.
+- [#54](https://github.com/andrey-krasheninnikov/want-keep/issues/54) (`task-7.7`): open; blocks execution.
+- [#55](https://github.com/andrey-krasheninnikov/want-keep/issues/55) (`task-7.8`): open; blocks execution.
+- [#65](https://github.com/andrey-krasheninnikov/want-keep/issues/65) (`task-8.3`): open; blocks execution.
+- [#59](https://github.com/andrey-krasheninnikov/want-keep/issues/59) (`task-7.12`): open; blocks execution.
+- [#94](https://github.com/andrey-krasheninnikov/want-keep/issues/94) (`task-4.7`): open; blocks execution.
 
 ### Change boundaries
 
@@ -741,7 +801,7 @@ make check && make test-integration AREA=all && make e2e SCENARIO=all && make ev
 
 Every AC has a fresh pass or precise blocker; all features/platforms are required for the full MVP and time/cost are measured.
 
-Before suites exist, use `make docs-check`; record live/manual/runtime evidence separately.
+Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
 
 ### Handoff to the next agent
 
