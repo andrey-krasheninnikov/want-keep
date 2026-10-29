@@ -70,7 +70,8 @@ export function DateField({
         />
         <SharedDateField
           mode="date"
-          value={parsed ?? ""}
+          // Preserve invalid draft identity so Clear can reset the product input.
+          value={parsed ?? text}
           labels={labels}
           locale={locale}
           disabled={disabled}

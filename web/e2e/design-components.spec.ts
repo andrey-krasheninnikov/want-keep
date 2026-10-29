@@ -306,6 +306,36 @@ test("locale switches reformat a valid date and retain an invalid draft", async 
   ).toBeVisible();
 });
 
+for (const locale of ["ru", "en"] as const) {
+  test(`calendar clears an invalid date draft in ${locale}`, async ({
+    page,
+  }) => {
+    const ru = locale === "ru";
+    if (!ru)
+      await page.getByRole("button", { name: "English", exact: true }).click();
+    const date = page.getByRole("textbox", {
+      name: ru ? "Дата операции" : "Transaction date",
+      exact: true,
+    });
+    await date.fill(ru ? "31.02.2026" : "02/31/2026");
+    await page
+      .getByRole("button", {
+        name: ru
+          ? "Открыть календарь: Дата операции"
+          : "Open calendar: Transaction date",
+        exact: true,
+      })
+      .click();
+    await expect(date).toHaveAttribute("aria-invalid", "true");
+    await page
+      .getByRole("button", { name: ru ? "Очистить" : "Clear", exact: true })
+      .click();
+    await expect(date).toHaveValue("");
+    await expect(date).toHaveAttribute("aria-invalid", "false");
+    await expect(page.locator('[data-slot="date-popover"]')).not.toBeVisible();
+  });
+}
+
 test("rendered action, selection and field states meet text contrast", async ({
   page,
 }) => {

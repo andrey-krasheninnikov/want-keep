@@ -327,6 +327,15 @@ test("closed household, separate passkeys, cash command, invitation and personal
     await page.getByRole("link", { name: "Plan", exact: true }).click();
     await expect(page.getByRole("alertdialog")).toBeVisible();
     await page.getByRole("button", { name: "Stay", exact: true }).click();
+    await expect(
+      page.getByRole("link", { name: "Plan", exact: true }),
+    ).toBeFocused();
+    await page.getByRole("link", { name: "Plan", exact: true }).click();
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    await page.getByRole("alertdialog").press("Escape");
+    await expect(
+      page.getByRole("link", { name: "Plan", exact: true }),
+    ).toBeFocused();
     await expect(page.getByLabel("Account name", { exact: true })).toHaveValue(
       "Unsaved cash",
     );
