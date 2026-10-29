@@ -113,6 +113,7 @@ func (s *Service) create(ctx context.Context, principal household.Principal, inp
 	revision := ledger.Revision{OperationID: operationID, Revision: 1, ActorID: principal.UserID(), Reason: input.Reason, Type: ledger.Refund, State: ledger.Posted, OccurredAt: input.At, CashDate: date, ExpenseMonth: month, Timezone: zone, Origin: "manual", FeeKnowledge: ledger.KnownFees, PayerState: "not_applicable", AllocationReason: "refund_fee_allocation_unresolved", Postings: []ledger.Posting{{AccountID: input.AccountID, Money: input.Amount, Role: ledger.Principal, Treatment: ledger.Movement}}, RecordedAt: recordedAt, HumanOverride: origin == "manual", Protections: map[ledger.Field]ledger.Protection{ledger.PrincipalField: {Revision: 1}, ledger.FeesField: {Revision: 1}, ledger.DateField: {Revision: 1}}, FieldVersions: map[ledger.Field]uint64{}}
 	revision.Origin, revision.AttachmentID, revision.OccurredPrecision = origin, attachmentID, precision
 	if origin == "receipt" {
+		revision.FeeKnowledge = ledger.UnknownFees
 		revision.Protections = map[ledger.Field]ledger.Protection{}
 	}
 	for _, fee := range input.Fees {

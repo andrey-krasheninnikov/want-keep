@@ -60,6 +60,8 @@ func (s *Server) toDTO(r receipt.Receipt) (generated.Receipt, error) {
 		candidates = append(candidates, generated.ReceiptCandidate{Id: c.ID, Revision: int64(c.Revision)})
 	}
 	out.Candidates = &candidates
+	complete := r.CandidatesComplete
+	out.CandidatesComplete = &complete
 	if r.Confirmed != nil {
 		e := factsToDTO(*r.Confirmed)
 		out.Confirmed = &e

@@ -46,7 +46,7 @@ type Repository interface {
 	SaveReceiptPageOutcome(context.Context, household.Principal, Validation, *receipt.Extraction) error
 	ReceiptForPage(context.Context, household.Principal, string) (receipt.Receipt, int, error)
 	CurrentLedgerRevision(context.Context, household.Principal, string) (ledger.Revision, bool, error)
-	ReceiptCandidates(context.Context, household.Principal, receipt.Receipt, receipt.Facts) ([]receipt.Candidate, error)
+	ReceiptCandidates(context.Context, household.Principal, receipt.Receipt, receipt.Facts, string) (receipt.CandidateSet, error)
 	EmitEvent(context.Context, string, string, uint64, string) error
 }
 type PageRepository interface {

@@ -3239,6 +3239,8 @@ export interface components {
       accountId: components["schemas"]["ID"];
       attachmentId: components["schemas"]["ID"];
       candidates?: components["schemas"]["ReceiptCandidate"][];
+      /** @description Whether the bounded candidate list contains every possible match. */
+      candidatesComplete?: boolean;
       confirmed?: components["schemas"]["ReceiptFacts"];
       id: components["schemas"]["ID"];
       items: components["schemas"]["ReceiptItem"][];

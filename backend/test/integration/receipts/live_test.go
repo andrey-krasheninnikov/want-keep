@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -44,28 +43,29 @@ func (g *liveBudget) Count(ctx context.Context, r ai.Request) (int64, error) {
 	return n, err
 }
 func (g *liveBudget) update(change func(*[]liveEntry) error) error {
-	file, err := os.OpenFile(g.path, os.O_RDWR, 0600)
+	lock, err := os.OpenFile(g.path+".lock", os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 {
+	defer lock.Close()
+	if info, e := lock.Stat(); e != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 {
+		return errors.New("invalid private live budget lock")
+	}
+	if err = syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		return err
+	}
+	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+	info, err := os.Lstat(g.path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || info.Size() < 1 || info.Size() > 1<<20 {
 		return errors.New("invalid private live budget journal")
 	}
-	if err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
-		return err
-	}
-	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
-	data, err := io.ReadAll(io.LimitReader(file, 1<<20))
+	data, err := os.ReadFile(g.path)
 	if err != nil {
 		return err
 	}
-	entries := []liveEntry{}
-	if len(data) > 0 {
-		if err = json.Unmarshal(data, &entries); err != nil {
-			return errors.New("live budget journal requires reconciliation")
-		}
+	var entries []liveEntry
+	if json.Unmarshal(data, &entries) != nil || entries == nil {
+		return errors.New("live budget journal requires reconciliation")
 	}
 	if err = change(&entries); err != nil {
 		return err
@@ -74,17 +74,32 @@ func (g *liveBudget) update(change func(*[]liveEntry) error) error {
 	if err != nil {
 		return err
 	}
-	if err = file.Truncate(0); err != nil {
+	temporary, err := os.CreateTemp(filepath.Dir(g.path), ".receipt-budget-*")
+	if err != nil {
 		return err
 	}
-	if _, err = file.Seek(0, 0); err != nil {
+	defer temporary.Close()
+	defer os.Remove(temporary.Name())
+	if _, err = temporary.Write(data); err != nil {
 		return err
 	}
-	if _, err = file.Write(data); err != nil {
+	if err = temporary.Sync(); err != nil {
 		return err
 	}
-	return file.Sync()
+	if err = temporary.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(temporary.Name(), g.path); err != nil {
+		return err
+	}
+	directory, err := os.Open(filepath.Dir(g.path))
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
+	return directory.Sync()
 }
+
 func (g *liveBudget) Generate(ctx context.Context, r ai.Request) (ai.Result, error) {
 	value, exists := g.counts.LoadAndDelete(r.ID)
 	if !exists {
@@ -236,5 +251,52 @@ func TestLiveReceipts(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLiveJournalRejectsEmptyAndKeepsConcurrentHistory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "budget.json")
+	if err := os.WriteFile(path, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	g := liveBudget{path: path}
+	if err := g.update(func(*[]liveEntry) error { return nil }); err == nil {
+		t.Fatal("empty journal reset spending history")
+	}
+	if err := os.WriteFile(path, []byte("[]"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var group sync.WaitGroup
+	for range 4 {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			for range 10 {
+				if err := g.update(func(v *[]liveEntry) error {
+					*v = append(*v, liveEntry{ID: uuid.NewString(), Actual: "0.01", State: "settled"})
+					return nil
+				}); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+	group.Wait()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entries []liveEntry
+	if err = json.Unmarshal(data, &entries); err != nil || len(entries) != 40 {
+		t.Fatal("concurrent journal history lost", err)
+	}
+	sentinel := errors.New("interrupted update")
+	if err = g.update(func(*[]liveEntry) error { return sentinel }); !errors.Is(err, sentinel) {
+		t.Fatal("failed update accepted")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || string(after) != string(data) {
+		t.Fatal("failed update damaged journal")
 	}
 }

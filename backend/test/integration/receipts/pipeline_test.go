@@ -6,10 +6,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	aiapp "github.com/pchkauu/want-keep/backend/internal/ai/application"
+	expenses "github.com/pchkauu/want-keep/backend/internal/expenses/application"
+	expense "github.com/pchkauu/want-keep/backend/internal/expenses/domain"
+	jobapp "github.com/pchkauu/want-keep/backend/internal/jobs/application"
+	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
+	receiptapp "github.com/pchkauu/want-keep/backend/internal/receipts/application"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
@@ -195,7 +203,7 @@ func TestClarificationAnswerAndVersionConflict(t *testing.T) {
 	facts := map[string]any{}
 	_ = json.Unmarshal([]byte(extracted), &facts)
 	input := map[string]any{"expectedRevision": r.Revision, "facts": facts}
-	ambiguous := f.request(f.ta, "POST", "/receipts/"+id+"/answers", uuid.NewString(), map[string]any{"expectedRevision": r.Revision, "distinct": true, "purchase": map[string]any{"id": uuid.NewString(), "revision": 1}})
+	ambiguous := f.request(f.ta, "POST", "/receipts/"+id+"/answers", uuid.NewString(), map[string]any{"expectedRevision": r.Revision, "facts": facts, "purchase": map[string]any{"id": uuid.NewString(), "revision": 1}})
 	if ambiguous.Code != 400 {
 		t.Fatal("ambiguous answer variants accepted")
 	}
@@ -414,5 +422,243 @@ func TestTerminalExtractionFailureCanBeClarified(t *testing.T) {
 	w := f.request(f.tb, "POST", "/receipts/"+id+"/answers", uuid.NewString(), map[string]any{"expectedRevision": r.Revision, "facts": facts})
 	if w.Code != 202 || f.read(id).State != receipt.Recorded {
 		t.Fatalf("failed extraction clarification: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func (f *fixture) purchaseReceipt(seed uint8) receipt.Receipt {
+	f.t.Helper()
+	output := strings.Replace(extracted, `"total":"900","discount":"100"`, `"total":"1000","discount":"0"`, 1)
+	id := f.start(f.upload(f.a, seed), f.ta)
+	f.process(f.provider(output, 200))
+	r := f.read(id)
+	if r.State != receipt.Recorded {
+		f.t.Fatal("purchase not recorded")
+	}
+	return r
+}
+
+const refundExtraction = `{"document":"receipt","kind":"refund","paid":true,"date":"2026-09-07","time":"12:00:00","asset":"RUB","total":"200","discount":null,"merchant":"Synthetic shop","reference":null,"items":[],"reason":"Confirmed returned payment."}`
+
+func (f *fixture) refundReceipt(seed uint8) receipt.Receipt {
+	f.t.Helper()
+	id := f.start(f.upload(f.a, seed), f.ta)
+	f.process(f.provider(refundExtraction, 200))
+	r := f.read(id)
+	if r.State != receipt.Clarification {
+		f.t.Fatal("refund needs original purchase")
+	}
+	return r
+}
+func (f *fixture) confirmRefund(r, purchase receipt.Receipt, distinct bool) receipt.Receipt {
+	f.t.Helper()
+	input := map[string]any{"expectedRevision": r.Revision, "purchase": map[string]any{"id": purchase.TransactionID, "revision": purchase.TransactionRevision}}
+	if distinct {
+		input["distinct"] = true
+	}
+	w := f.request(f.ta, "POST", "/receipts/"+r.ID+"/answers", uuid.NewString(), input)
+	if w.Code != 202 {
+		f.t.Fatalf("confirm refund: %d %s", w.Code, w.Body.String())
+	}
+	return f.read(r.ID)
+}
+func TestRefundReceiptCandidatesDistinctAndCurrentTotal(t *testing.T) {
+	f := newFixture(t)
+	purchase := f.purchaseReceipt(30)
+	first := f.confirmRefund(f.refundReceipt(31), purchase, false)
+	if first.State != receipt.Recorded {
+		t.Fatal("initial refund not recorded")
+	}
+	duplicate := f.refundReceipt(32)
+	if len(duplicate.Candidates) != 1 || duplicate.Candidates[0].ID != first.TransactionID {
+		t.Fatal("another scan of receipt refund has no candidate")
+	}
+	duplicate = f.confirmRefund(duplicate, purchase, false)
+	if duplicate.State != receipt.Clarification || duplicate.TransactionID != "" {
+		t.Fatal("duplicate refund posted without confirmation")
+	}
+	w := f.request(f.tb, "POST", "/receipts/"+duplicate.ID+"/answers", uuid.NewString(), map[string]any{"expectedRevision": duplicate.Revision, "match": map[string]any{"id": first.TransactionID, "revision": first.TransactionRevision}})
+	if w.Code != 202 || f.read(duplicate.ID).State != receipt.Linked {
+		t.Fatal("existing refund did not link")
+	}
+	second := f.confirmRefund(f.refundReceipt(33), purchase, true)
+	if second.State != receipt.Recorded || second.TransactionID == first.TransactionID {
+		t.Fatal("distinct refund did not record")
+	}
+	current, found, err := f.store.CurrentLedgerRevision(ctx, f.a, second.TransactionID)
+	if err != nil || !found {
+		t.Fatal(err)
+	}
+	if current.Participation.State == "waiting" {
+		t.Fatal("confirmed distinct refund remains held")
+	}
+	original, _, err := f.store.CurrentLedgerRevision(ctx, f.a, first.TransactionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if original.FeeKnowledge != ledger.UnknownFees {
+		t.Fatal("absent receipt fees became confirmed zero")
+	}
+	posts := append([]ledger.Posting(nil), original.Postings...)
+	posts[0].Money, _ = money.NewMoney("150", money.RUB)
+	err = f.store.WithinHousehold(ctx, f.b, func(ctx context.Context) error {
+		_, e := f.ledger.Correct(ctx, f.b, journal.Change{OperationID: original.OperationID, Expected: original.Revision, Correction: ledger.Correction{Principal: &posts}}, "Correct receipt refund amount")
+		return e
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refreshed := f.read(first.ID)
+	expected, _ := money.NewMoney("150", money.RUB)
+	if n, e := refreshed.Facts.Total.Compare(expected); e != nil || n != 0 || refreshed.TransactionRevision <= first.TransactionRevision {
+		t.Fatal("refund read pairs stale total with current revision")
+	}
+}
+func TestFailedValidationAllowsExplicitFacts(t *testing.T) {
+	f := newFixture(t)
+	id := f.start(f.upload(f.a, 34), f.ta)
+	client := f.provider(extracted, 200)
+	handler := aiapp.NewPageHandler(f.store, client, receiptapp.Pages{Repository: f.store, Documents: f.documents}, time.Now, uuid.NewString)
+	worker := jobapp.Worker{Repository: f.store, Handler: handler, Config: jobapp.DefaultWorkerConfig(jobs.ReceiptExtract)}
+	if err := worker.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.admin.Exec(ctx, `UPDATE want_keep.jobs SET state='failed',reason='deadline_exceeded' WHERE household_id=$1 AND kind='receipt_validation'`, f.a.HouseholdID()); err != nil {
+		t.Fatal(err)
+	}
+	r := f.read(id)
+	if r.State != receipt.Clarification {
+		t.Fatal("failed validation remains processing")
+	}
+	var facts map[string]any
+	_ = json.Unmarshal([]byte(extracted), &facts)
+	for key, value := range facts {
+		if value == nil {
+			delete(facts, key)
+		}
+	}
+	for _, item := range facts["items"].([]any) {
+		m := item.(map[string]any)
+		delete(m, "category")
+		delete(m, "discount")
+	}
+	w := f.request(f.tb, "POST", "/receipts/"+id+"/answers", uuid.NewString(), map[string]any{"expectedRevision": r.Revision, "facts": facts})
+	if w.Code != 202 || f.read(id).State != receipt.Recorded {
+		t.Fatal("failed validation cannot be clarified")
+	}
+}
+func TestMoreThanTwentyCandidatesCanBeResolved(t *testing.T) {
+	for _, mode := range []string{"match", "distinct", "stale"} {
+		distinct := mode != "match"
+		t.Run(mode, func(t *testing.T) {
+			f := newFixture(t)
+			at, _ := calendar.ParseInstant("2026-08-31T11:30:00Z")
+			amount, _ := money.NewMoney("900", money.RUB)
+			ids := []string{}
+			err := f.store.WithinHousehold(ctx, f.a, func(ctx context.Context) error {
+				initial, e := f.ledger.Create(ctx, f.a, journal.CreateInput{Type: ledger.Expense, AccountID: f.account, At: at, Amount: amount, PayerState: "unknown", Allocation: ledger.AllocationInput{Mode: ledger.AllocationUnknown, Reason: "unresolved"}})
+				if e != nil {
+					return e
+				}
+				r, _, e := f.store.CurrentLedgerRevision(ctx, f.a, initial.ResourceID)
+				if e != nil {
+					return e
+				}
+				ids = append(ids, r.OperationID)
+				for range 20 {
+					next := r.Clone()
+					next.OperationID = uuid.NewString()
+					next.Participation = ledger.Participation{}
+					next.DecisionID = ""
+					if e = journal.NewWriter(f.store, f.store).Append(ctx, f.a, next, 0); e != nil {
+						return e
+					}
+					ids = append(ids, next.OperationID)
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			id := f.start(f.upload(f.a, 35), f.ta)
+			f.process(f.provider(extracted, 200))
+			r := f.read(id)
+			if r.State != receipt.Clarification {
+				t.Fatal(r.State)
+			}
+			if mode == "stale" {
+				err = f.store.WithinHousehold(ctx, f.a, func(ctx context.Context) error {
+					next, _, e := f.store.CurrentLedgerRevision(ctx, f.a, ids[0])
+					if e != nil {
+						return e
+					}
+					next.OperationID = "ffffffff-ffff-4fff-8fff-ffffffffffff"
+					next.Participation = ledger.Participation{}
+					next.DecisionID = ""
+					return journal.NewWriter(f.store, f.store).Append(ctx, f.a, next, 0)
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			input := map[string]any{"expectedRevision": r.Revision}
+			if distinct {
+				input["distinct"] = true
+			} else {
+				sort.Strings(ids)
+				input["match"] = map[string]any{"id": ids[len(ids)-1], "revision": 1}
+			}
+			w := f.request(f.tb, "POST", "/receipts/"+id+"/answers", uuid.NewString(), input)
+			if mode == "stale" {
+				refreshed := f.read(id)
+				if w.Code != 202 || refreshed.State != receipt.Clarification || refreshed.Revision <= r.Revision || refreshed.TransactionID != "" {
+					t.Fatal("unseen candidate did not produce a fresh clarification")
+				}
+				input["expectedRevision"] = refreshed.Revision
+				w = f.request(f.tb, "POST", "/receipts/"+id+"/answers", uuid.NewString(), input)
+			}
+			if w.Code != 202 {
+				t.Fatalf("resolve candidate overflow: %d %s", w.Code, w.Body.String())
+			}
+			r = f.read(id)
+			if r.State != receipt.Recorded && r.State != receipt.Linked {
+				t.Fatal("candidate overflow remains blocked")
+			}
+		})
+	}
+}
+
+func TestDistinctReceiptRefundIsReleasedFromManualCandidate(t *testing.T) {
+	f := newFixture(t)
+	purchase := f.purchaseReceipt(36)
+	now := func() calendar.Instant {
+		v, _ := calendar.ParseInstant(time.Now().UTC().Format(time.RFC3339Nano))
+		return v
+	}
+	at, _ := calendar.ParseInstant("2026-09-07T09:00:00Z")
+	amount, _ := money.NewMoney("200", money.RUB)
+	service := expenses.NewService(f.store, f.matcher, now, uuid.NewString)
+	err := f.store.WithinHousehold(ctx, f.a, func(ctx context.Context) error {
+		_, e := service.Create(ctx, f.a, expenses.CreateInput{PurchaseID: purchase.TransactionID, PurchaseExpectedRevision: purchase.TransactionRevision, AccountID: f.account, At: at, Amount: amount, Items: []expense.ItemPortion{{ItemID: purchase.Facts.Items[0].ID, Amount: amount}}, Reason: "First separate refund"})
+		return e
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending := f.refundReceipt(37)
+	response := f.request(f.ta, "POST", "/receipts/"+pending.ID+"/answers", uuid.NewString(), map[string]any{"expectedRevision": pending.Revision, "purchase": map[string]any{"id": purchase.TransactionID, "revision": purchase.TransactionRevision}, "distinct": true, "refundItems": []any{map[string]any{"itemId": purchase.Facts.Items[0].ID, "amount": "200"}}})
+	if response.Code != 202 {
+		t.Fatalf("distinct refund with items: %d %s", response.Code, response.Body.String())
+	}
+	second := f.read(pending.ID)
+	if second.State != receipt.Recorded || second.TransactionRevision <= 1 {
+		t.Fatal("distinct receipt refund not released from matching hold")
+	}
+	current, found, err := f.store.CurrentLedgerRevision(ctx, f.a, second.TransactionID)
+	if err != nil || !found || current.Participation.State == "waiting" {
+		t.Fatal("refund remains held", err)
+	}
+	details, found, err := f.store.Refund(ctx, f.a, second.TransactionID)
+	if err != nil || !found || details.State != "applied" {
+		t.Fatal("refund effects not rebuilt after separation", err)
 	}
 }

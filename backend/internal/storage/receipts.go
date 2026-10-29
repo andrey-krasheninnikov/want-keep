@@ -64,6 +64,8 @@ func (s *Store) Receipt(ctx context.Context, p household.Principal, id string) (
 		return r, err
 	}
 	r.Confirmed = stored.Confirmed
+	r.CandidateFingerprint = stored.CandidateFingerprint
+	r.CandidatesComplete = stored.CandidatesComplete
 	rows, err := q.Query(ctx, `SELECT p.id,p.page,p.content_hash,COALESCE(o.attempt_id::text,''),o.extraction FROM want_keep.receipt_pages p LEFT JOIN want_keep.receipt_page_outcomes o ON (o.household_id,o.page_id,o.page_revision)=(p.household_id,p.id,p.revision) WHERE p.household_id=$1 AND p.receipt_id=$2 ORDER BY p.page`, p.HouseholdID(), id)
 	if err != nil {
 		return r, err
@@ -133,6 +135,8 @@ type receiptSnapshot struct {
 	TransactionRevision   uint64
 	Candidates            []receipt.Candidate
 	Confirmed             *receipt.Extraction
+	CandidateFingerprint  string
+	CandidatesComplete    bool
 }
 
 func (s *Store) receiptRevision(ctx context.Context, p household.Principal, r receipt.Receipt) error {
@@ -140,7 +144,7 @@ func (s *Store) receiptRevision(ctx context.Context, p household.Principal, r re
 	if err != nil {
 		return err
 	}
-	data, err := json.Marshal(receiptSnapshot{r.State, r.Reason, r.TransactionID, r.TransactionRevision, r.Candidates, r.Confirmed})
+	data, err := json.Marshal(receiptSnapshot{r.State, r.Reason, r.TransactionID, r.TransactionRevision, r.Candidates, r.Confirmed, r.CandidateFingerprint, r.CandidatesComplete})
 	if err != nil {
 		return err
 	}
@@ -225,29 +229,39 @@ func (s *Store) SaveReceiptPageOutcome(ctx context.Context, p household.Principa
 	_, err = scope.tx.Exec(ctx, `INSERT INTO want_keep.receipt_page_outcomes(household_id,page_id,page_revision,attempt_id,extraction,code) VALUES($1,$2,1,$3,$4,$5) ON CONFLICT(household_id,page_id,page_revision) DO NOTHING`, p.HouseholdID(), v.PageID, v.AttemptID, data, v.Code)
 	return err
 }
-func (s *Store) ReceiptCandidates(ctx context.Context, p household.Principal, r receipt.Receipt, f receipt.Facts) ([]receipt.Candidate, error) {
+func (s *Store) ReceiptCandidates(ctx context.Context, p household.Principal, r receipt.Receipt, f receipt.Facts, selected string) (receipt.CandidateSet, error) {
+	q, err := s.reader(ctx, p)
+	if err != nil {
+		return receipt.CandidateSet{}, err
+	}
 	amount := f.Total
 	if f.Kind == ledger.Expense {
 		zero, _ := money.NewMoney("0", f.Total.Asset())
-		var err error
 		amount, err = zero.Subtract(f.Total)
 		if err != nil {
-			return nil, err
+			return receipt.CandidateSet{}, err
 		}
 	}
-	probe := ledger.Revision{OperationID: r.ID, Type: f.Kind, CashDate: f.Date, Origin: "receipt", Postings: []ledger.Posting{{AccountID: r.AccountID, Money: amount, Role: ledger.Principal, Funding: ledger.OwnFunds, Treatment: ledger.Movement}}}
-	facts, complete, err := s.MatchingReferences(ctx, p, probe, false, 20)
+	var data []byte
+	var count int64
+	result := receipt.CandidateSet{}
+	err = q.QueryRow(ctx, `WITH candidates AS (
+ SELECT o.id,o.revision FROM want_keep.operations o
+ JOIN want_keep.operation_revisions v ON(v.household_id,v.operation_id,v.revision)=(o.household_id,o.id,o.revision)
+ WHERE o.household_id=$1 AND v.economic_type=$2 AND v.cash_date BETWEEN $3::date-7 AND $3::date+7
+ AND EXISTS(SELECT 1 FROM want_keep.postings p WHERE (p.household_id,p.operation_id,p.revision)=(o.household_id,o.id,o.revision) AND p.account_id=$4 AND p.asset=$5 AND p.amount=$6::numeric AND p.role='principal')
+ AND NOT EXISTS(SELECT 1 FROM want_keep.ledger_participations p WHERE (p.household_id,p.operation_id,p.revision)=(o.household_id,o.id,o.revision) AND p.state='waiting')
+ ), summary AS (
+ SELECT count(*) AS count,encode(sha256(convert_to(COALESCE(string_agg(id::text||':'||revision::text,',' ORDER BY id),''),'UTF8')),'hex') AS fingerprint FROM candidates
+ ) SELECT summary.count,summary.fingerprint,
+ COALESCE((SELECT jsonb_agg(jsonb_build_object('ID',page.id,'Revision',page.revision) ORDER BY page.id) FROM (SELECT id,revision FROM candidates WHERE $7='' OR id=NULLIF($7,'')::uuid ORDER BY id LIMIT 20) page),'[]'::jsonb)
+ FROM summary`, p.HouseholdID(), f.Kind, f.Date.String(), r.AccountID, f.Total.Asset(), amount.Amount(), selected).Scan(&count, &result.Fingerprint, &data)
 	if err != nil {
-		return nil, err
+		return result, err
 	}
-	out := []receipt.Candidate{}
-	for _, fact := range facts {
-		out = append(out, receipt.Candidate{ID: fact.OperationID, Revision: fact.Revision})
-	}
-	if !complete {
-		return nil, commands.Rejection{Code: "clarification_required"}
-	}
-	return out, nil
+	result.Complete = count <= 20
+	err = json.Unmarshal(data, &result.Items)
+	return result, err
 }
 
 func (s *Store) ReceiptProcessingState(ctx context.Context, p household.Principal, id string) (receipt.State, string, error) {
@@ -256,7 +270,7 @@ func (s *Store) ReceiptProcessingState(ctx context.Context, p household.Principa
 		return "", "", err
 	}
 	var waiting, unknown, failed, terminal bool
-	err = q.QueryRow(ctx, `SELECT COALESCE(bool_or(j.state='waiting'),false),COALESCE(bool_or(j.state='unresolved'),false),COALESCE(bool_or(j.state IN ('failed','cancelled')),false),COALESCE(bool_and(j.state IN ('succeeded','failed','cancelled')),false) FROM want_keep.jobs j JOIN want_keep.receipt_pages page ON(page.household_id,page.id)=(j.household_id,j.resource_id) WHERE j.household_id=$1 AND page.receipt_id=$2 AND j.kind='receipt_extract'`, p.HouseholdID(), id).Scan(&waiting, &unknown, &failed, &terminal)
+	err = q.QueryRow(ctx, `SELECT COALESCE(bool_or(j.state='waiting'),false),COALESCE(bool_or(j.state='unresolved'),false),COALESCE(bool_or(j.state IN ('failed','cancelled')),false),COALESCE(bool_and(j.state IN ('succeeded','failed','cancelled')),false) FROM want_keep.jobs j JOIN want_keep.receipt_pages page ON(page.household_id,page.id)=(j.household_id,j.resource_id) WHERE j.household_id=$1 AND page.receipt_id=$2 AND j.kind IN ('receipt_extract','receipt_validation')`, p.HouseholdID(), id).Scan(&waiting, &unknown, &failed, &terminal)
 	if err != nil {
 		return "", "", err
 	}
@@ -267,7 +281,7 @@ func (s *Store) ReceiptProcessingState(ctx context.Context, p household.Principa
 		return receipt.WaitingAI, "Receipt processing is waiting for the provider, private storage or available budget.", nil
 	}
 	if failed && terminal {
-		return receipt.Clarification, "Receipt extraction did not complete. Confirm the payment facts.", nil
+		return receipt.Clarification, "Receipt processing did not complete. Confirm the payment facts.", nil
 	}
 	return receipt.Processing, "", nil
 }

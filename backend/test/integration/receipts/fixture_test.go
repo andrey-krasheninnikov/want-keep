@@ -142,7 +142,7 @@ func newFixture(t *testing.T) *fixture {
 		at, _ := calendar.ParseInstant(time.Now().UTC().Format(time.RFC3339Nano))
 		return at
 	}
-	matcher := matching.NewService(store, journal.NewWriter(store, store), now, uuid.NewString)
+	matcher := matching.NewService(store, journal.NewWriterWithRefundsAndReimbursements(store, store, nil, expenses.NewProjector(store), journal.NewReimbursementService(store, now, uuid.NewString)), now, uuid.NewString)
 	f.matcher = matcher
 	f.ledger = journal.NewServiceWithAllocations(store, matcher, allocation.NewService(store, now, uuid.NewString), now, uuid.NewString)
 	f.service = receiptapp.NewService(store, f.ledger, expenses.NewService(store, matcher, now, uuid.NewString), matcher, time.Now, uuid.NewString)

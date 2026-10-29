@@ -109,13 +109,17 @@ func (s *Service) Read(ctx context.Context, p household.Principal, id string) (r
 		}
 		if found {
 			r.TransactionRevision = current.Revision
-			if current.Type == ledger.Expense {
+			if current.Type == ledger.Expense || current.Type == ledger.Refund {
 				for _, posting := range current.Postings {
 					if posting.Role != ledger.Principal {
 						continue
 					}
 					zero, _ := money.NewMoney("0", posting.Money.Asset())
-					principal, e := zero.Subtract(posting.Money)
+					principal := posting.Money
+					var e error
+					if current.Type == ledger.Expense {
+						principal, e = zero.Subtract(posting.Money)
+					}
 					if e != nil {
 						return r, e
 					}
@@ -217,30 +221,27 @@ func (s *Service) finish(ctx context.Context, p household.Principal, r receipt.R
 		r.Reason = "Confirm the receipt date, currency, paid total and line items; the extracted facts are incomplete or inconsistent."
 		return s.save(ctx, p, r, expected)
 	}
-	candidates, err := s.repository.ReceiptCandidates(ctx, p, r, f)
+	selected := ""
+	if match != nil {
+		selected = match.ID
+	}
+	candidates, err := s.repository.ReceiptCandidates(ctx, p, r, f, selected)
 	if err != nil {
-		var rejection commands.Rejection
-		if errors.As(err, &rejection) && rejection.Code == "clarification_required" {
-			r.State = receipt.Clarification
-			r.Reason = "Too many possible payments. Confirm the payment facts before matching."
-			return s.save(ctx, p, r, expected)
-		}
 		return err
 	}
-	if distinct {
-		if len(r.Candidates) != len(candidates) {
-			return command.ErrVersionConflict
-		}
-		for index, candidate := range candidates {
-			if r.Candidates[index] != candidate {
-				return command.ErrVersionConflict
-			}
-		}
+	changed := r.CandidateFingerprint != candidates.Fingerprint
+	r.Candidates = candidates.Items
+	r.CandidateFingerprint = candidates.Fingerprint
+	r.CandidatesComplete = candidates.Complete
+	if distinct && changed {
+		r.State = receipt.Clarification
+		r.Reason = "The possible payments changed. Confirm the updated matches or a distinct payment again."
+		return s.save(ctx, p, r, expected)
 	}
-	r.Candidates = candidates
+
 	if match != nil {
 		confirmed := false
-		for _, candidate := range candidates {
+		for _, candidate := range candidates.Items {
 			if candidate == *match {
 				confirmed = true
 			}
@@ -268,7 +269,7 @@ func (s *Service) finish(ctx context.Context, p household.Principal, r receipt.R
 		r.Reason = "Receipt evidence linked to the confirmed payment."
 		return s.save(ctx, p, r, expected)
 	}
-	if len(candidates) > 0 && !distinct {
+	if (len(candidates.Items) > 0 || !candidates.Complete) && !distinct {
 		r.State = receipt.Clarification
 		r.Reason = "A possible payment already exists. Choose it or confirm a distinct purchase."
 		return s.save(ctx, p, r, expected)
@@ -318,9 +319,15 @@ func (s *Service) finish(ctx context.Context, p household.Principal, r receipt.R
 		if err != nil {
 			return err
 		}
+		if distinct {
+			result, err = s.confirmDistinct(ctx, p, result.ResourceID, result.Revision)
+			if err != nil {
+				return err
+			}
+		}
+		r.TransactionID, r.TransactionRevision = result.ResourceID, result.Revision
+
 		r.State = receipt.Recorded
-		r.TransactionID = result.ResourceID
-		r.TransactionRevision = result.Revision
 		r.Reason = "The receipt recorded a refund against the confirmed original purchase."
 		return s.save(ctx, p, r, expected)
 	}
@@ -341,19 +348,14 @@ func (s *Service) finish(ctx context.Context, p household.Principal, r receipt.R
 		return err
 	}
 	revision.Revision = result.Revision
-	if distinct && s.matching != nil {
-		group, found, e := s.repository.MatchingForOperation(ctx, p, revision.OperationID)
-		if e != nil {
-			return e
+	if distinct {
+		result, err = s.confirmDistinct(ctx, p, revision.OperationID, revision.Revision)
+		if err != nil {
+			return err
 		}
-		if found && group.State == matching.Clarification {
-			result, e := s.matching.Separate(ctx, p, group.ID, group.Revision, group.Members, "receipt_confirmed_distinct")
-			if e != nil {
-				return e
-			}
-			revision.Revision = result.Revision
-		}
+		revision.Revision = result.Revision
 	}
+
 	r.State = receipt.Recorded
 	r.Reason = "The confirmed receipt created one payment."
 	r.TransactionID = revision.OperationID
@@ -387,7 +389,7 @@ func (s *Service) Answer(ctx context.Context, p household.Principal, id string, 
 	if answer.Match != nil {
 		count++
 	}
-	if answer.Distinct {
+	if answer.Distinct && answer.Purchase == nil {
 		count++
 	}
 	if answer.Purchase != nil {
@@ -447,4 +449,16 @@ func (s *Service) save(ctx context.Context, p household.Principal, r receipt.Rec
 		return s.repository.EmitEvent(ctx, "receipt", r.ID, r.Revision, "receipt.completed")
 	}
 	return nil
+}
+
+func (s *Service) confirmDistinct(ctx context.Context, p household.Principal, id string, revision uint64) (command.Result, error) {
+	result := command.Result{ResourceType: "transaction", ResourceID: id, Revision: revision}
+	group, found, err := s.repository.MatchingForOperation(ctx, p, id)
+	if err != nil {
+		return result, err
+	}
+	if found && group.State == matching.Clarification {
+		return s.matching.Separate(ctx, p, group.ID, group.Revision, group.Members, "receipt_confirmed_distinct")
+	}
+	return result, nil
 }

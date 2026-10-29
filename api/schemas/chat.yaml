@@ -119,6 +119,7 @@ Receipt:
       type: array
       maxItems: 10
       items: { $ref: './chat.yaml#/ReceiptPage' }
+    candidatesComplete: { type: boolean, description: Whether the bounded candidate list contains every possible match. }
     candidates:
       type: array
       maxItems: 21
@@ -501,7 +502,7 @@ ReceiptAnswer:
   - required: [distinct]
     not: { anyOf: [{ required: [facts] }, { required: [match] }, { required: [purchase] }, { required: [refundItems] }] }
   - required: [purchase]
-    not: { anyOf: [{ required: [facts] }, { required: [match] }, { required: [distinct] }] }
+    not: { anyOf: [{ required: [facts] }, { required: [match] }] }
 
 ReceiptRefundItem:
   type: object

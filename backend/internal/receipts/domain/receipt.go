@@ -33,6 +33,8 @@ type Receipt struct {
 	TransactionID                     string
 	TransactionRevision               uint64
 	Candidates                        []Candidate
+	CandidateFingerprint              string
+	CandidatesComplete                bool
 	CreatedAt                         time.Time
 }
 type Page struct {
@@ -55,3 +57,9 @@ type Answer struct {
 }
 
 type RefundItem struct{ ID, Amount string }
+
+type CandidateSet struct {
+	Items       []Candidate
+	Fingerprint string
+	Complete    bool
+}
