@@ -113,7 +113,7 @@ func (c *Client) Count(ctx context.Context, request ai.Request) (int64, error) {
 		},
 		Reasoning: shared.ReasoningParam{Effort: shared.ReasoningEffortXhigh, Mode: shared.ReasoningModeStandard},
 		Text:      responses.InputTokenCountParamsText{Format: c.textFormat()},
-	})
+	}, receiptInput(request)...)
 	if err != nil {
 		return 0, classifyError(err, false)
 	}
@@ -145,7 +145,7 @@ func (c *Client) Generate(ctx context.Context, request ai.Request) (ai.Result, e
 		Store:              openaisdk.Bool(false),
 		Text:               responses.ResponseTextConfigParam{Format: c.textFormat()},
 		Truncation:         responses.ResponseNewParamsTruncationDisabled,
-	})
+	}, receiptInput(request)...)
 	if err != nil {
 		return ai.Result{}, classifyError(err, true)
 	}
@@ -165,7 +165,7 @@ func (c *Client) Generate(ctx context.Context, request ai.Request) (ai.Result, e
 	case responses.ResponseStatusCompleted:
 		if hasRefusal(response.RawJSON()) {
 			result.State, result.Code, result.Output = ai.Refused, "model_refusal", nil
-		} else if err := validateProposal(result.Output, expected); err != nil {
+		} else if err := c.validateOutput(result.Output, expected, request); err != nil {
 			result.State, result.Code, result.Output = ai.SchemaError, "invalid_schema", nil
 		}
 	case responses.ResponseStatusIncomplete:
@@ -244,6 +244,9 @@ func (c *Client) validateRequest(request ai.Request) error {
 		return err
 	}
 	if _, err := proposalExpectation(request.Input); err != nil {
+		return ai.ErrInvalidAttempt
+	}
+	if (request.Purpose == ai.ReceiptPage) != (c.contract.RuntimeSchemaAdaptation == "receipt_extraction_v1") || (request.Purpose == ai.ReceiptPage && len(request.Image) == 0) {
 		return ai.ErrInvalidAttempt
 	}
 	contract := c.Contract()

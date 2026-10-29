@@ -24,7 +24,7 @@ func (s *Server) createInput(in generated.TransactionCreate) (application.Create
 		return out, err
 	}
 	if in.Allocation != nil {
-		out.Allocation, err = s.allocationInput(*in.Allocation)
+		out.Allocation, err = AllocationFromDTO(*in.Allocation)
 		if err != nil {
 			return out, err
 		}
@@ -65,7 +65,7 @@ func (s *Server) createInput(in generated.TransactionCreate) (application.Create
 	return out, nil
 }
 
-func (s *Server) allocationInput(in generated.ExpenseAllocation) (ledger.AllocationInput, error) {
+func AllocationFromDTO(in generated.ExpenseAllocation) (ledger.AllocationInput, error) {
 	raw, err := json.Marshal(in)
 	if err != nil {
 		return ledger.AllocationInput{}, err

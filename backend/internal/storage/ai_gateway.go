@@ -106,7 +106,7 @@ func (s *Store) buildReviewInput(ctx context.Context, p household.Principal, job
 }
 
 func (s *Store) StartAIAttempt(ctx context.Context, p household.Principal, job jobs.Job, request ai.Request, requestFingerprint string, now time.Time) error {
-	if err := request.Validate(); err != nil || len(requestFingerprint) != 64 || request.HouseholdID != p.HouseholdID() || request.ActorID != p.UserID() || request.JobID != job.ID || request.ResourceID != job.ResourceID || request.ResourceRevision != job.ResourceRevision {
+	if err := request.Validate(); err != nil || len(requestFingerprint) != 64 || request.HouseholdID != p.HouseholdID() || request.ActorID != p.UserID() || request.JobID != job.ID || request.ResourceID != job.ResourceID || request.ResourceRevision != job.ResourceRevision || (job.Kind == jobs.ReceiptExtract) != (request.Purpose == ai.ReceiptPage) {
 		return ai.ErrInvalidAttempt
 	}
 	return s.WithinHousehold(ctx, p, func(ctx context.Context) error {
@@ -126,6 +126,9 @@ func (s *Store) StartAIAttempt(ctx context.Context, p household.Principal, job j
 		}
 		if active >= 2 {
 			return aiapp.ErrConcurrency
+		}
+		if err = s.ensureAISubject(ctx, p, job); err != nil {
+			return err
 		}
 		at, ns := splitAICallTime(now)
 		_, err = scope.tx.Exec(ctx, `INSERT INTO want_keep.ai_attempts(household_id,id,job_id,actor_id,resource_id,resource_revision,purpose,model,qualification,request_fingerprint,prompt_fingerprint,schema_fingerprint,config_fingerprint,allowed_input,maximum_output_tokens,created_at,created_ns) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, p.HouseholdID(), request.ID, job.ID, p.UserID(), request.ResourceID, request.ResourceRevision, request.Purpose, request.Model, request.Qualification, requestFingerprint, request.PromptFingerprint, request.SchemaFingerprint, request.ConfigFingerprint, request.Input, request.MaximumOutputTokens, at, ns)
@@ -272,7 +275,7 @@ func (s *Store) SaveAIOutcome(ctx context.Context, p household.Principal, job jo
 		return err
 	}
 	if settlement.Result.State == ai.Refused || settlement.Result.State == ai.Incomplete || settlement.Result.State == ai.SchemaError || settlement.Terminal {
-		if err = s.enqueueAIValidation(ctx, p, job, attemptID); err != nil {
+		if err = s.enqueueValidation(ctx, p, job, attemptID); err != nil {
 			return err
 		}
 	}
@@ -308,7 +311,7 @@ func (s *Store) SaveAICompletion(ctx context.Context, p household.Principal, job
 	if err = s.writeAISettlement(ctx, scope.tx, p.HouseholdID(), attemptID, current, settlement, now); err != nil {
 		return err
 	}
-	if err = s.enqueueAIValidation(ctx, p, job, attemptID); err != nil {
+	if err = s.enqueueValidation(ctx, p, job, attemptID); err != nil {
 		return err
 	}
 	return s.clearAIJobExternal(ctx, scope.tx, p, job)
@@ -530,7 +533,7 @@ func (s *Store) ResumeAIBudgetWaiting(ctx context.Context, now time.Time) (int64
 	  WHERE (a.household_id,a.job_id)=(j.household_id,j.id)
 	  ORDER BY a.created_at DESC,a.created_ns DESC,a.id DESC LIMIT 1
 	 ) last_attempt ON true
-	 WHERE j.kind IN ('ai','ai_answer') AND j.state='waiting' AND j.reason='budget_wait'
+	 WHERE j.kind IN ('ai','ai_answer','receipt_extract') AND j.state='waiting' AND j.reason='budget_wait'
 	  AND NOT j.cancel_requested AND NOT j.external_started
 	  AND NOT COALESCE(g.blocked,false) AND COALESCE(g.active,0)<2 AND COALESCE(g.used,0)<50
 	  AND (last_attempt.code IS DISTINCT FROM 'budget_exhausted'
@@ -559,7 +562,7 @@ func (s *Store) ResumeAIGatewayWaiting(ctx context.Context) error {
 		return err
 	}
 	rows, err := tx.Query(ctx, `SELECT household_id,id FROM want_keep.jobs
-	 WHERE kind IN ('ai','ai_answer') AND state='waiting' AND reason='gateway_unavailable'
+	 WHERE kind IN ('ai','ai_answer','receipt_extract') AND state='waiting' AND reason='gateway_unavailable'
 	  AND COALESCE(run_deadline,deadline)<=$1
 	 ORDER BY available_at,id LIMIT 100 FOR UPDATE SKIP LOCKED`, now)
 	if err != nil {
@@ -597,7 +600,7 @@ func (s *Store) ResumeAIGatewayWaiting(ctx context.Context) error {
 	}
 	if _, err = tx.Exec(ctx, `WITH pending AS (
 	 SELECT household_id,id FROM want_keep.jobs
-	 WHERE kind IN ('ai','ai_answer') AND state='waiting' AND reason='gateway_unavailable'
+	 WHERE kind IN ('ai','ai_answer','receipt_extract') AND state='waiting' AND reason='gateway_unavailable'
 	  AND NOT cancel_requested AND NOT external_started
 	  AND available_at<=clock_timestamp() AND COALESCE(run_deadline,deadline)>clock_timestamp()
 	 ORDER BY available_at,id LIMIT 100 FOR UPDATE SKIP LOCKED

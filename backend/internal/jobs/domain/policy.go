@@ -5,15 +5,17 @@ import "time"
 type Kind string
 
 const (
-	Sync         Kind = "sync"
-	Outbox       Kind = "outbox"
-	AI           Kind = "ai"
-	AIAnswer     Kind = "ai_answer"
-	AIValidation Kind = "ai_validation"
+	Sync              Kind = "sync"
+	Outbox            Kind = "outbox"
+	AI                Kind = "ai"
+	AIAnswer          Kind = "ai_answer"
+	AIValidation      Kind = "ai_validation"
+	ReceiptExtract    Kind = "receipt_extract"
+	ReceiptValidation Kind = "receipt_validation"
 )
 
 func (k Kind) Valid() bool {
-	return k == Sync || k == Outbox || k == AI || k == AIAnswer || k == AIValidation
+	return k == Sync || k == Outbox || k == AI || k == AIAnswer || k == AIValidation || k == ReceiptExtract || k == ReceiptValidation
 }
 
 type State string
@@ -84,4 +86,4 @@ type SyncProgress struct {
 	Completed        bool
 }
 
-func (k Kind) ProviderCall() bool { return k == AI || k == AIAnswer }
+func (k Kind) ProviderCall() bool { return k == AI || k == AIAnswer || k == ReceiptExtract }

@@ -303,7 +303,7 @@ Transaction:
       "$ref": "./money.yaml#/Timezone"
     origin:
       type: string
-      enum: [manual, source, legacy]
+      enum: [manual, source, receipt, legacy]
     feeKnowledge:
       type: string
       enum: [known, unknown]
@@ -332,6 +332,10 @@ Transaction:
         "$ref": "./transactions.yaml#/TransactionHold"
     exchange:
       "$ref": "./transactions.yaml#/ExecutedExchange"
+    occurredAtPrecision:
+      type: string
+      enum: [day, second]
+      description: Day precision uses a calendar anchor, not an observed purchase time.
     occurredAt:
       "$ref": "./money.yaml#/Instant"
     cashDate:

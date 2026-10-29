@@ -14,7 +14,12 @@ import (
 	jobs "github.com/pchkauu/want-keep/backend/internal/jobs/domain"
 )
 
+type PageInputs interface {
+	ReceiptPageInput(context.Context, household.Principal, jobs.Job) (json.RawMessage, []byte, error)
+}
+
 type Handler struct {
+	pages      PageInputs
 	repository Repository
 	gateway    Gateway
 	now        func() time.Time
@@ -29,12 +34,29 @@ func NewHandler(repository Repository, gateway Gateway, now func() time.Time, ne
 	return h
 }
 
+func NewPageHandler(repository Repository, gateway Gateway, pages PageInputs, now func() time.Time, newID func() string) *Handler {
+	h := NewHandler(repository, gateway, now, newID)
+	h.pages = pages
+	return h
+}
+
 func (h *Handler) Prepare(ctx context.Context, execution jobapp.Execution) (jobapp.Result, error) {
 	job := execution.Job
 	if h.repository == nil || h.gateway == nil || h.newID == nil || !job.Kind.ProviderCall() || job.ResourceID == "" || job.ResourceRevision < 1 {
 		return jobapp.Result{}, jobs.ErrInvalidJob
 	}
-	input, err := h.repository.ReviewInput(ctx, execution.Principal, job)
+	var input json.RawMessage
+	var image []byte
+	var err error
+	if job.Kind == jobs.ReceiptExtract {
+		if h.pages == nil {
+			return jobapp.Result{}, jobs.ErrInvalidJob
+		}
+		input, image, err = h.pages.ReceiptPageInput(ctx, execution.Principal, job)
+		defer clear(image)
+	} else {
+		input, err = h.repository.ReviewInput(ctx, execution.Principal, job)
+	}
 	if err != nil {
 		return jobapp.Result{}, err
 	}
@@ -49,6 +71,11 @@ func (h *Handler) Prepare(ctx context.Context, execution jobapp.Execution) (joba
 	if job.Kind == jobs.AIAnswer {
 		request.Purpose = ai.ComplexClarification
 		request.MaximumOutputTokens = 8192
+	}
+	if job.Kind == jobs.ReceiptExtract {
+		request.Purpose = ai.ReceiptPage
+		request.MaximumOutputTokens = 4096
+		request.Image = image
 	}
 	if err = request.Validate(); err != nil {
 		return jobapp.Result{}, err
@@ -180,12 +207,14 @@ func (h *Handler) waitOrFail(err error) (jobapp.Result, error) {
 }
 
 func requestFingerprint(request ai.Request) string {
+	imageHash := sha256.Sum256(request.Image)
 	encoded, _ := json.Marshal(struct {
+		ImageHash                                             [32]byte
 		Purpose, Model, Qualification, Prompt, Schema, Config string
 		ResourceID                                            string
 		ResourceRevision                                      uint64
 		Input                                                 json.RawMessage
-	}{string(request.Purpose), string(request.Model), string(request.Qualification), request.PromptFingerprint, request.SchemaFingerprint, request.ConfigFingerprint, request.ResourceID, request.ResourceRevision, request.Input})
+	}{imageHash, string(request.Purpose), string(request.Model), string(request.Qualification), request.PromptFingerprint, request.SchemaFingerprint, request.ConfigFingerprint, request.ResourceID, request.ResourceRevision, request.Input})
 	sum := sha256.Sum256(encoded)
 	return hex.EncodeToString(sum[:])
 }

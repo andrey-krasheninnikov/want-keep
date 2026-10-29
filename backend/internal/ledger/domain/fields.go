@@ -57,7 +57,7 @@ func (r Revision) FieldEqual(other Revision, field Field) bool {
 		}
 		return true
 	case DateField:
-		return r.OccurredAt == other.OccurredAt
+		return r.OccurredAt == other.OccurredAt && r.OccurredPrecision == other.OccurredPrecision
 	case PayerField:
 		return r.PayerState == other.PayerState && r.PayerMemberID == other.PayerMemberID
 	case MerchantField:
@@ -94,6 +94,7 @@ func (r *Revision) CopyField(from Revision, field Field) error {
 		r.FeeKnowledge = from.FeeKnowledge
 	case DateField:
 		r.OccurredAt = from.OccurredAt
+		r.OccurredPrecision = from.OccurredPrecision
 	case PayerField:
 		r.PayerState = from.PayerState
 		r.PayerMemberID = from.PayerMemberID

@@ -67,7 +67,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 **Поля:** Фото/PDF, обязательный счёт списания включая наличные; позиции, скидки, категории, personal/shared и доли % или суммы.
 
-**Проверки и права:** Оба участника; лимиты файлов по контракту. Task-2.6 атомарно проверяет позиции, активы и скидки против одной оплаты, распределяет известную общую скидку детерминированно и требует уточнение при неполных данных. OCR/PDF, сопоставление и personal/shared доли выполняют task-5.3/2.4/2.8.
+**Проверки и права:** Обязательный семейный счёт; только accepted attachment после проверки 10 MiB/10 страниц. POST /receipts возвращает команду, GET /receipts/{id} показывает processing/waiting_ai/clarification/skipped/recorded/linked. Ответы проверяют expectedRevision; совпадение содержит актуальную revision операции. Позиции и скидки сверяются точно, доли меняются существующим ledger allocation. Возврат требует исходную покупку и её revision; финансовый итог и аудит атомарны. UI и общий чат остаются task-5.4/task-7.1.
 
 **Результат:** Создано/связано с существующим/ожидает уточнения/документ не подходит с причиной. Одно подтверждённое списание.
 
@@ -269,7 +269,7 @@ States: UISTATE-01, UISTATE-02, UISTATE-03, UISTATE-05, UISTATE-06, UISTATE-07, 
 
 **Fields:** Photo/PDF, required debit account including cash; items, discounts, categories, personal/shared and percentage or amount shares.
 
-**Validation and permissions:** Either member; file limits follow the contract. Task-2.6 atomically validates items, assets and discounts against one payment, allocates a known receipt-wide discount deterministically and requires clarification for incomplete data. Task-5.3/2.4/2.8 own OCR/PDF, matching and personal/shared shares.
+**Validation and permissions:** Require a household account and an accepted attachment after the 10 MiB/10-page checks. POST /receipts returns a command; GET /receipts/{id} exposes processing/waiting_ai/clarification/skipped/recorded/linked. Answers check expectedRevision; matching includes the current transaction revision. Items and discounts reconcile exactly; shares use existing ledger allocation. A refund requires the original purchase and its revision; the financial result and audit are atomic. UI and shared chat remain task-5.4/task-7.1.
 
 **Outcome:** Created/linked to existing/awaiting clarification/document unsuitable with reason. One confirmed debit.
 

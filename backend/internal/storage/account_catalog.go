@@ -140,6 +140,9 @@ func (s *Store) CardAliases(ctx context.Context, p household.Principal, id strin
 
 func (s *Store) AuthorizeCommandResult(ctx context.Context, p household.Principal, r command.Result) error {
 	switch r.ResourceType {
+	case "receipt":
+		_, err := s.Receipt(ctx, p, r.ResourceID)
+		return err
 	case "account":
 		_, err := s.Account(ctx, p, r.ResourceID)
 		return err

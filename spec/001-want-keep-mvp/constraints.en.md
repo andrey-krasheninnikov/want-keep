@@ -134,3 +134,7 @@ Migration 016 adds append-only attempts and state history only. The household lo
 ## Transaction review task-5.2
 
 The new command schema/prompt does not inherit admission from historical task-0.8 qualification. Preserve task-5.1 model/effort, pricing and budget; `production_admitted=false`. Task-5.2 verification uses offline synthetic responses and PostgreSQL. It does not establish live qualification, OpenAI IO, receipt extraction, chat, product budget/goal handlers or browser acceptance. No new dependencies or public general-purpose execution tools are introduced. Automatic classification respects persisted field protections; user approval creates an ordinary audited decision supporting undo.
+
+## Receipt runtime (task-5.3)
+
+Receipt extraction reuses attachments, the Responses gateway, durable jobs and the journal. No extra library or public document URL is introduced. Page IO runs outside financial transactions; persisted outcomes validate inside the household transaction. A terminal extraction failure permits explicit facts clarification; unresolved provider outcomes wait for reconciliation. Root `VERSION` is 0.0.1; frontend package versions remain unchanged. SDD is Ready for development; production admission remains separate.

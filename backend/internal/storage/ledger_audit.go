@@ -205,6 +205,9 @@ func (s *Store) saveLedgerAudit(ctx context.Context, r ledger.Revision) error {
 	if err != nil {
 		return err
 	}
+	if _, err = scope.tx.Exec(ctx, `INSERT INTO want_keep.ai_request_subjects(household_id,resource_id,resource_revision,operation_id,operation_revision) VALUES($1,$2,$3,$2,$3)`, family, r.OperationID, r.Revision); err != nil {
+		return err
+	}
 	return s.EmitEvent(ctx, "transaction", r.OperationID, r.Revision, "transaction.changed")
 }
 

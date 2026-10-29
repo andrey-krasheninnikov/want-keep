@@ -16,7 +16,7 @@ func TestClassificationProposalItemDoesNotRequireAllocation(t *testing.T) {
 	if err != nil || dto.Id != item.ID || dto.Net.Amount != "10.00" {
 		t.Fatalf("proposal item = %+v, err=%v", dto, err)
 	}
-	if _, err = receiptItemDTO(item); err == nil {
+	if _, err = ReceiptItemToDTO(item); err == nil {
 		t.Fatal("ledger receipt item accepted missing allocation")
 	}
 }

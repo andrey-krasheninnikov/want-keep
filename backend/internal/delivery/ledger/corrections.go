@@ -186,7 +186,7 @@ func (s *Server) correctionInput(in generated.TransactionCorrection) (ledger.Cor
 		c.ReceiptItems = &change
 	}
 	if in.Allocation != nil {
-		allocation, err := s.allocationInput(*in.Allocation)
+		allocation, err := AllocationFromDTO(*in.Allocation)
 		if err != nil {
 			return c, err
 		}
@@ -211,7 +211,7 @@ func (s *Server) allocate(w http.ResponseWriter, r *http.Request) {
 		s.problem(w, err)
 		return
 	}
-	allocation, err := s.allocationInput(input.Allocation)
+	allocation, err := AllocationFromDTO(input.Allocation)
 	if err != nil {
 		s.problem(w, err)
 		return
@@ -219,7 +219,7 @@ func (s *Server) allocate(w http.ResponseWriter, r *http.Request) {
 	items := []ledger.ItemAllocationInput{}
 	if input.Items != nil {
 		for _, item := range *input.Items {
-			value, parseErr := s.allocationInput(item.Allocation)
+			value, parseErr := AllocationFromDTO(item.Allocation)
 			if parseErr != nil {
 				s.problem(w, parseErr)
 				return

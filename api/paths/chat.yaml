@@ -272,7 +272,7 @@
       content:
         application/json:
           schema:
-            "$ref": "../schemas/transactions.yaml#/AllocationChange"
+            "$ref": "../schemas/chat.yaml#/ReceiptAllocationChange"
 "/threads":
   get:
     operationId: chat_thread
@@ -573,3 +573,79 @@
         application/json:
           schema:
             "$ref": "../schemas/chat.yaml#/ProposalDecision"
+
+"/receipts":
+  post:
+    operationId: receipts_create
+    tags: [receipts]
+    summary: Process or clarify one receipt payment
+    x-command-type: receipts.create
+    parameters:
+    - { $ref: "../components.yaml#/parameters/IdempotencyKey" }
+    - { $ref: "../components.yaml#/parameters/CSRF" }
+    responses:
+      '202':
+        description: Command registered; recover the same command ID after an unknown result.
+        content:
+          application/json:
+            schema: { $ref: '../schemas/commands.yaml#/CommandStatus' }
+      '400': { $ref: '../components.yaml#/responses/Problem' }
+      '401': { $ref: '../components.yaml#/responses/Problem' }
+      '403': { $ref: '../components.yaml#/responses/Problem' }
+      '404': { $ref: '../components.yaml#/responses/Problem' }
+      '409': { $ref: '../components.yaml#/responses/Problem' }
+      '410':
+        description: Expired command detail; authorized compact outcome may be recovered without execution.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/commands.yaml#/ExpiredCommand'
+      '422': { $ref: '../components.yaml#/responses/Problem' }
+      '429': { $ref: '../components.yaml#/responses/Problem' }
+      '500': { $ref: '../components.yaml#/responses/Problem' }
+      '503': { $ref: '../components.yaml#/responses/Problem' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../schemas/chat.yaml#/ReceiptCreate" }
+
+"/receipts/{receiptId}/answers":
+  post:
+    operationId: receipts_answer
+    tags: [receipts]
+    summary: Process or clarify one receipt payment
+    x-command-type: receipts.answer
+    parameters:
+    - name: receiptId
+      in: path
+      required: true
+      schema: { $ref: "../schemas/money.yaml#/ID" }
+    - { $ref: "../components.yaml#/parameters/IdempotencyKey" }
+    - { $ref: "../components.yaml#/parameters/CSRF" }
+    responses:
+      '202':
+        description: Command registered; recover the same command ID after an unknown result.
+        content:
+          application/json:
+            schema: { $ref: '../schemas/commands.yaml#/CommandStatus' }
+      '400': { $ref: '../components.yaml#/responses/Problem' }
+      '401': { $ref: '../components.yaml#/responses/Problem' }
+      '403': { $ref: '../components.yaml#/responses/Problem' }
+      '404': { $ref: '../components.yaml#/responses/Problem' }
+      '409': { $ref: '../components.yaml#/responses/Problem' }
+      '410':
+        description: Expired command detail; authorized compact outcome may be recovered without execution.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/commands.yaml#/ExpiredCommand'
+      '422': { $ref: '../components.yaml#/responses/Problem' }
+      '429': { $ref: '../components.yaml#/responses/Problem' }
+      '500': { $ref: '../components.yaml#/responses/Problem' }
+      '503': { $ref: '../components.yaml#/responses/Problem' }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "../schemas/chat.yaml#/ReceiptAnswer" }

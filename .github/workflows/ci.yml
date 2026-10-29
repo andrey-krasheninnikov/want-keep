@@ -224,6 +224,14 @@ jobs:
           make test-integration AREA=family-allocation
           make test-family-allocation-race
 
+      - name: Verify receipt extraction, matching and concurrent answers
+        env:
+          WANT_KEEP_TEST_DATABASE_URL: postgres://postgres:synthetic-admin@127.0.0.1:5432/want_keep_test?sslmode=disable
+        run: |
+          make test-integration AREA=receipts
+          make test-receipts-race
+          make eval-ai SUITE=receipts MODE=offline
+
       - name: Verify refunds, historical allocations and concurrent caps
         env:
           WANT_KEEP_TEST_DATABASE_URL: postgres://postgres:synthetic-admin@127.0.0.1:5432/want_keep_test?sslmode=disable

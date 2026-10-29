@@ -43,6 +43,7 @@ type Revision struct {
 	Merchant, Note, AttachmentID, AllocationReason string
 	CategoryID, MerchantID                         string
 	OccurredAt                                     calendar.Instant
+	OccurredPrecision                              string
 	CashDate                                       calendar.Date
 	ExpenseMonth                                   calendar.Month
 	HumanOverride                                  bool
@@ -54,6 +55,9 @@ type Revision struct {
 }
 
 func (r Revision) Validate() error {
+	if r.OccurredPrecision != "" && r.OccurredPrecision != "day" && r.OccurredPrecision != "second" {
+		return ErrInvalidRevision
+	}
 	if r.Correspondence != nil && r.Correspondence.Validate() != nil {
 		return ErrInvalidRevision
 	}
@@ -82,7 +86,7 @@ func (r Revision) Validate() error {
 	if utf8.RuneCountInString(r.Merchant) > 2000 || utf8.RuneCountInString(r.Note) > 2000 || utf8.RuneCountInString(r.AllocationReason) > 2000 {
 		return ErrInvalidRevision
 	}
-	if r.Origin != "" && r.Origin != "manual" && r.Origin != "source" {
+	if r.Origin != "" && r.Origin != "manual" && r.Origin != "source" && r.Origin != "receipt" {
 		return ErrInvalidRevision
 	}
 	if r.FeeKnowledge != "" && r.FeeKnowledge != KnownFees && r.FeeKnowledge != UnknownFees {

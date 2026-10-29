@@ -81,3 +81,39 @@ func (i Instant) DateIn(zone Timezone) (Date, error) {
 	}
 	return ParseDate(i.value.In(location).Format(time.DateOnly))
 }
+
+// StartIn returns the earliest existing instant of the local calendar date.
+func (d Date) StartIn(timezone Timezone) (Instant, error) {
+	validated, err := ParseTimezone(timezone.String())
+	if err != nil {
+		return Instant{}, err
+	}
+	zone, err := time.LoadLocation(validated.String())
+	if err != nil {
+		return Instant{}, ErrInvalidTime
+	}
+	date, err := time.Parse(time.DateOnly, d.String())
+	if err != nil {
+		return Instant{}, ErrInvalidTime
+	}
+	// Visit UTC offset intervals in order: a midnight gap begins at the transition,
+	// while a repeated midnight uses its first occurrence. A skipped whole date has no candidate.
+	end := date.Add(72 * time.Hour)
+	for start := date.Add(-48 * time.Hour); start.Before(end); {
+		local := start.In(zone)
+		_, offset := local.Zone()
+		_, bound := local.ZoneBounds()
+		if bound.IsZero() || bound.After(end) {
+			bound = end
+		}
+		candidate := date.Add(-time.Duration(offset) * time.Second)
+		if candidate.Before(start) {
+			candidate = start
+		}
+		if candidate.Before(bound) && candidate.In(zone).Format(time.DateOnly) == d.String() {
+			return ParseInstant(candidate.UTC().Format(time.RFC3339Nano))
+		}
+		start = bound
+	}
+	return Instant{}, ErrInvalidTime
+}

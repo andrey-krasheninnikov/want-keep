@@ -44,4 +44,11 @@ func TestCalendarAndUTCInstant(t *testing.T) {
 	if _, err := (calendar.Instant{}).DateIn(zone); err == nil {
 		t.Fatal("uninitialized instant accepted")
 	}
+	if _, err := date.StartIn(calendar.Timezone{}); err == nil {
+		t.Fatal("uninitialized timezone accepted")
+	}
+	if _, err := (calendar.Date{}).StartIn(zone); err == nil {
+		t.Fatal("uninitialized date accepted")
+	}
+
 }

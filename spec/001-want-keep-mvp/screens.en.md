@@ -972,7 +972,7 @@ Task: [task-7.14](tasks/task-7.14.md).
 
 **Fields:** Photo/PDF, required debit account including cash; items, discounts, categories, personal/shared and percentage or amount shares.
 
-**Validation and permissions:** Either member; file limits follow the contract. Task-2.6 atomically validates items, assets and discounts against one payment, allocates a known receipt-wide discount deterministically and requires clarification for incomplete data. Task-5.3/2.4/2.8 own OCR/PDF, matching and personal/shared shares.
+**Validation and permissions:** Require a household account and an accepted attachment after the 10 MiB/10-page checks. POST /receipts returns a command; GET /receipts/{id} exposes processing/waiting_ai/clarification/skipped/recorded/linked. Answers check expectedRevision; matching includes the current transaction revision. Items and discounts reconcile exactly; shares use existing ledger allocation. A refund requires the original purchase and its revision; the financial result and audit are atomic. UI and shared chat remain task-5.4/task-7.1.
 
 **Outcome:** Created/linked to existing/awaiting clarification/document unsuitable with reason. One confirmed debit.
 

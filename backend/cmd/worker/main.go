@@ -15,6 +15,8 @@ import (
 	accounts "github.com/pchkauu/want-keep/backend/internal/accounts/application"
 	ai "github.com/pchkauu/want-keep/backend/internal/ai/application"
 	allocation "github.com/pchkauu/want-keep/backend/internal/allocation/application"
+	attachments "github.com/pchkauu/want-keep/backend/internal/attachments/application"
+	"github.com/pchkauu/want-keep/backend/internal/attachments/files"
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
 	connectionaccess "github.com/pchkauu/want-keep/backend/internal/connections/access"
 	"github.com/pchkauu/want-keep/backend/internal/connections/admission"
@@ -31,6 +33,7 @@ import (
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/application"
 	matching "github.com/pchkauu/want-keep/backend/internal/matching/application"
 	"github.com/pchkauu/want-keep/backend/internal/privacy/cryptobox"
+	receipts "github.com/pchkauu/want-keep/backend/internal/receipts/application"
 	reconciliation "github.com/pchkauu/want-keep/backend/internal/reconciliation/application"
 	"github.com/pchkauu/want-keep/backend/internal/storage"
 	valuationapp "github.com/pchkauu/want-keep/backend/internal/valuation/application"
@@ -109,6 +112,8 @@ func run() error {
 	rateService := valuationapp.Service{Repository: db, Sources: ratesource.New(&http.Client{Timeout: 3 * time.Second}, os.Getenv("WANT_KEEP_COINGECKO_KEY_FILE"), db), Now: time.Now}
 	valuationService := valuationapp.SnapshotPreparer{Rates: rateService, Repository: db, Now: time.Now}
 	var aiHandler jobs.Handler = ai.WaitingHandler{}
+	var receiptHandler jobs.Handler = ai.WaitingHandler{}
+	var receiptGateway *openaigateway.Client
 	var aiBudgetQueue *ai.BudgetQueue
 	var aiGatewayQueue *ai.GatewayQueue
 	if keyFile := os.Getenv("WANT_KEEP_OPENAI_API_KEY_FILE"); keyFile != "" {
@@ -121,6 +126,7 @@ func run() error {
 			report(jobs.Diagnostic{Kind: domain.AI, Stage: "startup", Code: "gateway_configuration_invalid"})
 		} else {
 			aiHandler = ai.NewHandler(db, gateway, time.Now, uuid.NewString)
+			receiptGateway, _ = gateway.ReceiptPages()
 			aiBudgetQueue = ai.NewBudgetQueue(db, time.Now, time.Minute)
 			aiGatewayQueue = ai.NewGatewayQueue(db, time.Minute)
 		}
@@ -154,12 +160,26 @@ func run() error {
 	matchingService := matching.NewService(db, reviewWriter, now, uuid.NewString)
 	allocationService := allocation.NewService(db, now, uuid.NewString)
 	reviewService := ai.NewReviewService(db, ledger.NewServiceWithAllocations(db, matchingService, allocationService, now, uuid.NewString), matchingService, uuid.NewString)
-	for _, kind := range []domain.Kind{domain.Sync, domain.Outbox, domain.AI, domain.AIAnswer, domain.AIValidation} {
+	receiptService := receipts.NewService(db, ledger.NewServiceWithAllocations(db, matchingService, allocationService, now, uuid.NewString), expenses.NewService(db, matchingService, now, uuid.NewString), matchingService, time.Now, uuid.NewString)
+	attachmentKeys, _ := cryptobox.Load(os.Getenv("WANT_KEEP_ATTACHMENT_KEYRING"), "attachments")
+	receiptBlobs, _ := files.Open(os.Getenv("WANT_KEEP_ATTACHMENT_DIRECTORY"), attachmentKeys)
+	if receiptBlobs != nil {
+		defer receiptBlobs.Close()
+		if receiptGateway != nil {
+			documents := attachments.NewService(db, receiptBlobs, nil)
+			receiptHandler = ai.NewPageHandler(db, receiptGateway, receipts.Pages{Repository: db, Documents: documents}, time.Now, uuid.NewString)
+		}
+	}
+	for _, kind := range []domain.Kind{domain.Sync, domain.Outbox, domain.AI, domain.AIAnswer, domain.AIValidation, domain.ReceiptExtract, domain.ReceiptValidation} {
 		var handler jobs.Handler
 		if kind == domain.Sync {
 			handler = syncHandler
 		} else if kind == domain.Outbox {
 			handler = jobs.OutboxHandler{Repository: db, Reconciliation: reconciliationService, Valuation: valuationService}
+		} else if kind == domain.ReceiptExtract {
+			handler = receiptHandler
+		} else if kind == domain.ReceiptValidation {
+			handler = receiptService
 		} else if kind.ProviderCall() {
 			handler = aiHandler
 		} else if kind == domain.AIValidation {

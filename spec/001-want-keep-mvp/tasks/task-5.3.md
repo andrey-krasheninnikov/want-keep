@@ -5,7 +5,7 @@
 
 Извлекать подтверждаемые данные чека и связывать их с одной оплатой.
 
-**Состояние:** Открыта; ready-for-agent. Описание готово к реализации; начало зависит от незакрытых задач и условий ниже. Метка не подтверждает выполнение, live-допуск или разрешение на production; SDD Ready не является блокером.
+**Состояние:** Backend/API реализованы; локальная и ограниченная live-проверка отделены от UI и эксплуатационного допуска.
 
 **Зависимости:** `task-5.2`, `task-1.5`, `task-2.7`.
 
@@ -15,7 +15,7 @@
 
 ### Текущее поведение
 
-Приватные вложения, журнал операций, проверка версий и gateway с контролем расходов включены в базу. Обработка чеков, общий чат и продуктовые инсайты имеют отдельные критерии приёмки.
+Backend извлекает факты безопасных raster-страниц, сохраняет результат, проверяет точную арифметику и создаёт одну оплату либо версионное уточнение. Повтор файла объединяет доказательства; возможное совпадение подтверждает участник. Распределения и возвраты используют существующих владельцев поведения. Открытые зависимости task-5.2/task-1.5/task-2.7 закрыты.
 
 ### Требуемое поведение
 
@@ -39,6 +39,13 @@
 
 - `backend/internal/receipts/`
 - `backend/internal/attachments/`
+- `backend/internal/ai/application/`
+- `backend/internal/gateways/openai/`
+- `backend/internal/ledger/application/receipt.go`
+- `backend/internal/storage/`
+- `backend/internal/delivery/receipts/`
+- `backend/migrations/025_receipt_processing.sql`
+- `api/`
 
 Пути планируемые. Общие контракты — `spec/001-want-keep-mvp/contracts.md`, архитектура/команды — `constraints.md`. Менять владельца поведения и его тесты; незакрытый контракт останавливает зависимую работу.
 
@@ -134,12 +141,12 @@
 ### Проверка результата
 
 ```sh
-make test-integration AREA=receipts && make eval-ai SUITE=receipts
+make test-integration AREA=receipts && make test-receipts-race && make eval-ai SUITE=receipts && make check
 ```
 
 Валидные, частичные, повторные и вредоносные документы проходят требуемые состояния; итог распределения равен оплате.
 
-Команды Make являются интерфейсами проверки; наличие target не доказывает реализацию соответствующей suite. Если требуемой suite ещё нет, реализовать её в рамках задачи; отсутствие suite не считается успешной проверкой. Фиксировать фактический результат каждого прогона. make docs-check проверяет документацию и исследовательские инструменты, но не финансовый runtime, браузеры или production. Live/manual-проверки, доступ и расходы фиксируются отдельно.
+Доказательства и ограничения: evidence/task-5.3-receipts.md. Новая PostgreSQL suite receipts и offline extraction suite реализованы; live-проверка использует только синтетические RU/EN фото и PDF в отдельном лимите $2. Общий чат, экраны, реальные документы и production не объявляются проверенными.
 
 ### Передача следующему агенту
 
@@ -151,7 +158,7 @@ make test-integration AREA=receipts && make eval-ai SUITE=receipts
 
 Extract verifiable receipt data and link it to one payment.
 
-**Status:** Open; ready-for-agent. The description is ready for implementation; open prerequisites and the entry conditions below govern execution. The label does not establish completion, live admission or production authorization; SDD Ready is not a blocker.
+**Status:** Backend/API implemented; local and bounded live verification are separate from UI and operational admission.
 
 **Dependencies:** `task-5.2`, `task-1.5`, `task-2.7`.
 
@@ -161,7 +168,7 @@ Extract verifiable receipt data and link it to one payment.
 
 ### Current behavior
 
-Private attachments, the transaction ledger, revision checks and the budget-controlled gateway are included in the base. Receipt processing, shared chat and product insights have separate acceptance criteria.
+The backend extracts facts from safe raster pages, persists outcomes, validates exact arithmetic and records one payment or a revisioned clarification. File replays combine evidence; a member confirms possible matches. Allocation and refunds use the existing behavior owners. Prerequisites task-5.2/task-1.5/task-2.7 are closed.
 
 ### Desired behavior
 
@@ -185,6 +192,13 @@ Do not change the agreed model or spending cap, or expose secrets or payment too
 
 - `backend/internal/receipts/`
 - `backend/internal/attachments/`
+- `backend/internal/ai/application/`
+- `backend/internal/gateways/openai/`
+- `backend/internal/ledger/application/receipt.go`
+- `backend/internal/storage/`
+- `backend/internal/delivery/receipts/`
+- `backend/migrations/025_receipt_processing.sql`
+- `api/`
 
 Paths are planned. Shared contracts are in `spec/001-want-keep-mvp/contracts.en.md`; architecture/commands are in `constraints.en.md`. Change the behavior owner and its tests; an unresolved contract stops dependent work.
 
@@ -280,12 +294,12 @@ A link establishes coverage but does not prove the whole criterion; verification
 ### Verification
 
 ```sh
-make test-integration AREA=receipts && make eval-ai SUITE=receipts
+make test-integration AREA=receipts && make test-receipts-race && make eval-ai SUITE=receipts && make check
 ```
 
 Valid, partial, repeated and malicious documents follow required states; allocation total equals payment.
 
-Make commands are verification interfaces; the existence of a target does not establish an implemented suite. If a required suite is missing, implement it as part of the task; a missing suite is not a passing check. Record the actual outcome of each run. make docs-check validates documentation and research tooling, not financial runtime, browsers or production. Record live/manual checks, access and costs separately.
+Evidence and limitations: evidence/task-5.3-receipts.en.md. The PostgreSQL receipts suite and offline extraction suite are implemented; live verification uses synthetic RU/EN images and PDF only, under a separate USD 2 cap. Shared chat, screens, real documents and production are not claimed as verified.
 
 ### Handoff to the next agent
 
