@@ -130,13 +130,15 @@ test("calendar validation and selection inside a dialog restore focus", async ({
   await trigger.click();
   const calendar = page.locator('[data-slot="date-popover"]');
   await expect(calendar).toBeVisible();
-  await expect(calendar.locator("button:focus")).toHaveCount(1);
+  await expect(calendar.locator('[data-day="2024-02-29"]')).toBeFocused();
   await page.keyboard.press("ArrowLeft");
+  await expect(calendar.locator('[data-day="2024-02-28"]')).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(input).toHaveValue("28.02.2024");
   await expect(trigger).toBeFocused();
   await dialog.getByRole("combobox", { name: "Актив" }).click();
   await page.getByRole("option", { name: "BTC", exact: true }).click();
+  await expect(page.getByRole("listbox")).not.toBeVisible();
   await expect(dialog.getByRole("combobox", { name: "Актив" })).toContainText(
     "BTC",
   );
