@@ -1139,6 +1139,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/receipts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Process or clarify one receipt payment */
+    post: operations["receipts_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/receipts/{receiptId}": {
     parameters: {
       query?: never;
@@ -1167,6 +1184,23 @@ export interface paths {
     put?: never;
     /** receipts allocate */
     post: operations["receipts_allocate"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/receipts/{receiptId}/answers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Process or clarify one receipt payment */
+    post: operations["receipts_answer"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3204,8 +3238,11 @@ export interface components {
     Receipt: {
       accountId: components["schemas"]["ID"];
       attachmentId: components["schemas"]["ID"];
+      candidates?: components["schemas"]["ReceiptCandidate"][];
+      confirmed?: components["schemas"]["ReceiptFacts"];
       id: components["schemas"]["ID"];
       items: components["schemas"]["ReceiptItem"][];
+      pages?: components["schemas"]["ReceiptPage"][];
       reason?: string;
       revision: components["schemas"]["Revision"];
       /** @enum {string} */
@@ -3221,6 +3258,53 @@ export interface components {
         | "waiting_ai";
       total: components["schemas"]["AmountValue"];
       transactionId?: components["schemas"]["ID"];
+      transactionRevision?: components["schemas"]["Revision"];
+    };
+    ReceiptAllocationChange: {
+      allocation: components["schemas"]["ExpenseAllocation"];
+      expectedRevision: components["schemas"]["Revision"];
+      items?: components["schemas"]["AllocationItemOverride"][];
+      reason: string;
+      subjectExpectedRevision: components["schemas"]["Revision"];
+    };
+    ReceiptAnswer: {
+      /** @enum {boolean} */
+      distinct?: true;
+      expectedRevision: components["schemas"]["Revision"];
+      facts?: components["schemas"]["ReceiptFacts"];
+      match?: components["schemas"]["ReceiptCandidate"];
+      purchase?: components["schemas"]["ReceiptCandidate"];
+      refundItems?: components["schemas"]["ReceiptRefundItem"][];
+    } & (unknown | unknown | unknown | unknown);
+    ReceiptCandidate: {
+      id: components["schemas"]["ID"];
+      revision: components["schemas"]["Revision"];
+    };
+    ReceiptCreate: {
+      accountId: components["schemas"]["ID"];
+      attachmentId: components["schemas"]["ID"];
+    };
+    ReceiptExtractionItem: {
+      discount?: components["schemas"]["Decimal"];
+      gross: components["schemas"]["Decimal"];
+      name: string;
+      quantity: components["schemas"]["PositiveDecimal"];
+    };
+    ReceiptFacts: {
+      asset?: components["schemas"]["Asset"];
+      date?: components["schemas"]["Date"];
+      discount?: components["schemas"]["Decimal"];
+      /** @enum {string} */
+      document: "receipt" | "irrelevant" | "uncertain" | "mixed";
+      items: components["schemas"]["ReceiptExtractionItem"][];
+      /** @enum {string} */
+      kind: "expense" | "refund" | "unknown";
+      merchant?: string;
+      paid?: boolean;
+      reason: string;
+      reference?: string;
+      time?: string;
+      total?: components["schemas"]["Decimal"];
     };
     ReceiptItem: {
       allocation: components["schemas"]["AllocationSnapshot"];
@@ -3246,6 +3330,16 @@ export interface components {
       action: "replace" | "clear";
       items?: components["schemas"]["ReceiptItemInput"][];
       totalDiscount?: components["schemas"]["Money"];
+    };
+    ReceiptPage: {
+      extraction?: components["schemas"]["ReceiptFacts"];
+      page: number;
+      /** @enum {string} */
+      state: "pending" | "extracted" | "failed";
+    };
+    ReceiptRefundItem: {
+      amount: components["schemas"]["PositiveDecimal"];
+      itemId: components["schemas"]["ID"];
     };
     Reconciliation: {
       accountId: components["schemas"]["ID"];
@@ -3721,8 +3815,13 @@ export interface components {
       merchantId?: components["schemas"]["ID"];
       note?: string;
       occurredAt: components["schemas"]["Instant"];
+      /**
+       * @description Day precision uses a calendar anchor, not an observed purchase time.
+       * @enum {string}
+       */
+      occurredAtPrecision?: "day" | "second";
       /** @enum {string} */
-      origin: "manual" | "source" | "legacy";
+      origin: "manual" | "source" | "receipt" | "legacy";
       originalTransactionId?: components["schemas"]["ID"];
       participation?: components["schemas"]["EffectParticipation"];
       payer: components["schemas"]["Payer"];
@@ -6939,6 +7038,53 @@ export interface operations {
       503: components["responses"]["Problem"];
     };
   };
+  receipts_create: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated before submission. Unique within household + actor; same ID is used for status lookup. A different operation or payload with the same key is rejected. */
+        "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+        /** @description Session-bound token; validate Origin as well. Exceptions use ceremony-bound challenge/state. */
+        "X-CSRF-Token": components["parameters"]["CSRF"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReceiptCreate"];
+      };
+    };
+    responses: {
+      /** @description Command registered; recover the same command ID after an unknown result. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommandStatus"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      401: components["responses"]["Problem"];
+      403: components["responses"]["Problem"];
+      404: components["responses"]["Problem"];
+      409: components["responses"]["Problem"];
+      /** @description Expired command detail; authorized compact outcome may be recovered without execution. */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ExpiredCommand"];
+        };
+      };
+      422: components["responses"]["Problem"];
+      429: components["responses"]["Problem"];
+      500: components["responses"]["Problem"];
+      503: components["responses"]["Problem"];
+    };
+  };
   receipts_read: {
     parameters: {
       query?: never;
@@ -6986,11 +7132,60 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["AllocationChange"];
+        "application/json": components["schemas"]["ReceiptAllocationChange"];
       };
     };
     responses: {
       /** @description Registered command. Inspect its stable ID after timeout; do not create a new key. Financial effect and successful result commit atomically. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommandStatus"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      401: components["responses"]["Problem"];
+      403: components["responses"]["Problem"];
+      404: components["responses"]["Problem"];
+      409: components["responses"]["Problem"];
+      /** @description Expired command detail; authorized compact outcome may be recovered without execution. */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ExpiredCommand"];
+        };
+      };
+      422: components["responses"]["Problem"];
+      429: components["responses"]["Problem"];
+      500: components["responses"]["Problem"];
+      503: components["responses"]["Problem"];
+    };
+  };
+  receipts_answer: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated before submission. Unique within household + actor; same ID is used for status lookup. A different operation or payload with the same key is rejected. */
+        "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+        /** @description Session-bound token; validate Origin as well. Exceptions use ceremony-bound challenge/state. */
+        "X-CSRF-Token": components["parameters"]["CSRF"];
+      };
+      path: {
+        receiptId: components["schemas"]["ID"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReceiptAnswer"];
+      };
+    };
+    responses: {
+      /** @description Command registered; recover the same command ID after an unknown result. */
       202: {
         headers: {
           [name: string]: unknown;

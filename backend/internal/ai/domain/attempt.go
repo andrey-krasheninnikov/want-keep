@@ -96,11 +96,15 @@ type Request struct {
 	Qualification                                           Qualification
 	PromptFingerprint, SchemaFingerprint, ConfigFingerprint string
 	Input                                                   json.RawMessage
+	Image                                                   []byte
 	MaximumOutputTokens                                     int64
 }
 
 func (r Request) Validate() error {
 	maximumInput, maximumOutput := r.Purpose.Limits()
+	if len(r.Image) > 17*1024*1024 || ((len(r.Image) > 0) != (r.Purpose == ReceiptPage)) {
+		return ErrInvalidAttempt
+	}
 	if r.ID == "" || r.JobID == "" || r.ResourceID == "" || r.HouseholdID == "" || r.ActorID == "" || r.ResourceRevision < 1 || !r.Purpose.Valid() || r.Model != Terra || r.Qualification != TerraXHigh || r.MaximumOutputTokens < 1 || r.MaximumOutputTokens > maximumOutput || maximumInput == 0 || !json.Valid(r.Input) || len(r.Input) == 0 || len(r.Input) > 1<<20 {
 		return ErrInvalidAttempt
 	}

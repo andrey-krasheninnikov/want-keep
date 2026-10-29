@@ -162,3 +162,20 @@ func TestFundingBasisPreservesUncertainty(t *testing.T) {
 		}
 	}
 }
+
+func TestReceiptDatePrecisionParticipatesInCorrectionAndUndo(t *testing.T) {
+	r := (examples{}).expense()
+	r.OccurredPrecision = "day"
+	next, fields, err := r.Correct(ledger.Correction{OccurredAt: &r.OccurredAt})
+	if err != nil || len(fields) != 1 || fields[0] != ledger.DateField || next.OccurredPrecision != "second" {
+		t.Fatal("explicit time did not replace date-only anchor", err)
+	}
+	next.CopyField(r, ledger.DateField)
+	if !next.FieldEqual(r, ledger.DateField) || next.OccurredPrecision != "day" {
+		t.Fatal("date undo lost precision")
+	}
+	r.OccurredPrecision = ""
+	if _, _, err = r.Correct(ledger.Correction{OccurredAt: &r.OccurredAt}); !errors.Is(err, ledger.ErrNoChange) {
+		t.Fatal("legacy timestamp changed precision on replay", err)
+	}
+}

@@ -98,6 +98,10 @@ func (s *Server) transactionDTO(p household.Principal, v application.View) (gene
 		}
 		out.ProtectedFields = append(out.ProtectedFields, v)
 	}
+	if r.OccurredPrecision != "" {
+		precision := generated.TransactionOccurredAtPrecision(r.OccurredPrecision)
+		out.OccurredAtPrecision = &precision
+	}
 	if r.Origin != "" {
 		out.Origin = generated.TransactionOrigin(r.Origin)
 	}
@@ -126,7 +130,7 @@ func (s *Server) transactionDTO(p household.Principal, v application.View) (gene
 		out.MerchantId = &r.MerchantID
 	}
 	for _, item := range r.ReceiptItems {
-		dto, err := receiptItemDTO(item)
+		dto, err := ReceiptItemToDTO(item)
 		if err != nil {
 			return out, err
 		}
@@ -222,7 +226,7 @@ func (s *Server) transactionDTO(p household.Principal, v application.View) (gene
 	return out, nil
 }
 
-func receiptItemDTO(item ledger.ReceiptItem) (generated.ReceiptItem, error) {
+func ReceiptItemToDTO(item ledger.ReceiptItem) (generated.ReceiptItem, error) {
 	common, err := receiptItemValues(item)
 	if err != nil {
 		return generated.ReceiptItem{}, err

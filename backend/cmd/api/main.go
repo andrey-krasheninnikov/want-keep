@@ -36,6 +36,7 @@ import (
 	connectiondelivery "github.com/pchkauu/want-keep/backend/internal/delivery/connections"
 	delivery "github.com/pchkauu/want-keep/backend/internal/delivery/identity"
 	ledgerdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/ledger"
+	receiptdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/receipts"
 	reconciliationdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reconciliation"
 	reimbursementdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/reimbursements"
 	reviewdelivery "github.com/pchkauu/want-keep/backend/internal/delivery/review"
@@ -48,6 +49,7 @@ import (
 	ledger "github.com/pchkauu/want-keep/backend/internal/ledger/application"
 	matching "github.com/pchkauu/want-keep/backend/internal/matching/application"
 	"github.com/pchkauu/want-keep/backend/internal/privacy/cryptobox"
+	receipts "github.com/pchkauu/want-keep/backend/internal/receipts/application"
 	reconciliation "github.com/pchkauu/want-keep/backend/internal/reconciliation/application"
 	"github.com/pchkauu/want-keep/backend/internal/storage"
 	valuationapp "github.com/pchkauu/want-keep/backend/internal/valuation/application"
@@ -190,7 +192,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	receiptService := receipts.NewService(database, ledger.NewServiceWithAllocations(database, matchingService, allocationService, now, uuid.NewString), expenses.NewService(database, matchingService, now, uuid.NewString), matchingService, time.Now, uuid.NewString)
+	receiptHandler, err := receiptdelivery.New(receiptService, executor, queries, service, database, config, now)
+	if err != nil {
+		return err
+	}
 	mux := http.NewServeMux()
+	mux.Handle("/api/v1/receipts", receiptHandler)
+	mux.Handle("/api/v1/receipts/", receiptHandler)
 	mux.Handle("/api/v1/connections", connectionHandler)
 	mux.Handle("/api/v1/connections/", connectionHandler)
 	mux.Handle("/api/v1/clarifications", reviewHandler)

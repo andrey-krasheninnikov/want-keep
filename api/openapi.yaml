@@ -118,6 +118,10 @@ paths:
     "$ref": "./paths/chat.yaml#/~1attachments~1{attachmentId}~1preview~1{page}"
   "/system/privacy":
     "$ref": "./paths/chat.yaml#/~1system~1privacy"
+  "/receipts":
+    "$ref": "./paths/chat.yaml#/~1receipts"
+  "/receipts/{receiptId}/answers":
+    "$ref": "./paths/chat.yaml#/~1receipts~1{receiptId}~1answers"
   "/receipts/{receiptId}":
     "$ref": "./paths/chat.yaml#/~1receipts~1{receiptId}"
   "/receipts/{receiptId}/allocations":
@@ -545,6 +549,22 @@ components:
       "$ref": "./schemas/chat.yaml#/AttachmentPreviewPage"
     PrivacyStatus:
       "$ref": "./schemas/chat.yaml#/PrivacyStatus"
+    ReceiptRefundItem:
+      "$ref": "./schemas/chat.yaml#/ReceiptRefundItem"
+    ReceiptAllocationChange:
+      "$ref": "./schemas/chat.yaml#/ReceiptAllocationChange"
+    ReceiptCreate:
+      "$ref": "./schemas/chat.yaml#/ReceiptCreate"
+    ReceiptAnswer:
+      "$ref": "./schemas/chat.yaml#/ReceiptAnswer"
+    ReceiptCandidate:
+      "$ref": "./schemas/chat.yaml#/ReceiptCandidate"
+    ReceiptFacts:
+      "$ref": "./schemas/chat.yaml#/ReceiptFacts"
+    ReceiptExtractionItem:
+      "$ref": "./schemas/chat.yaml#/ReceiptExtractionItem"
+    ReceiptPage:
+      "$ref": "./schemas/chat.yaml#/ReceiptPage"
     Receipt:
       "$ref": "./schemas/chat.yaml#/Receipt"
     Message:

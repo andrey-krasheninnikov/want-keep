@@ -15,7 +15,7 @@ E2E_WEB_DIR ?= web
 
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap check format-check format-check-go lint typecheck test test-tooling build docs-check check-contracts generate-contracts generate-ai-runtime-contract check-ai-runtime-contract test-go test-web test-collector test-integration test-storage-race test-identity-race test-household-race test-accounts-race test-ledger-race test-audit-race test-matching-race test-categories-race test-family-allocation-race test-refunds-race test-family-reimbursements-race test-reconciliation-race test-jobs-race test-ingestion-race test-raiffeisen-race test-alfa-race test-ai-budget-race test-contract e2e eval-ai check-deploy backup-check restore-check
+.PHONY: help bootstrap check format-check format-check-go lint typecheck test test-tooling build docs-check check-contracts generate-contracts generate-ai-runtime-contract check-ai-runtime-contract test-go test-web test-collector test-integration test-storage-race test-identity-race test-household-race test-accounts-race test-ledger-race test-audit-race test-matching-race test-categories-race test-family-allocation-race test-refunds-race test-family-reimbursements-race test-reconciliation-race test-jobs-race test-ingestion-race test-raiffeisen-race test-alfa-race test-receipts-race test-ai-budget-race test-contract e2e eval-ai check-deploy backup-check restore-check
 
 help:
 	@echo "Want Keep repository commands"
@@ -84,7 +84,7 @@ generate-contracts:
 	sh scripts/generate-ingestion-contracts.sh
 
 generate-ai-runtime-contract:
-	$(PYTHON) scripts/generate-openai-runtime.py --output backend/internal/gateways/openai/runtime_contract.json
+	$(PYTHON) scripts/generate-openai-runtime.py --output backend/internal/gateways/openai/runtime_contract.json --receipt-output backend/internal/gateways/openai/receipt_contract.json
 
 check-ai-runtime-contract:
 	sh scripts/check-openai-runtime.sh
@@ -171,11 +171,17 @@ else
 endif
 
 eval-ai:
+ifeq ($(SUITE):$(MODE),receipts:live)
+	@test "$$WANT_KEEP_RECEIPTS_LIVE" = 1 || { echo "Live receipt evaluation requires explicit authorization and WANT_KEEP_RECEIPTS_LIVE=1." >&2; exit 2; }
+	cd backend && $(GO) test -count=1 -tags=integration ./test/integration/receipts -run '^TestLiveReceipts$$' -timeout 12m
+else
 	@if [ -z "$(SUITE)" ]; then echo "SUITE=<name|all> is required." >&2; exit 2; fi
 	@if [ "$(SUITE)" = "all" ]; then suite_path="backend/test/ai"; else suite_path="backend/test/ai/$(SUITE)"; fi; \
 		if [ ! -d "$$suite_path" ]; then echo "AI evaluation suite '$(SUITE)' is not implemented." >&2; exit 2; fi; \
 		if ! find "$$suite_path" -type f -name '*_test.go' -print -quit | grep -q .; then echo "AI evaluation suite '$(SUITE)' has no tests." >&2; exit 2; fi; \
 		cd backend && $(GO) test "./$${suite_path#backend/}/..."
+
+endif
 
 check-deploy:
 	@if [ ! -f deploy/compose.yaml ]; then echo "Deployment configuration is not implemented." >&2; exit 2; fi
@@ -230,3 +236,6 @@ test-ai-budget-race:
 .PHONY: test-ai-commands-race
 test-ai-commands-race:
 	cd backend && $(GO) test -count=1 -race -tags=integration ./test/integration/ai-commands/...
+
+test-receipts-race:
+	cd backend && $(GO) test -count=1 -race -tags=integration ./test/integration/receipts/...

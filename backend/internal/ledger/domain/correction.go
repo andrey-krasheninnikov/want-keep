@@ -65,6 +65,9 @@ func (r Revision) Correct(c Correction) (Revision, []Field, error) {
 	}
 	if c.OccurredAt != nil {
 		next.OccurredAt = *c.OccurredAt
+		if r.OccurredPrecision != "" {
+			next.OccurredPrecision = "second"
+		}
 		if !r.FieldEqual(next, DateField) {
 			fields = append(fields, DateField)
 		}

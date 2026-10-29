@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	account "github.com/pchkauu/want-keep/backend/internal/accounts/domain"
+	attachment "github.com/pchkauu/want-keep/backend/internal/attachments/domain"
 	calendar "github.com/pchkauu/want-keep/backend/internal/calendar/domain"
 	commands "github.com/pchkauu/want-keep/backend/internal/commands/application"
 	command "github.com/pchkauu/want-keep/backend/internal/commands/domain"
@@ -18,6 +19,7 @@ import (
 )
 
 type Repository interface {
+	Attachment(context.Context, household.Principal, string) (attachment.Attachment, error)
 	CurrentLedgerRevision(context.Context, household.Principal, string) (ledger.Revision, bool, error)
 	Account(context.Context, household.Principal, string) (account.Account, error)
 	AccountTimezone(context.Context, household.Principal) (calendar.Timezone, error)
@@ -70,6 +72,19 @@ func NewService(repository Repository, writer JournalWriter, now func() calendar
 }
 
 func (s *Service) Create(ctx context.Context, principal household.Principal, input CreateInput) (command.Result, error) {
+	return s.create(ctx, principal, input, "manual", "", "")
+}
+func (s *Service) CreateFromReceipt(ctx context.Context, p household.Principal, input CreateInput, attachmentID, precision string) (command.Result, error) {
+	a, err := s.repository.Attachment(ctx, p, attachmentID)
+	if err != nil || a.State != attachment.Accepted || a.Upload.AccountID != input.AccountID {
+		return command.Result{}, commands.Rejection{Code: "invalid_attachment"}
+	}
+	if precision != "day" && precision != "second" {
+		return command.Result{}, commands.Rejection{Code: "invalid_time"}
+	}
+	return s.create(ctx, p, input, "receipt", attachmentID, precision)
+}
+func (s *Service) create(ctx context.Context, principal household.Principal, input CreateInput, origin, attachmentID, precision string) (command.Result, error) {
 	if strings.TrimSpace(input.Reason) == "" || utf8.RuneCountInString(input.Reason) > 2000 || input.At.String() == "" || input.At.Time().After(s.now().Time()) || input.Amount.Validate() != nil || input.Amount.Sign() <= 0 || len(input.Items) > 1000 || len(input.Fees) > 1000 {
 		return command.Result{}, commands.Rejection{Code: "invalid_request"}
 	}
@@ -95,7 +110,11 @@ func (s *Service) Create(ctx context.Context, principal household.Principal, inp
 	}
 	operationID := s.newID()
 	recordedAt := s.now()
-	revision := ledger.Revision{OperationID: operationID, Revision: 1, ActorID: principal.UserID(), Reason: input.Reason, Type: ledger.Refund, State: ledger.Posted, OccurredAt: input.At, CashDate: date, ExpenseMonth: month, Timezone: zone, Origin: "manual", FeeKnowledge: ledger.KnownFees, PayerState: "not_applicable", AllocationReason: "refund_fee_allocation_unresolved", Postings: []ledger.Posting{{AccountID: input.AccountID, Money: input.Amount, Role: ledger.Principal, Treatment: ledger.Movement}}, RecordedAt: recordedAt, HumanOverride: true, Protections: map[ledger.Field]ledger.Protection{ledger.PrincipalField: {Revision: 1}, ledger.FeesField: {Revision: 1}, ledger.DateField: {Revision: 1}}, FieldVersions: map[ledger.Field]uint64{}}
+	revision := ledger.Revision{OperationID: operationID, Revision: 1, ActorID: principal.UserID(), Reason: input.Reason, Type: ledger.Refund, State: ledger.Posted, OccurredAt: input.At, CashDate: date, ExpenseMonth: month, Timezone: zone, Origin: "manual", FeeKnowledge: ledger.KnownFees, PayerState: "not_applicable", AllocationReason: "refund_fee_allocation_unresolved", Postings: []ledger.Posting{{AccountID: input.AccountID, Money: input.Amount, Role: ledger.Principal, Treatment: ledger.Movement}}, RecordedAt: recordedAt, HumanOverride: origin == "manual", Protections: map[ledger.Field]ledger.Protection{ledger.PrincipalField: {Revision: 1}, ledger.FeesField: {Revision: 1}, ledger.DateField: {Revision: 1}}, FieldVersions: map[ledger.Field]uint64{}}
+	revision.Origin, revision.AttachmentID, revision.OccurredPrecision = origin, attachmentID, precision
+	if origin == "receipt" {
+		revision.Protections = map[ledger.Field]ledger.Protection{}
+	}
 	for _, fee := range input.Fees {
 		if fee.Amount.Validate() != nil || fee.Amount.Sign() <= 0 {
 			return command.Result{}, commands.Rejection{Code: "invalid_money"}
